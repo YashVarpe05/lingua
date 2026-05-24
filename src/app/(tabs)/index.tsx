@@ -14,11 +14,19 @@ export default function Index() {
     ? languages.find((lang) => lang.id === selectedLanguageId) || null
     : null;
 
+export default function Index() {
+  const blurActiveElement = () => {
+    if (typeof document !== "undefined") {
+      const activeEl = document.activeElement;
+      if (activeEl instanceof HTMLElement) {
+        activeEl.blur();
+      }
+    }
+  };
+
   const handleSignOut = async () => {
     try {
-      if (typeof document !== "undefined") {
-        (document.activeElement as any)?.blur();
-      }
+      blurActiveElement();
       await signOut();
     } catch (err) {
       console.error("Failed to sign out:", err);

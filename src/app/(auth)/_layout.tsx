@@ -9,7 +9,15 @@ export default function AuthLayout() {
 	}
 
 	if (isSignedIn) {
-		return <Redirect href={"/" as any} />;
+import type { Href } from "expo-router";
+import { Redirect, Stack } from "expo-router";
+
+// ... (other code)
+
+	if (isSignedIn) {
+		const homeHref: Href = "/";
+		return <Redirect href={homeHref} />;
+	}
 	}
 
 	return <Stack screenOptions={{ headerShown: false }} />;

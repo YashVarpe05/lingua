@@ -15,10 +15,6 @@ User Prompt: $ARGUMENTS
 Before ANY POST / PATCH / PUT / DELETE, you MUST do ALL of the following in your response:
 
 1. **Check CLERK_SECRET_KEY** — verify it is set:
-   ```bash
-   echo $CLERK_SECRET_KEY | head -c 10
-   ```
-   If empty, stop and ask the user. Do not proceed without a valid key.
 
 2. **Check CLERK_BAPI_SCOPES** — run:
    ```bash

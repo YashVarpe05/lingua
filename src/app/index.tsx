@@ -1,8 +1,30 @@
 import { Text, View, Link, Pressable } from "@/tw";
+import { Image } from "@/tw/image";
 import { useAuth } from "@clerk/expo";
+import { languages } from "@/data/languages";
+import * as SecureStore from "expo-secure-store";
+import React, { useState, useEffect } from "react";
 
 export default function Index() {
   const { signOut } = useAuth();
+  const [selectedLanguage, setSelectedLanguage] = useState<typeof languages[0] | null>(null);
+
+  useEffect(() => {
+    const loadLanguage = async () => {
+      try {
+        const savedId = await SecureStore.getItemAsync("selected_language_id");
+        if (savedId) {
+          const found = languages.find((lang) => lang.id === savedId);
+          setSelectedLanguage(found || null);
+        } else {
+          setSelectedLanguage(null);
+        }
+      } catch (err) {
+        console.error("Failed to load selected language on index:", err);
+      }
+    };
+    loadLanguage();
+  }, []);
 
   const handleSignOut = async () => {
     try {
@@ -18,13 +40,32 @@ export default function Index() {
   return (
     <View className="flex-1 items-center justify-center p-6 bg-white">
       <Text className="h1 text-center text-neutral-primary mb-2">muolingo</Text>
-      <Text className="body-md text-center text-neutral-secondary mb-8">
-        Welcome to your AI language teacher app.
-      </Text>
+      
+      {selectedLanguage ? (
+        <View className="flex-row items-center bg-neutral-surface border border-neutral-border rounded-2xl p-4 mb-8 w-full max-w-[280px]">
+          <Image
+            source={{ uri: selectedLanguage.flag }}
+            className="w-10 h-10 rounded-full"
+            contentFit="cover"
+          />
+          <View className="ml-3 justify-center">
+            <Text className="font-poppins-semibold text-[15px] text-neutral-primary">
+              Learning {selectedLanguage.name}
+            </Text>
+            <Text className="font-poppins text-[12px] text-neutral-secondary mt-0.5">
+              {selectedLanguage.nativeName}
+            </Text>
+          </View>
+        </View>
+      ) : (
+        <Text className="body-md text-center text-neutral-secondary mb-8">
+          No language selected. Choose one to start!
+        </Text>
+      )}
       
       <View className="w-full max-w-[280px] gap-4">
         <Link
-          href="/onboarding"
+          href="/languages"
           onPress={() => {
             if (typeof document !== "undefined") {
               (document.activeElement as any)?.blur();
@@ -32,7 +73,21 @@ export default function Index() {
           }}
           className="btn-primary w-full"
         >
-          <Text className="btn-primary-text text-center">Open Onboarding</Text>
+          <Text className="btn-primary-text text-center">
+            {selectedLanguage ? "Change Language" : "Choose Language"}
+          </Text>
+        </Link>
+
+        <Link
+          href="/onboarding"
+          onPress={() => {
+            if (typeof document !== "undefined") {
+              (document.activeElement as any)?.blur();
+            }
+          }}
+          className="btn-ghost w-full"
+        >
+          <Text className="btn-ghost-text text-center">Open Onboarding</Text>
         </Link>
 
         <Pressable

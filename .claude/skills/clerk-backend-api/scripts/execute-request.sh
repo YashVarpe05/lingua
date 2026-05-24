@@ -17,10 +17,17 @@ _dir="$PWD"
 while true; do
   for _envfile in "$_dir/.env" "$_dir/.env.local"; do
     if [[ -f "$_envfile" ]]; then
-      set -a
-      source "$_envfile"
-      set +a
+      while IFS= read -r _line || [[ -n "$_line" ]]; do
+        [[ "$_line" =~ ^[[:space:]]*# ]] && continue
+        [[ "$_line" =~ ^(CLERK_SECRET_KEY|CLERK_BAPI_SCOPES|CLERK_REST_API_URL)= ]] || continue
+        _key="${_line%%=*}"
+        _val="${_line#*=}"
+        _val="${_val%$'\r'}"
+        printf -v "$_key" '%s' "$_val"
+        export "$_key"
+      done < "$_envfile"
     fi
+  done
   done
   [[ -n "${CLERK_SECRET_KEY:-}" ]] && break
   _parent="$(dirname "$_dir")"

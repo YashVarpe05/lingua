@@ -41,10 +41,11 @@ function RootLayoutNav() {
 
 		const inAuthGroup = segments[0] === "(auth)";
 		const inOnboarding = segments[0] === "onboarding";
+		const inSsoCallback = segments[0] === "sso-callback";
 
 		if (!isSignedIn) {
 			// If not signed in and not on onboarding or auth screens, redirect to onboarding
-			if (!inOnboarding && !inAuthGroup) {
+			if (!inOnboarding && !inAuthGroup && !inSsoCallback) {
 				router.replace("/onboarding" as any);
 			}
 		} else {

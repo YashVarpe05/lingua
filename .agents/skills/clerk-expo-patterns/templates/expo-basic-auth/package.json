@@ -1,0 +1,14 @@
+{
+  "name": "clerk-expo",
+  "scripts": { "start": "expo start" },
+  "dependencies": {
+    "dependencies": {
+      "`@clerk/expo`": "^3.0.0",
+      "expo": "~52.0.0",
+      "expo-router": "~4.0.0",
+      "expo-secure-store": "~14.0.0",
+      "react": "19.0.0",
+      "react-native": "0.76.0"
+    }
+  }
+}

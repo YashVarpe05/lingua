@@ -12,10 +12,12 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@clerk/expo": "^3.2.16",
     "@react-navigation/bottom-tabs": "^7.15.5",
     "@react-navigation/elements": "^2.9.10",
     "@react-navigation/native": "^7.1.33",
     "expo": "~55.0.24",
+    "expo-auth-session": "~55.0.16",
     "expo-constants": "~55.0.16",
     "expo-device": "~55.0.17",
     "expo-font": "~55.0.7",
@@ -23,6 +25,7 @@
     "expo-image": "~55.0.10",
     "expo-linking": "~55.0.15",
     "expo-router": "~55.0.14",
+    "expo-secure-store": "~55.0.14",
     "expo-splash-screen": "~55.0.21",
     "expo-status-bar": "~55.0.6",
     "expo-symbols": "~55.0.8",

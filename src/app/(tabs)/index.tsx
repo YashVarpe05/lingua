@@ -2,29 +2,17 @@ import { Text, View, Link, Pressable } from "@/tw";
 import { Image } from "@/tw/image";
 import { useAuth } from "@clerk/expo";
 import { languages } from "@/data/languages";
-import * as SecureStore from "expo-secure-store";
-import React, { useState, useEffect } from "react";
+import React from "react";
+import { useLanguageStore } from "@/store/useLanguageStore";
 
 export default function Index() {
   const { signOut } = useAuth();
-  const [selectedLanguage, setSelectedLanguage] = useState<typeof languages[0] | null>(null);
+  const selectedLanguageId = useLanguageStore((state) => state.selectedLanguageId);
+  const clearStorage = useLanguageStore((state) => state.clearStorage);
 
-  useEffect(() => {
-    const loadLanguage = async () => {
-      try {
-        const savedId = await SecureStore.getItemAsync("selected_language_id");
-        if (savedId) {
-          const found = languages.find((lang) => lang.id === savedId);
-          setSelectedLanguage(found || null);
-        } else {
-          setSelectedLanguage(null);
-        }
-      } catch (err) {
-        console.error("Failed to load selected language on index:", err);
-      }
-    };
-    loadLanguage();
-  }, []);
+  const selectedLanguage = selectedLanguageId
+    ? languages.find((lang) => lang.id === selectedLanguageId) || null
+    : null;
 
   const handleSignOut = async () => {
     try {
@@ -34,6 +22,14 @@ export default function Index() {
       await signOut();
     } catch (err) {
       console.error("Failed to sign out:", err);
+    }
+  };
+
+  const handleClearStorage = async () => {
+    try {
+      await clearStorage();
+    } catch (err) {
+      console.error("Failed to clear storage:", err);
     }
   };
 
@@ -95,6 +91,13 @@ export default function Index() {
           className="btn-secondary w-full"
         >
           <Text className="btn-secondary-text text-center">Sign Out</Text>
+        </Pressable>
+
+        <Pressable
+          onPress={handleClearStorage}
+          className="btn-ghost w-full"
+        >
+          <Text className="btn-ghost-text text-center">Clear Storage</Text>
         </Pressable>
       </View>
     </View>

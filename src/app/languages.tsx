@@ -14,7 +14,7 @@ import { Text, View, Pressable } from "@/tw";
 import { Image } from "@/tw/image";
 import { images } from "@/constants/images";
 import { languages } from "@/data/languages";
-import * as SecureStore from "expo-secure-store";
+import { useLanguageStore } from "@/store/useLanguageStore";
 
 const getLearnerCount = (langId: string): string => {
 	const counts: Record<string, string> = {
@@ -36,23 +36,18 @@ const getLearnerCount = (langId: string): string => {
 export default function LanguageSelection() {
 	const router = useRouter();
 	const [searchQuery, setSearchQuery] = useState("");
-	const [selectedLanguageId, setSelectedLanguageId] = useState<string | null>(null);
+	const storeLanguageId = useLanguageStore((state) => state.selectedLanguageId);
+	const setStoreLanguageId = useLanguageStore((state) => state.setSelectedLanguageId);
+
+	const [selectedLanguageId, setSelectedLanguageId] = useState<string | null>(storeLanguageId);
 	const [expanded, setExpanded] = useState(false);
 
-	// Load existing selection on mount
+	// Load existing selection when store values are loaded
 	useEffect(() => {
-		const loadSelection = async () => {
-			try {
-				const saved = await SecureStore.getItemAsync("selected_language_id");
-				if (saved) {
-					setSelectedLanguageId(saved);
-				}
-			} catch (err) {
-				console.error("Failed to load language selection:", err);
-			}
-		};
-		loadSelection();
-	}, []);
+		if (storeLanguageId) {
+			setSelectedLanguageId(storeLanguageId);
+		}
+	}, [storeLanguageId]);
 
 	// Handle confirmation of selection
 	const handleConfirm = async () => {
@@ -61,8 +56,8 @@ export default function LanguageSelection() {
 			if (typeof document !== "undefined") {
 				(document.activeElement as any)?.blur();
 			}
-			await SecureStore.setItemAsync("selected_language_id", selectedLanguageId);
-			router.replace("/");
+			await setStoreLanguageId(selectedLanguageId);
+			router.replace("/" as any);
 		} catch (err) {
 			console.error("Failed to save language selection:", err);
 		}
@@ -100,18 +95,22 @@ export default function LanguageSelection() {
 						<View>
 							{/* Header Section */}
 							<View className="flex-row items-center justify-between w-full mb-6">
-								<TouchableOpacity
-									onPress={() => {
-										if (typeof document !== "undefined") {
-											(document.activeElement as any)?.blur();
-										}
-										router.replace("/");
-									}}
-									style={styles.backButton}
-									activeOpacity={0.7}
-								>
-									<Feather name="arrow-left" size={24} color="#0D132B" />
-								</TouchableOpacity>
+								{storeLanguageId ? (
+									<TouchableOpacity
+										onPress={() => {
+											if (typeof document !== "undefined") {
+												(document.activeElement as any)?.blur();
+											}
+											router.replace("/" as any);
+										}}
+										style={styles.backButton}
+										activeOpacity={0.7}
+									>
+										<Feather name="arrow-left" size={24} color="#0D132B" />
+									</TouchableOpacity>
+								) : (
+									<View style={{ width: 32 }} />
+								)}
 								
 								<Text className="font-poppins-bold text-[20px] text-neutral-primary flex-1 text-center mr-8">
 									Choose a language

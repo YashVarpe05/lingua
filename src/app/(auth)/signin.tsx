@@ -17,9 +17,11 @@ import { images } from "@/constants/images";
 import VerificationModal from "@/components/VerificationModal";
 import { useSignIn, useSSO } from "@clerk/expo";
 import * as Linking from "expo-linking";
+import { usePostHog } from "posthog-react-native";
 
 export default function SignIn() {
 	const router = useRouter();
+	const posthog = usePostHog();
 	const signInSignal = useSignIn();
 	const { signIn } = signInSignal;
 	const isLoaded = signIn !== null;
@@ -77,6 +79,7 @@ export default function SignIn() {
 			// Open modal to enter code
 			setModalVisible(true);
 		} catch (err: any) {
+			posthog.captureException(err, { flow: "signin", method: "email", step: "initiate" });
 			const errMsg = err?.message || "Sign in failed. Please try again.";
 			setError(errMsg);
 		} finally {
@@ -87,27 +90,40 @@ export default function SignIn() {
 	const handleVerify = async (code: string) => {
 		if (!isLoaded) return;
 
-		// Attempt sign-in with the OTP using the new emailCode verification API
-		const verifyResult = await signIn.emailCode.verifyCode({
-			code,
-		});
+		try {
+			// Attempt sign-in with the OTP using the new emailCode verification API
+			const verifyResult = await signIn.emailCode.verifyCode({
+				code,
+			});
 
-		if (verifyResult.error) {
-			throw verifyResult.error;
-		}
-
-		if (signIn.status === "complete") {
-			// Mark session active, which completes authentication and logs user in
-			const finalizeResult = await signIn.finalize();
-			if (finalizeResult.error) {
-				throw finalizeResult.error;
+			if (verifyResult.error) {
+				throw verifyResult.error;
 			}
-		} else {
-			throw new Error("Sign in not complete. Please check status: " + signIn.status);
+
+			if (signIn.status === "complete") {
+				// Mark session active, which completes authentication and logs user in
+				const finalizeResult = await signIn.finalize();
+				if (finalizeResult.error) {
+					throw finalizeResult.error;
+				}
+				const userId = signIn.createdSessionId;
+				if (userId) {
+					posthog.identify(userId, {
+						$set: { email },
+					});
+				}
+				posthog.capture("sign_in_completed", { method: "email" });
+			} else {
+				throw new Error("Sign in not complete. Please check status: " + signIn.status);
+			}
+		} catch (err: any) {
+			posthog.captureException(err, { flow: "signin", method: "email", step: "verify" });
+			throw err;
 		}
 	};
 
 	const handleSocialAuth = async (strategy: "oauth_google" | "oauth_facebook" | "oauth_apple") => {
+		posthog.capture("social_auth_started", { strategy, screen: "signin" });
 		setLoading(true);
 		setError("");
 		try {
@@ -118,11 +134,17 @@ export default function SignIn() {
 			});
 			if (createdSessionId && setActive) {
 				await setActive({ session: createdSessionId });
+				posthog.capture("sign_in_completed", { method: strategy });
 			}
 		} catch (err: any) {
 			if (err?.message?.includes("cancel") || err?.code === "CANCELLED") {
 				return;
 			}
+			posthog.captureException(err, {
+				flow: "signin",
+				method: strategy,
+				step: "oauth",
+			});
 			setError(err?.message || "Social authentication failed.");
 		} finally {
 			setLoading(false);

@@ -44,9 +44,7 @@ export default function LanguageSelection() {
 
 	// Load existing selection when store values are loaded
 	useEffect(() => {
-		if (storeLanguageId) {
-			setSelectedLanguageId(storeLanguageId);
-		}
+		setSelectedLanguageId(storeLanguageId);
 	}, [storeLanguageId]);
 
 	// Handle confirmation of selection

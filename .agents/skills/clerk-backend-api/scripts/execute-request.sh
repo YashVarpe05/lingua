@@ -28,7 +28,6 @@ while true; do
       done < "$_envfile"
     fi
   done
-  done
   [[ -n "${CLERK_SECRET_KEY:-}" ]] && break
   _parent="$(dirname "$_dir")"
   [[ "$_parent" == "$_dir" ]] && break

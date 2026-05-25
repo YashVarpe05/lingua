@@ -17,9 +17,11 @@ import { images } from "@/constants/images";
 import VerificationModal from "@/components/VerificationModal";
 import { useSignUp, useSSO } from "@clerk/expo";
 import * as Linking from "expo-linking";
+import { usePostHog } from "posthog-react-native";
 
 export default function SignUp() {
 	const router = useRouter();
+	const posthog = usePostHog();
 	const signUpSignal = useSignUp();
 	const { signUp } = signUpSignal;
 	const isLoaded = signUp !== null;
@@ -74,6 +76,7 @@ export default function SignUp() {
 			// Open modal to enter code
 			setModalVisible(true);
 		} catch (err: any) {
+			posthog.captureException(err, { flow: "signup", method: "email", step: "initiate" });
 			const errMsg = err?.message || "Sign up failed. Please try again.";
 			setError(errMsg);
 		} finally {
@@ -84,36 +87,53 @@ export default function SignUp() {
 	const handleVerify = async (code: string) => {
 		if (!isLoaded) return;
 
-		// Submit verification code
-		const verifyResult = await signUp.verifications.verifyEmailCode({
-			code,
-		});
+		try {
+			// Submit verification code
+			const verifyResult = await signUp.verifications.verifyEmailCode({
+				code,
+			});
 
-		if (verifyResult.error) {
-			throw verifyResult.error;
-		}
-
-		if (signUp.status === "complete") {
-			// Mark session active, which completes authentication and logs user in
-			const finalizeResult = await signUp.finalize();
-			if (finalizeResult.error) {
-				throw finalizeResult.error;
+			if (verifyResult.error) {
+				throw verifyResult.error;
 			}
-		} else if (signUp.status === "missing_requirements") {
-			// Inform developer about missing fields (e.g. phone number required in dashboard)
-			const missing = signUp.missingFields.join(", ");
-			const unverified = signUp.unverifiedFields.join(", ");
-			
-			throw new Error(
-				`Sign up incomplete. Status: ${signUp.status}. Missing: ${missing || "none"}. Unverified: ${unverified || "none"}.\n\n` +
-				`If "phone_number" is required, please disable it under "Email, Phone, and Username" in your Clerk Dashboard.`
-			);
-		} else {
-			throw new Error("Sign up not complete. Please check status: " + signUp.status);
+
+			if (signUp.status === "complete") {
+				// Mark session active, which completes authentication and logs user in
+				const finalizeResult = await signUp.finalize();
+				if (finalizeResult.error) {
+					throw finalizeResult.error;
+				}
+				const userId = signUp.createdUserId;
+				if (userId) {
+					posthog.identify(userId, {
+						$set: { email: signUp.emailAddress },
+						$set_once: { sign_up_date: new Date().toISOString() },
+					});
+				}
+				posthog.capture("sign_up_completed", {
+					method: "email",
+					email: signUp.emailAddress,
+				});
+			} else if (signUp.status === "missing_requirements") {
+				// Inform developer about missing fields (e.g. phone number required in dashboard)
+				const missing = signUp.missingFields.join(", ");
+				const unverified = signUp.unverifiedFields.join(", ");
+				
+				throw new Error(
+					`Sign up incomplete. Status: ${signUp.status}. Missing: ${missing || "none"}. Unverified: ${unverified || "none"}.\n\n` +
+					`If "phone_number" is required, please disable it under "Email, Phone, and Username" in your Clerk Dashboard.`
+				);
+			} else {
+				throw new Error("Sign up not complete. Please check status: " + signUp.status);
+			}
+		} catch (err: any) {
+			posthog.captureException(err, { flow: "signup", method: "email", step: "verify" });
+			throw err;
 		}
 	};
 
 	const handleSocialAuth = async (strategy: "oauth_google" | "oauth_facebook" | "oauth_apple") => {
+		posthog.capture("social_auth_started", { strategy, screen: "signup" });
 		setLoading(true);
 		setError("");
 		try {
@@ -124,11 +144,17 @@ export default function SignUp() {
 			});
 			if (createdSessionId && setActive) {
 				await setActive({ session: createdSessionId });
+				posthog.capture("sign_up_completed", { method: strategy });
 			}
 		} catch (err: any) {
 			if (err?.message?.includes("cancel") || err?.code === "CANCELLED") {
 				return;
 			}
+			posthog.captureException(err, {
+				flow: "signup",
+				method: strategy,
+				step: "oauth",
+			});
 			setError(err?.message || "Social authentication failed.");
 		} finally {
 			setLoading(false);

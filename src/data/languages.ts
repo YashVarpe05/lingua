@@ -19,14 +19,14 @@ export const languages: Language[] = [
 		id: "ja",
 		name: "Japanese",
 		nativeName: "日本語",
-		flag: "https://flagcdn.com/w320/ja.png",
+		flag: "https://flagcdn.com/w320/jp.png",
 		code: "ja-JP",
 	},
 	{
 		id: "en",
 		name: "English",
 		nativeName: "English",
-		flag: "https://flagcdn.com/w320/en.png",
+		flag: "https://flagcdn.com/w320/gb.png",
 		code: "en-US",
 	},
 	{

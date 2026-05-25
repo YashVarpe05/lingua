@@ -9,11 +9,16 @@ API_URL="https://api.github.com/repos/clerk/openapi-specs/contents/bapi"
 RAW_BASE="https://raw.githubusercontent.com/clerk/openapi-specs/main/bapi"
 
 # Fetch version list, parse dates, sort, pick latest
-versions=$(curl -s "$API_URL" | node -e "
+versions=$(curl -fsS "$API_URL" | node -e "
   let d='';
   process.stdin.on('data',c=>d+=c);
   process.stdin.on('end',()=>{
-    const items = JSON.parse(d)
+    const parsed = JSON.parse(d);
+    if (!Array.isArray(parsed)) {
+      console.error('Unexpected response while listing spec versions');
+      process.exit(1);
+    }
+    const items = parsed
       .map(i=>i.name)
       .filter(n=>/^\d{4}-\d{2}-\d{2}\.yml$/.test(n))
       .sort();
@@ -22,9 +27,13 @@ versions=$(curl -s "$API_URL" | node -e "
 ")
 
 latest=$(echo "$versions" | tail -1)
+if [[ -z "$latest" ]]; then
+  echo "ERROR: Could not determine latest BAPI spec version." >&2
+  exit 1
+fi
 
 echo "AVAILABLE VERSIONS: $(echo "$versions" | tr '\n' ' ')"
 echo "LATEST VERSION: $latest"
 echo ""
 echo "TAGS:"
-curl -s "${RAW_BASE}/${latest}" | node "$(dirname "$0")/extract-tags.js"
+curl -fsS "${RAW_BASE}/${latest}" | node "$(dirname "$0")/extract-tags.js"

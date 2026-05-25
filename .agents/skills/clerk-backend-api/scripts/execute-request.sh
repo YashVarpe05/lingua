@@ -17,9 +17,18 @@ _dir="$PWD"
 while true; do
   for _envfile in "$_dir/.env" "$_dir/.env.local"; do
     if [[ -f "$_envfile" ]]; then
-      set -a
-      source "$_envfile"
-      set +a
+      while IFS= read -r _line || [[ -n "$_line" ]]; do
+        [[ "$_line" =~ ^[[:space:]]*# ]] && continue
+        [[ "$_line" =~ ^(CLERK_SECRET_KEY|CLERK_BAPI_SCOPES|CLERK_REST_API_URL)= ]] || continue
+        _key="${_line%%=*}"
+        _val="${_line#*=}"
+        _val="${_val%$'\r'}"
+        if [[ "$_val" =~ ^\".*\"$ || "$_val" =~ ^\'.*\'$ ]]; then
+          _val="${_val:1:${`#_val`}-2}"
+        fi
+        printf -v "$_key" '%s' "$_val"
+        export "$_key"
+      done < "$_envfile"
     fi
   done
   [[ -n "${CLERK_SECRET_KEY:-}" ]] && break
@@ -43,20 +52,23 @@ BODY="${3:-}"
 METHOD_UPPER=$(echo "$METHOD" | tr '[:lower:]' '[:upper:]')
 SCOPES="${CLERK_BAPI_SCOPES:-}"
 
+# Normalize SCOPES: remove spaces for robust comma-separated matching
+SCOPES_NO_SPACE="${SCOPES//[[:space:]]/}"
+
 # Scope check
 if [[ "$ADMIN" == false ]]; then
   case "$METHOD_UPPER" in
     GET)
       ;; # always allowed
     POST|PUT|PATCH)
-      if [[ "$SCOPES" != *"write"* ]]; then
+      if [[ ",$SCOPES_NO_SPACE," != *",write,"* ]]; then
         echo "ERROR: $METHOD_UPPER requests require CLERK_BAPI_SCOPES=\"write\" or --admin flag." >&2
         echo "Current CLERK_BAPI_SCOPES: \"$SCOPES\"" >&2
         exit 1
       fi
       ;;
     DELETE)
-      if [[ "$SCOPES" != *"write"* ]] || [[ "$SCOPES" != *"delete"* ]]; then
+      if [[ ",$SCOPES_NO_SPACE," != *",write,"* ]] || [[ ",$SCOPES_NO_SPACE," != *",delete,"* ]]; then
         echo "ERROR: DELETE requests require CLERK_BAPI_SCOPES=\"write,delete\" or --admin flag." >&2
         echo "Current CLERK_BAPI_SCOPES: \"$SCOPES\"" >&2
         exit 1

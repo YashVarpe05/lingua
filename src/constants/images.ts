@@ -7,6 +7,8 @@ import palace from "@/assets/images/palace.png";
 import treasure from "@/assets/images/treasure.png";
 import cafe_banner from "@/assets/images/cafe_banner.png";
 import cafe_thumbnail from "@/assets/images/cafe_thumbnail.png";
+import mascot_waving from "@/assets/images/mascot_waving.png";
+import user_avatar from "@/assets/images/user_avatar.png";
 
 export const images = {
   moscotLogo,
@@ -18,4 +20,6 @@ export const images = {
   treasure,
   cafe_banner,
   cafe_thumbnail,
+  mascot_waving,
+  user_avatar,
 } as const;

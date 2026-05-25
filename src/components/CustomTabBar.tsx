@@ -4,6 +4,7 @@ import {
 	TouchableOpacity,
 	StyleSheet,
 	Platform,
+	LayoutChangeEvent,
 } from "react-native";
 import { BottomTabBarProps } from "@react-navigation/bottom-tabs";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -63,9 +64,21 @@ interface TabBarItemProps {
 	label: string;
 	iconName: keyof typeof Feather.glyphMap;
 	onPress: () => void;
+	onLongPress: () => void;
+	accessibilityLabel?: string;
+	testID?: string;
 }
 
-function TabBarItem({ index, activeIndex, label, iconName, onPress }: TabBarItemProps) {
+function TabBarItem({
+	index,
+	activeIndex,
+	label,
+	iconName,
+	onPress,
+	onLongPress,
+	accessibilityLabel,
+	testID,
+}: TabBarItemProps) {
 	const isFocused = activeIndex === index;
 
 	const animatedTabStyle = useAnimatedStyle(() => {
@@ -77,6 +90,9 @@ function TabBarItem({ index, activeIndex, label, iconName, onPress }: TabBarItem
 	return (
 		<TouchableOpacity
 			onPress={onPress}
+			onLongPress={onLongPress}
+			accessibilityLabel={accessibilityLabel}
+			testID={testID}
 			activeOpacity={0.7}
 			style={styles.tabItem}
 		>
@@ -111,7 +127,7 @@ export default function CustomTabBar({ state, descriptors, navigation }: BottomT
 	}, [activeIndex, tabWidth, translateX]);
 
 	// Calculate and set single tab width on container layout
-	const handleLayout = (e: any) => {
+	const handleLayout = (e: LayoutChangeEvent) => {
 		const { width } = e.nativeEvent.layout;
 		const singleTabWidth = width / routes.length;
 		setTabWidth(singleTabWidth);
@@ -165,6 +181,7 @@ export default function CustomTabBar({ state, descriptors, navigation }: BottomT
 
 			{/* Render tabs list */}
 			{routes.map((route, i) => {
+				const { options } = descriptors[route.key];
 				const label = TAB_LABELS[route.name] || route.name;
 				const iconName = TAB_ICONS[route.name] || "help-circle";
 
@@ -181,6 +198,13 @@ export default function CustomTabBar({ state, descriptors, navigation }: BottomT
 					}
 				};
 
+				const onLongPress = () => {
+					navigation.emit({
+						type: "tabLongPress",
+						target: route.key,
+					});
+				};
+
 				return (
 					<TabBarItem
 						key={route.key}
@@ -189,6 +213,9 @@ export default function CustomTabBar({ state, descriptors, navigation }: BottomT
 						label={label}
 						iconName={iconName}
 						onPress={onPress}
+						onLongPress={onLongPress}
+						accessibilityLabel={options.tabBarAccessibilityLabel}
+						testID={options.tabBarButtonTestID}
 					/>
 				);
 			})}

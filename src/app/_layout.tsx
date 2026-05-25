@@ -1,19 +1,29 @@
 import "../../global.css";
 
-import { useEffect, useCallback } from "react";
-import { Stack, useRouter, useSegments } from "expo-router";
-import { useFonts } from "expo-font";
-import * as SplashScreen from "expo-splash-screen";
-import { StatusBar } from "expo-status-bar";
+import { posthog } from "@/config/posthog";
 import { fonts } from "@/constants/fonts";
+import { useLanguageStore } from "@/store/useLanguageStore";
 import { ClerkProvider, useAuth } from "@clerk/expo";
 import { tokenCache } from "@clerk/expo/token-cache";
-import { useLanguageStore } from "@/store/useLanguageStore";
+import { useFonts } from "expo-font";
+import {
+	Stack,
+	useGlobalSearchParams,
+	usePathname,
+	useRouter,
+	useSegments,
+} from "expo-router";
+import * as SplashScreen from "expo-splash-screen";
+import { StatusBar } from "expo-status-bar";
+import { PostHogProvider, PostHogErrorBoundary } from "posthog-react-native";
+import { useCallback, useEffect, useRef } from "react";
 
 const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY!;
 
 if (!publishableKey) {
-	throw new Error("Missing EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY in environment variables.");
+	throw new Error(
+		"Missing EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY in environment variables.",
+	);
 }
 
 // Keep splash screen visible while fonts and auth load
@@ -24,8 +34,24 @@ function RootLayoutNav() {
 	const [fontsLoaded, fontError] = useFonts(fonts);
 	const router = useRouter();
 	const segments = useSegments();
-	const selectedLanguageId = useLanguageStore((state) => state.selectedLanguageId);
+	const selectedLanguageId = useLanguageStore(
+		(state) => state.selectedLanguageId,
+	);
 	const hasHydrated = useLanguageStore((state) => state.hasHydrated);
+	const pathname = usePathname();
+	const params = useGlobalSearchParams();
+	const previousPathname = useRef<string | undefined>(undefined);
+
+	// Manual screen tracking for Expo Router
+	useEffect(() => {
+		if (previousPathname.current !== pathname) {
+			posthog.screen(pathname, {
+				previous_screen: previousPathname.current ?? null,
+				...params,
+			});
+			previousPathname.current = pathname;
+		}
+	}, [pathname, params]);
 
 	const onLayoutRootView = useCallback(async () => {
 		if ((fontsLoaded || fontError) && clerkLoaded && hasHydrated) {
@@ -67,7 +93,16 @@ function RootLayoutNav() {
 				}
 			}
 		}
-	}, [clerkLoaded, hasHydrated, isSignedIn, selectedLanguageId, segments, fontsLoaded, fontError, router]);
+	}, [
+		clerkLoaded,
+		hasHydrated,
+		isSignedIn,
+		selectedLanguageId,
+		segments,
+		fontsLoaded,
+		fontError,
+		router,
+	]);
 
 	if ((!fontsLoaded && !fontError) || !clerkLoaded || !hasHydrated) {
 		return null;
@@ -88,8 +123,20 @@ function RootLayoutNav() {
 
 export default function RootLayout() {
 	return (
-		<ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache}>
-			<RootLayoutNav />
-		</ClerkProvider>
+		<PostHogProvider
+			client={posthog}
+			autocapture={{
+				captureScreens: true,
+				captureTouches: true,
+				propsToCapture: ["testID"],
+				maxElementsCaptured: 20,
+			}}
+		>
+			<PostHogErrorBoundary>
+				<ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache}>
+					<RootLayoutNav />
+				</ClerkProvider>
+			</PostHogErrorBoundary>
+		</PostHogProvider>
 	);
 }

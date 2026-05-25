@@ -6,11 +6,14 @@ import { useRouter } from "expo-router";
 import React from "react";
 import { StyleSheet, TouchableOpacity } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { usePostHog } from "posthog-react-native";
 
 export default function Onboarding() {
 	const router = useRouter();
+	const posthog = usePostHog();
 
 	const handleGetStarted = () => {
+		posthog.capture("onboarding_get_started");
 		// Navigate to signup screen
 		router.replace("/signup" as any);
 	};

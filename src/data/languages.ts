@@ -156,4 +156,3 @@ export const languages: Language[] = [
 		code: "uk-UA",
 	},
 ];
-];

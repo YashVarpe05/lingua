@@ -19,6 +19,7 @@ import { lessons } from "@/data/lessons";
 import { useLanguageStore } from "@/store/useLanguageStore";
 import { useProgressStore } from "@/store/useProgressStore";
 import { Lesson } from "@/types/learning";
+import { usePostHog } from "posthog-react-native";
 
 // Helper function to return dynamic greeting based on selected language
 const getGreeting = (langId: string, name: string) => {
@@ -109,6 +110,7 @@ const getLanguageUnitsAndLessons = (langId: string) => {
 
 export default function HomeScreen() {
 	const router = useRouter();
+	const posthog = usePostHog();
 	const { signOut } = useAuth();
 	const { user } = useUser();
 	const selectedLanguageId = useLanguageStore((state) => state.selectedLanguageId);
@@ -166,6 +168,13 @@ export default function HomeScreen() {
 	const nextLesson = unitLessons.find((l) => !completedLessons.includes(l.id)) || null;
 
 	const handleOpenLesson = (lesson: Lesson) => {
+		posthog.capture("lesson_opened", {
+			lesson_id: lesson.id,
+			lesson_title: lesson.title,
+			lesson_type: lesson.type,
+			language_id: selectedLanguageId,
+			xp_reward: lesson.xpReward,
+		});
 		setSelectedLesson(lesson);
 		setModalVisible(true);
 	};
@@ -173,6 +182,14 @@ export default function HomeScreen() {
 	const handleCompleteMockLesson = async () => {
 		if (selectedLesson) {
 			await completeLesson(selectedLesson.id, selectedLesson.xpReward);
+			posthog.capture("lesson_completed", {
+				lesson_id: selectedLesson.id,
+				lesson_title: selectedLesson.title,
+				lesson_type: selectedLesson.type,
+				language_id: selectedLanguageId,
+				xp_earned: selectedLesson.xpReward,
+				method: "mock",
+			});
 			setModalVisible(false);
 			setSelectedLesson(null);
 		}
@@ -180,6 +197,8 @@ export default function HomeScreen() {
 
 	const handleSignOut = async () => {
 		try {
+			posthog.capture("sign_out");
+			posthog.reset();
 			await signOut();
 		} catch (err) {
 			console.error("Failed to sign out:", err);
@@ -188,6 +207,7 @@ export default function HomeScreen() {
 
 	const handleClearStorage = async () => {
 		try {
+			posthog.capture("progress_reset", { language_id: selectedLanguageId });
 			await resetProgress();
 			await clearStorage();
 		} catch (err) {
@@ -574,6 +594,12 @@ export default function HomeScreen() {
 								<View className="gap-2.5">
 									<TouchableOpacity
 										onPress={() => {
+											posthog.capture("lesson_started", {
+												lesson_id: selectedLesson.id,
+												lesson_title: selectedLesson.title,
+												lesson_type: selectedLesson.type,
+												language_id: selectedLanguageId,
+											});
 											setModalVisible(false);
 											router.push(`/lesson/${selectedLesson.id}` as any);
 										}}

@@ -15,6 +15,7 @@ import { Image } from "@/tw/image";
 import { images } from "@/constants/images";
 import { languages } from "@/data/languages";
 import { useLanguageStore } from "@/store/useLanguageStore";
+import { usePostHog } from "posthog-react-native";
 
 const getLearnerCount = (langId: string): string => {
 	const counts: Record<string, string> = {
@@ -35,6 +36,7 @@ const getLearnerCount = (langId: string): string => {
 
 export default function LanguageSelection() {
 	const router = useRouter();
+	const posthog = usePostHog();
 	const [searchQuery, setSearchQuery] = useState("");
 	const storeLanguageId = useLanguageStore((state) => state.selectedLanguageId);
 	const setStoreLanguageId = useLanguageStore((state) => state.setSelectedLanguageId);
@@ -54,6 +56,12 @@ export default function LanguageSelection() {
 			if (typeof document !== "undefined") {
 				(document.activeElement as any)?.blur();
 			}
+			const selectedLang = languages.find((l) => l.id === selectedLanguageId);
+			posthog.capture("language_selected", {
+				language_id: selectedLanguageId,
+				language_name: selectedLang?.name ?? null,
+				is_change: !!storeLanguageId && storeLanguageId !== selectedLanguageId,
+			});
 			await setStoreLanguageId(selectedLanguageId);
 			router.replace("/" as any);
 		} catch (err) {

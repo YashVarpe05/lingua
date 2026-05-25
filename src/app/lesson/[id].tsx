@@ -161,87 +161,80 @@ export default function AudioLessonScreen() {
 	return (
 		<SafeAreaView style={styles.safeArea}>
 			{/* Top Header Row */}
-			<View className="flex-row items-center justify-between px-5 pt-3 pb-3 bg-white border-b border-neutral-border">
-				<View className="flex-row items-center flex-1 mr-4">
-					<TouchableOpacity
-						onPress={() => setIsEndCallModalVisible(true)}
-						activeOpacity={0.7}
-						className="p-1 mr-3"
-					>
-						<Feather name="chevron-left" size={26} color="#0D132B" />
-					</TouchableOpacity>
+			<View className="w-full bg-white border-b border-neutral-border">
+				<View className="flex-row items-center justify-between px-5 pt-3 pb-3 max-w-[480px] w-full mx-auto">
+					<View className="flex-row items-center flex-1 mr-4">
+						<TouchableOpacity
+							onPress={() => setIsEndCallModalVisible(true)}
+							activeOpacity={0.7}
+							className="p-1 mr-3"
+						>
+							<Feather name="chevron-left" size={26} color="#0D132B" />
+						</TouchableOpacity>
 
-					<View className="flex-1">
-						<Text className="font-poppins-bold text-[18px] text-neutral-primary leading-[24px]">
-							AI Teacher
-						</Text>
-						<View className="flex-row items-center mt-0.5">
-							<View className="w-2.5 h-2.5 rounded-full bg-[#21C16B] mr-1.5" />
-							<Text className="font-poppins-medium text-[12px] text-[#21C16B]">
-								Online
+						<View className="flex-1">
+							<Text className="font-poppins-bold text-[18px] text-neutral-primary leading-[24px]">
+								AI Teacher
 							</Text>
+							<View className="flex-row items-center mt-0.5">
+								<View className="w-2.5 h-2.5 rounded-full bg-[#21C16B] mr-1.5" />
+								<Text className="font-poppins-medium text-[12px] text-[#21C16B]">
+									Online
+								</Text>
+							</View>
 						</View>
 					</View>
-				</View>
 
-				{/* Header Actions */}
-				<View className="flex-row items-center gap-2.5">
-					<TouchableOpacity
-						onPress={() => setIsCameraActive(!isCameraActive)}
-						activeOpacity={0.7}
-						className="w-10 h-10 rounded-full border border-[#E5E7EB] items-center justify-center bg-white"
-					>
-						<Feather
-							name={isCameraActive ? "video" : "video-off"}
-							size={18}
-							color="#0D132B"
-						/>
-					</TouchableOpacity>
+					{/* Header Actions */}
+					<View className="flex-row items-center gap-2.5">
+						<TouchableOpacity
+							onPress={() => setIsCameraActive(!isCameraActive)}
+							activeOpacity={0.7}
+							className="w-10 h-10 rounded-full border border-[#E5E7EB] items-center justify-center bg-white"
+						>
+							<Feather
+								name={isCameraActive ? "video" : "video-off"}
+								size={18}
+								color="#0D132B"
+							/>
+						</TouchableOpacity>
 
-					<View className="w-10 h-10 rounded-full border border-[#E5E7EB] items-center justify-center bg-white">
-						<Text className="font-poppins-bold text-[13px] text-[#0C0F24]">
-							{elapsedSeconds}
-						</Text>
+						<View className="w-10 h-10 rounded-full border border-[#E5E7EB] items-center justify-center bg-white">
+							<Text className="font-poppins-bold text-[13px] text-[#0C0F24]">
+								{elapsedSeconds}
+							</Text>
+						</View>
+
+						<TouchableOpacity
+							onPress={() => setIsInfoVisible(true)}
+							activeOpacity={0.7}
+							className="w-10 h-10 rounded-full border border-[#E5E7EB] items-center justify-center bg-white"
+						>
+							<Feather name="bell" size={18} color="#0D132B" />
+						</TouchableOpacity>
 					</View>
-
-					<TouchableOpacity
-						onPress={() => setIsInfoVisible(true)}
-						activeOpacity={0.7}
-						className="w-10 h-10 rounded-full border border-[#E5E7EB] items-center justify-center bg-white"
-					>
-						<Feather name="bell" size={18} color="#0D132B" />
-					</TouchableOpacity>
 				</View>
 			</View>
 
 			{/* Main Audio Session Background Container */}
-			<View className="flex-1 p-4 bg-[#F6F7FB]">
-				<View className="flex-1 rounded-[32px] overflow-hidden relative shadow-lg">
-					{/* Blurred room background image */}
-					<Image
-						source={{ uri: "https://images.unsplash.com/photo-1513694203232-719a280e022f?w=800&auto=format&fit=crop&q=80" }}
-						className="absolute w-full h-full"
-						contentFit="cover"
-						blurRadius={3}
-					/>
+			<View className="flex-1 bg-[#F6F7FB] items-center justify-center w-full">
+				<View className="flex-1 w-full max-w-[480px] p-4">
+					<View className="flex-1 rounded-[32px] overflow-hidden relative shadow-lg">
+						{/* Blurred room background image */}
+						<Image
+							source={{ uri: "https://images.unsplash.com/photo-1513694203232-719a280e022f?w=800&auto=format&fit=crop&q=80" }}
+							className="absolute w-full h-full"
+							contentFit="cover"
+							blurRadius={3}
+						/>
 
-					{/* Waving mascot fox in center foreground */}
-					<Image
-						source={images.mascotWelcome}
-						className="absolute bottom-24 w-[370px] h-[370px] self-center"
-						contentFit="contain"
-					/>
-
-					{/* Floating PIP user camera window */}
-					{isCameraActive && (
-						<View className="absolute top-4 right-4 w-[85px] h-[115px] rounded-2xl overflow-hidden border-2 border-white bg-neutral-surface shadow-md">
-							<Image
-								source={images.user_avatar}
-								className="w-full h-full"
-								contentFit="cover"
-							/>
-						</View>
-					)}
+						{/* Waving mascot fox in center foreground */}
+						<Image
+							source={images.mascotWelcome}
+							className="absolute w-[370px] h-[370px] self-center"
+							style={{ top: "50%", marginTop: -185 }}
+							contentFit="contain"
+						/>
 
 					{/* Speech Bubble / Subtitles Overlay */}
 					{subtitlesVisible && (
@@ -367,6 +360,7 @@ export default function AudioLessonScreen() {
 					</View>
 				</View>
 			</View>
+		</View>
 
 			{/* Collapsible Info Objectives Sheet Modal */}
 			<Modal

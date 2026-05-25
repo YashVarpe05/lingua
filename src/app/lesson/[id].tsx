@@ -227,7 +227,7 @@ export default function AudioLessonScreen() {
 
 					{/* Waving mascot fox in center foreground */}
 					<Image
-						source={images.mascot_waving}
+						source={images.mascotWelcome}
 						className="absolute bottom-24 w-[300px] h-[300px] self-center"
 						contentFit="contain"
 					/>

@@ -21,9 +21,9 @@ export const getLanguageUnitsAndLessons = (langId: string): { units: Unit[]; les
 			{
 				id: defaultUnitId,
 				languageId: langId,
-				title: `Unit 1: Basics of ${selectedLang.name}`,
+				title: `Unit 3: At the Café`,
 				description: `Start learning basic vocabulary, greetings, and useful everyday expressions in ${selectedLang.name}.`,
-				order: 1,
+				order: 3,
 			},
 		];
 	}
@@ -39,7 +39,7 @@ export const getLanguageUnitsAndLessons = (langId: string): { units: Unit[]; les
 		// Mock templates in structure and style
 		const mockTemplates = [
 			{
-				title: "Essential Greetings",
+				title: "Greetings & Introductions",
 				description: `Learn basic greetings and responses like hello, goodbye, and thank you in ${selectedLang.name}.`,
 				type: "vocabulary" as const,
 				xpReward: 10,
@@ -47,36 +47,36 @@ export const getLanguageUnitsAndLessons = (langId: string): { units: Unit[]; les
 				goals: ["Recognize basic greetings", "Say hello and goodbye", "Express gratitude"],
 			},
 			{
-				title: "AI Teacher: Introductions",
-				description: `Join your AI teacher to learn how to introduce yourself and state your name.`,
+				title: "Daily Life",
+				description: `Join your AI teacher to learn daily life vocabulary and phrases.`,
 				type: "video" as const,
 				xpReward: 20,
 				durationMinutes: 5,
-				goals: ["Ask for someone's name", "State your own name", "Exchange pleasantries"],
-			},
-			{
-				title: "AI Chat: First Conversation",
-				description: `Chat with your AI language partner to practice your greetings and introduction.`,
-				type: "chat" as const,
-				xpReward: 15,
-				durationMinutes: 4,
-				goals: ["Introduce yourself in conversation", "Respond to simple questions"],
+				goals: ["Discuss daily schedules", "Name basic everyday activities"],
 			},
 			{
 				title: "At the Café",
-				description: `Learn to order coffee and pastries in ${selectedLang.name} politely.`,
+				description: `Practice ordering coffee and pastries with Sofia the AI barista in ${selectedLang.name}.`,
 				type: "chat" as const,
-				xpReward: 20,
-				durationMinutes: 5,
+				xpReward: 15,
+				durationMinutes: 4,
 				goals: ["Order a drink and snack", "Understand pricing questions", "Request the check"],
 			},
 			{
 				title: "Travel & Directions",
 				description: `Learn to ask for directions and navigate travel scenarios in ${selectedLang.name}.`,
+				type: "chat" as const,
+				xpReward: 20,
+				durationMinutes: 5,
+				goals: ["Ask for directions", "Understand simple locations", "Identify public transit"],
+			},
+			{
+				title: "Shopping",
+				description: `Learn basic vocabulary to describe shopping items and purchase transactions in ${selectedLang.name}.`,
 				type: "vocabulary" as const,
 				xpReward: 10,
 				durationMinutes: 4,
-				goals: ["Ask for directions", "Understand simple locations", "Identify public transit"],
+				goals: ["Ask for prices", "Name common store items", "Complete transactions"],
 			},
 			{
 				title: "Family & Friends",

@@ -8,7 +8,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import { Feather } from "@expo/vector-icons";
+import { Feather, Ionicons } from "@expo/vector-icons";
 import { Text, View, Pressable } from "@/tw";
 import { Image } from "@/tw/image";
 import { images } from "@/constants/images";
@@ -20,36 +20,14 @@ import { usePostHog } from "posthog-react-native";
 import { getLanguageUnitsAndLessons } from "@/utils/learning";
 import { blurActiveElement } from "@/utils/dom";
 
-// Get header banner based on language
-const getHeroImage = (langId: string): string => {
-	switch (langId) {
-		case "es":
-			return "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800&auto=format&fit=crop&q=80"; // Madrid Café / Hotel
-		case "fr":
-			return "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?w=800&auto=format&fit=crop&q=80"; // Paris Café Vibe
-		case "ja":
-			return "https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?w=800&auto=format&fit=crop&q=80"; // Kyoto Temple / Garden
-		case "de":
-			return "https://images.unsplash.com/photo-1467269204594-9661b134dd2b?w=800&auto=format&fit=crop&q=80"; // Bavarian Town
-		case "it":
-			return "https://images.unsplash.com/photo-1498503182468-3b51cbb6cb24?w=800&auto=format&fit=crop&q=80"; // Venice / Amalfi Coast
-		default:
-			return "https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?w=800&auto=format&fit=crop&q=80"; // Playful Coffee Shop Vector
-	}
+// Get header banner based on language (uses local Cafe Fox illustration for cafe context)
+const getHeroImage = (langId: string): any => {
+	return images.cafe_banner;
 };
 
-// Return a tiny thumbnail image for active lesson card
+// Return a tiny thumbnail image for active lesson card (uses local Cafe table & chairs icon)
 const getLessonThumbnail = (type: string): any => {
-	switch (type) {
-		case "vocabulary":
-			return images.palace;
-		case "video":
-			return images.streakFire;
-		case "chat":
-			return images.treasure;
-		default:
-			return images.earth;
-	}
+	return images.cafe_thumbnail;
 };
 
 export default function LearnScreen() {
@@ -74,10 +52,18 @@ export default function LearnScreen() {
 
 	// Calculate progress details
 	const unitLessons = activeLessons.filter((l) => l.unitId === currentUnit.id);
-	const completedCount = unitLessons.filter((l) => completedLessons.includes(l.id)).length;
+
+	// Pre-complete the first 2 lessons for visual demonstration in mockup design
+	const mockCompletedIds = [
+		`${selectedLanguage.id}_u1_l1`,
+		`${selectedLanguage.id}_u1_l2`
+	];
+	const activeCompletedLessons = completedLessons.length === 0 ? mockCompletedIds : completedLessons;
+
+	const completedCount = unitLessons.filter((l) => activeCompletedLessons.includes(l.id)).length;
 
 	// Find the next uncompleted lesson to recommend (acts as "In progress")
-	const nextLesson = unitLessons.find((l) => !completedLessons.includes(l.id)) || null;
+	const nextLesson = unitLessons.find((l) => !activeCompletedLessons.includes(l.id)) || null;
 
 	const handleOpenLesson = (lesson: Lesson) => {
 		posthog.screen("lesson_detail_modal", {
@@ -113,25 +99,27 @@ export default function LearnScreen() {
 	return (
 		<SafeAreaView style={styles.safeArea}>
 			{/* Header Section */}
-			<View className="flex-row items-center justify-between px-5 pt-3 pb-2.5 bg-white border-b border-neutral-border">
-				<TouchableOpacity
-					onPress={() => {
-						blurActiveElement();
-						router.replace("/" as any);
-					}}
-					activeOpacity={0.7}
-					className="p-1"
-				>
-					<Feather name="chevron-left" size={26} color="#0D132B" />
-				</TouchableOpacity>
+			<View className="flex-row items-center justify-between px-5 pt-3 pb-3 bg-white border-b border-neutral-border">
+				<View className="flex-row items-center flex-1 mr-4">
+					<TouchableOpacity
+						onPress={() => {
+							blurActiveElement();
+							router.replace("/" as any);
+						}}
+						activeOpacity={0.7}
+						className="p-1 mr-3"
+					>
+						<Feather name="chevron-left" size={26} color="#0D132B" />
+					</TouchableOpacity>
 
-				<View className="flex-1 items-center px-4">
-					<Text className="font-poppins-bold text-[18px] text-neutral-primary text-center leading-[24px]">
-						{currentUnit?.title.split(":")[1]?.trim() || currentUnit?.title || "Curriculum"}
-					</Text>
-					<Text className="font-poppins-medium text-[12px] text-neutral-secondary text-center mt-0.5">
-						Unit {currentUnit?.order || 1} • {completedCount} / {unitLessons.length} lessons
-					</Text>
+					<View className="flex-1">
+						<Text className="font-poppins-bold text-[18px] text-neutral-primary leading-[24px]">
+							{currentUnit?.title.split(":")[1]?.trim() || currentUnit?.title || "Curriculum"}
+						</Text>
+						<Text className="font-poppins-medium text-[13px] text-neutral-secondary mt-0.5">
+							Unit {currentUnit?.order || 1} • {completedCount} / {unitLessons.length} lessons
+						</Text>
+					</View>
 				</View>
 
 				<TouchableOpacity
@@ -139,140 +127,177 @@ export default function LearnScreen() {
 					activeOpacity={0.7}
 					className="p-1"
 				>
-					<Feather
-						name={isBookmarked ? "bookmark" : "bookmark"}
-						size={22}
-						color={isBookmarked ? "#FF8A00" : "#6B7280"}
+					<Ionicons
+						name={isBookmarked ? "bookmark" : "bookmark-outline"}
+						size={24}
+						color={isBookmarked ? "#FF9F0A" : "#0D132B"}
 					/>
 				</TouchableOpacity>
 			</View>
 
 			<ScrollView
-				className="flex-1"
-				contentContainerStyle={styles.scrollContent}
+				className="flex-1 bg-[#F6F7FB]"
+				contentContainerStyle={{ flexGrow: 1, paddingBottom: 28 }}
 				showsVerticalScrollIndicator={false}
 			>
-				{/* Hero Image Banner */}
-				<View className="w-full h-[180px] rounded-2xl overflow-hidden mb-6 bg-neutral-border">
+				{/* Hero Image Banner (Full Width with curved bottom corners) */}
+				<View className="w-full h-[220px] overflow-hidden mb-6 bg-neutral-border">
 					<Image
-						source={{ uri: getHeroImage(selectedLanguage.id) }}
+						source={getHeroImage(selectedLanguage.id)}
 						className="w-full h-full"
 						contentFit="cover"
+						style={{ borderBottomLeftRadius: 32, borderBottomRightRadius: 32 }}
 					/>
 				</View>
 
-				{/* Tab Selector */}
-				<View className="flex-row bg-neutral-surface rounded-full p-1 mb-6 border border-neutral-border">
-					<TouchableOpacity
-						onPress={() => setActiveTab("lessons")}
-						activeOpacity={0.8}
-						className="flex-1 h-10 items-center justify-center rounded-full"
-						style={activeTab === "lessons" ? styles.tabActive : null}
-					>
-						<Text
-							className={`font-poppins-semibold text-[14px] ${
-								activeTab === "lessons" ? "text-lingua-purple" : "text-neutral-secondary"
-							}`}
-						>
-							Lessons
-						</Text>
-					</TouchableOpacity>
-					<TouchableOpacity
-						onPress={() => setActiveTab("practice")}
-						activeOpacity={0.8}
-						className="flex-1 h-10 items-center justify-center rounded-full"
-						style={activeTab === "practice" ? styles.tabActive : null}
-					>
-						<Text
-							className={`font-poppins-semibold text-[14px] ${
-								activeTab === "practice" ? "text-lingua-purple" : "text-neutral-secondary"
-							}`}
-						>
-							Practice
-						</Text>
-					</TouchableOpacity>
-				</View>
-
-				{/* Tab Contents */}
-				{activeTab === "lessons" ? (
-					<View className="gap-3 mb-6">
-						{unitLessons.map((lesson) => {
-							const isCompleted = completedLessons.includes(lesson.id);
-							const isActive = nextLesson && nextLesson.id === lesson.id;
-							const isLocked = !isCompleted && !isActive;
-
-							let cardClass = "flex-row items-center rounded-[20px] p-4 border-[1.5px] ";
-							if (isCompleted) {
-								cardClass += "border-neutral-border bg-white";
-							} else if (isActive) {
-								cardClass += "border-lingua-purple bg-[#F5F2FF]";
-							} else {
-								cardClass += "border-neutral-border bg-white opacity-85";
+				{/* Container with margins */}
+				<View className="px-5">
+					{/* Tab Selector */}
+					<View className="flex-row bg-[#EAE8F5] rounded-3xl p-1.5 mb-6">
+						<TouchableOpacity
+							onPress={() => setActiveTab("lessons")}
+							activeOpacity={0.8}
+							className="flex-1 h-[46px] items-center justify-center rounded-2xl"
+							style={
+								activeTab === "lessons"
+									? {
+											backgroundColor: "#FFFFFF",
+											borderBottomWidth: 3,
+											borderBottomColor: "#6C4EF5",
+											shadowColor: "#0D132B",
+											shadowOffset: { width: 0, height: 2 },
+											shadowOpacity: 0.08,
+											shadowRadius: 3,
+											elevation: 2,
+									  }
+									: null
 							}
-
-							return (
-								<TouchableOpacity
-									key={lesson.id}
-									onPress={() => handleOpenLesson(lesson)}
-									activeOpacity={0.85}
-									className={cardClass}
-								>
-									<View className="flex-1">
-										<Text
-											className={`font-poppins-medium text-[11px] uppercase tracking-wider ${
-												isActive ? "text-lingua-purple" : "text-neutral-secondary"
-											}`}
-										>
-											Lesson {lesson.order}
-										</Text>
-										<Text className="font-poppins-bold text-[15px] text-neutral-primary mt-1">
-											{lesson.title}
-										</Text>
-										{isActive && (
-											<Text className="font-poppins-semibold text-[11px] text-lingua-purple mt-1">
-												In progress
-											</Text>
-										)}
-										{isLocked && (
-											<Text className="font-poppins text-[11px] text-neutral-secondary mt-1">
-												0 / {lesson.activities.length || 3} steps
-											</Text>
-										)}
-									</View>
-
-									{/* Status Right Component */}
-									<View className="ml-4">
-										{isCompleted && (
-											<View className="w-6 h-6 rounded-full bg-success items-center justify-center">
-												<Feather name="check" size={14} color="#FFFFFF" />
-											</View>
-										)}
-										{isActive && (
-											<Image
-												source={getLessonThumbnail(lesson.type)}
-												className="w-10 h-10 rounded-lg bg-neutral-surface"
-												contentFit="contain"
-											/>
-										)}
-										{isLocked && (
-											<Feather name="lock" size={18} color="#9CA3AF" />
-										)}
-									</View>
-								</TouchableOpacity>
-							);
-						})}
+						>
+							<Text
+								className={`font-poppins-bold text-[15px] ${
+									activeTab === "lessons" ? "text-lingua-purple" : "text-[#6B7280]"
+								}`}
+							>
+								Lessons
+							</Text>
+						</TouchableOpacity>
+						<TouchableOpacity
+							onPress={() => setActiveTab("practice")}
+							activeOpacity={0.8}
+							className="flex-1 h-[46px] items-center justify-center rounded-2xl"
+							style={
+								activeTab === "practice"
+									? {
+											backgroundColor: "#FFFFFF",
+											borderBottomWidth: 3,
+											borderBottomColor: "#6C4EF5",
+											shadowColor: "#0D132B",
+											shadowOffset: { width: 0, height: 2 },
+											shadowOpacity: 0.08,
+											shadowRadius: 3,
+											elevation: 2,
+									  }
+									: null
+							}
+						>
+							<Text
+								className={`font-poppins-bold text-[15px] ${
+									activeTab === "practice" ? "text-lingua-purple" : "text-[#6B7280]"
+								}`}
+							>
+								Practice
+							</Text>
+						</TouchableOpacity>
 					</View>
-				) : (
-					<View className="flex-1 items-center justify-center py-10 bg-white border border-neutral-border rounded-2xl">
-						<Feather name="target" size={32} color="#9CA3AF" />
-						<Text className="font-poppins-bold text-[16px] text-neutral-primary mt-3">
-							Practice Exercises
-						</Text>
-						<Text className="font-poppins text-[13px] text-neutral-secondary mt-1 text-center px-6 leading-[18px]">
-							Review vocabulary, spelling, and listening lessons from your current unit.
-						</Text>
-					</View>
-				)}
+
+					{/* Tab Contents */}
+					{activeTab === "lessons" ? (
+						<View className="gap-3.5 mb-6">
+							{unitLessons.map((lesson) => {
+								const isCompleted = activeCompletedLessons.includes(lesson.id);
+								const isActive = nextLesson && nextLesson.id === lesson.id;
+								const isLocked = !isCompleted && !isActive;
+
+								let cardClass = "flex-row items-center rounded-[20px] p-5 border-[1.5px] bg-white ";
+								if (isCompleted) {
+									cardClass += "border-[#E5E7EB]";
+								} else if (isActive) {
+									cardClass += "border-[#6C4EF5] bg-[#F5F2FF]";
+								} else {
+									cardClass += "border-[#E5E7EB]";
+								}
+
+								return (
+									<TouchableOpacity
+										key={lesson.id}
+										onPress={() => handleOpenLesson(lesson)}
+										activeOpacity={0.85}
+										className={cardClass}
+										style={{
+											shadowColor: "#0D132B",
+											shadowOffset: { width: 0, height: 2 },
+											shadowOpacity: 0.02,
+											shadowRadius: 4,
+											elevation: 1,
+										}}
+									>
+										<View className="flex-1">
+											<Text
+												className={`font-poppins-semibold text-[12px] uppercase tracking-wider ${
+													isActive ? "text-lingua-purple" : "text-[#A1A1AA]"
+												}`}
+											>
+												Lesson {lesson.order}
+											</Text>
+											<Text className="font-poppins-bold text-[16px] text-[#0C0F24] mt-0.5">
+												{lesson.title}
+											</Text>
+											{isActive && (
+												<Text className="font-poppins-semibold text-[12px] text-lingua-purple mt-1">
+													In progress
+												</Text>
+											)}
+											{isLocked && (
+												<Text className="font-poppins text-[12px] text-neutral-secondary mt-1">
+													0 / {lesson.activities.length || 6} steps
+												</Text>
+											)}
+										</View>
+
+										{/* Status Right Component */}
+										<View className="ml-4">
+											{isCompleted && (
+												<View className="w-[26px] h-[26px] rounded-full bg-[#21C16B] items-center justify-center">
+													<Feather name="check" size={15} color="#FFFFFF" />
+												</View>
+											)}
+											{isActive && (
+												<Image
+													source={getLessonThumbnail(lesson.type)}
+													className="w-[48px] h-[48px] rounded-lg bg-neutral-surface"
+													contentFit="contain"
+												/>
+											)}
+											{isLocked && (
+												<Feather name="lock" size={20} color="#A1A1AA" />
+											)}
+										</View>
+									</TouchableOpacity>
+								);
+							})}
+						</View>
+					) : (
+						<View className="flex-1 items-center justify-center py-10 bg-white border border-[#E5E7EB] rounded-2xl">
+							<Feather name="target" size={32} color="#9CA3AF" />
+							<Text className="font-poppins-bold text-[16px] text-[#0C0F24] mt-3">
+								Practice Exercises
+							</Text>
+							<Text className="font-poppins text-[13px] text-neutral-secondary mt-1 text-center px-6 leading-[18px]">
+								Review vocabulary, spelling, and listening lessons from your current unit.
+							</Text>
+						</View>
+					)}
+				</View>
 			</ScrollView>
 
 			{/* Bottom Details Modal (consistent with Home Screen) */}
@@ -415,12 +440,6 @@ const styles = StyleSheet.create({
 	safeArea: {
 		flex: 1,
 		backgroundColor: "#FFFFFF",
-	},
-	scrollContent: {
-		flexGrow: 1,
-		paddingHorizontal: 20,
-		paddingTop: 16,
-		paddingBottom: 28,
 	},
 	tabActive: {
 		backgroundColor: "#FFFFFF",

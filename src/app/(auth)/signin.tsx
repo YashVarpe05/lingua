@@ -18,6 +18,7 @@ import VerificationModal from "@/components/VerificationModal";
 import { useSignIn, useSSO } from "@clerk/expo";
 import * as Linking from "expo-linking";
 import { usePostHog } from "posthog-react-native";
+import { blurActiveElement } from "@/utils/dom";
 
 export default function SignIn() {
 	const router = useRouter();
@@ -167,9 +168,7 @@ export default function SignIn() {
 					<View className="w-full">
 						<TouchableOpacity
 							onPress={() => {
-								if (typeof document !== "undefined") {
-									(document.activeElement as any)?.blur();
-								}
+								blurActiveElement();
 								router.replace("/onboarding" as any);
 							}}
 							style={styles.backButton}
@@ -310,9 +309,7 @@ export default function SignIn() {
 						</Text>
 						<TouchableOpacity
 							onPress={() => {
-								if (typeof document !== "undefined") {
-									(document.activeElement as any)?.blur();
-								}
+								blurActiveElement();
 								router.replace("/signup" as any);
 							}}
 							activeOpacity={0.7}

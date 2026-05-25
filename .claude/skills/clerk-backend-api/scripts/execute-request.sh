@@ -24,7 +24,7 @@ while true; do
         _val="${_line#*=}"
         _val="${_val%$'\r'}"
         if [[ "$_val" =~ ^\".*\"$ || "$_val" =~ ^\'.*\'$ ]]; then
-          _val="${_val:1:${`#_val`}-2}"
+          _val="${_val:1:${#_val}-2}"
         fi
         printf -v "$_key" '%s' "$_val"
         export "$_key"

@@ -16,6 +16,7 @@ import { images } from "@/constants/images";
 import { languages } from "@/data/languages";
 import { useLanguageStore } from "@/store/useLanguageStore";
 import { usePostHog } from "posthog-react-native";
+import { blurActiveElement } from "@/utils/dom";
 
 const getLearnerCount = (langId: string): string => {
 	const counts: Record<string, string> = {
@@ -53,9 +54,7 @@ export default function LanguageSelection() {
 	const handleConfirm = async () => {
 		if (!selectedLanguageId) return;
 		try {
-			if (typeof document !== "undefined") {
-				(document.activeElement as any)?.blur();
-			}
+			blurActiveElement();
 			const selectedLang = languages.find((l) => l.id === selectedLanguageId);
 			posthog.capture("language_selected", {
 				language_id: selectedLanguageId,
@@ -104,9 +103,7 @@ export default function LanguageSelection() {
 								{storeLanguageId ? (
 									<TouchableOpacity
 										onPress={() => {
-											if (typeof document !== "undefined") {
-												(document.activeElement as any)?.blur();
-											}
+											blurActiveElement();
 											router.replace("/" as any);
 										}}
 										style={styles.backButton}

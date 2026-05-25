@@ -14,12 +14,11 @@ import { Text, View, Pressable } from "@/tw";
 import { Image } from "@/tw/image";
 import { images } from "@/constants/images";
 import { languages } from "@/data/languages";
-import { units } from "@/data/units";
-import { lessons } from "@/data/lessons";
 import { useLanguageStore } from "@/store/useLanguageStore";
 import { useProgressStore } from "@/store/useProgressStore";
 import { Lesson } from "@/types/learning";
 import { usePostHog } from "posthog-react-native";
+import { getLanguageUnitsAndLessons } from "@/utils/learning";
 
 // Helper function to return dynamic greeting based on selected language
 const getGreeting = (langId: string, name: string) => {
@@ -45,68 +44,7 @@ const getGreeting = (langId: string, name: string) => {
 	}
 };
 
-// Fallback generator for languages without predefined lessons/units in database
-const getLanguageUnitsAndLessons = (langId: string) => {
-	const langUnits = units.filter((u) => u.languageId === langId);
-	let langLessons = lessons.filter((l) => langUnits.some((u) => u.id === l.unitId));
 
-	if (langUnits.length === 0) {
-		const selectedLang = languages.find((lang) => lang.id === langId) || { name: "Foreign Language" };
-		const defaultUnitId = `${langId}_unit_1`;
-		const mockUnits = [
-			{
-				id: defaultUnitId,
-				languageId: langId,
-				title: `Unit 1: Basics of ${selectedLang.name}`,
-				description: `Start learning basic vocabulary, greetings, and useful everyday expressions in ${selectedLang.name}.`,
-				order: 1,
-			},
-		];
-
-		const mockLessons = [
-			{
-				id: `${langId}_u1_l1`,
-				unitId: defaultUnitId,
-				title: "Essential Greetings",
-				description: `Learn how to say hello, goodbye, and thank you in ${selectedLang.name}.`,
-				type: "vocabulary" as const,
-				order: 1,
-				xpReward: 10,
-				durationMinutes: 3,
-				goals: ["Say hello and goodbye", "Express gratitude", "Understand basic politeness"],
-				activities: [],
-			},
-			{
-				id: `${langId}_u1_l2`,
-				unitId: defaultUnitId,
-				title: "AI Teacher: Introductions",
-				description: `Join your AI teacher to learn how to introduce yourself.`,
-				type: "video" as const,
-				order: 2,
-				xpReward: 20,
-				durationMinutes: 5,
-				goals: ["State your own name", "Ask for someone's name", "Say nice to meet you"],
-				activities: [],
-			},
-			{
-				id: `${langId}_u1_l3`,
-				unitId: defaultUnitId,
-				title: "AI Chat: First Conversation",
-				description: `Chat with your AI partner to practice your greetings and introduction.`,
-				type: "chat" as const,
-				order: 3,
-				xpReward: 15,
-				durationMinutes: 4,
-				goals: ["Introduce yourself in conversation", "Respond to simple questions"],
-				activities: [],
-			},
-		];
-
-		return { units: mockUnits, lessons: mockLessons };
-	}
-
-	return { units: langUnits, lessons: langLessons };
-};
 
 export default function HomeScreen() {
 	const router = useRouter();

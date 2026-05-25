@@ -155,11 +155,5 @@ export const languages: Language[] = [
 		flag: "https://flagcdn.com/w320/ua.png",
 		code: "uk-UA",
 	},
-	{
-		id: "pt-PT",
-		name: "Portuguese (Portugal)",
-		nativeName: "Português Europeu",
-		flag: "https://flagcdn.com/w320/pt.png",
-		code: "pt-PT",
-	},
+];
 ];

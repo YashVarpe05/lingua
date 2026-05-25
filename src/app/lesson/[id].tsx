@@ -8,7 +8,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { Feather } from "@expo/vector-icons";
+import { Feather, MaterialIcons } from "@expo/vector-icons";
 import { Text, View, TouchableOpacity, Pressable } from "@/tw";
 import { Image } from "@/tw/image";
 import { images } from "@/constants/images";
@@ -209,7 +209,7 @@ export default function AudioLessonScreen() {
 						activeOpacity={0.7}
 						className="w-10 h-10 rounded-full border border-[#E5E7EB] items-center justify-center bg-white"
 					>
-						<Feather name="info" size={18} color="#0D132B" />
+						<Feather name="bell" size={18} color="#0D132B" />
 					</TouchableOpacity>
 				</View>
 			</View>
@@ -219,16 +219,16 @@ export default function AudioLessonScreen() {
 				<View className="flex-1 rounded-[32px] overflow-hidden relative shadow-lg">
 					{/* Blurred room background image */}
 					<Image
-						source={{ uri: "https://images.unsplash.com/photo-1544644181-1484b3fdfc62?w=800&auto=format&fit=crop&q=80" }}
+						source={{ uri: "https://images.unsplash.com/photo-1513694203232-719a280e022f?w=800&auto=format&fit=crop&q=80" }}
 						className="absolute w-full h-full"
 						contentFit="cover"
-						blurRadius={5}
+						blurRadius={3}
 					/>
 
 					{/* Waving mascot fox in center foreground */}
 					<Image
 						source={images.mascot_waving}
-						className="absolute bottom-20 w-[280px] h-[280px] self-center"
+						className="absolute bottom-24 w-[300px] h-[300px] self-center"
 						contentFit="contain"
 					/>
 
@@ -245,7 +245,7 @@ export default function AudioLessonScreen() {
 
 					{/* Speech Bubble / Subtitles Overlay */}
 					{subtitlesVisible && (
-						<View className="absolute bottom-[92px] left-6 right-6 bg-white rounded-2xl p-4 shadow-lg border border-[#E5E7EB]">
+						<View className="absolute bottom-[92px] left-6 right-6 bg-white rounded-[24px] p-4 shadow-lg border border-[#E5E7EB]">
 							<View className="flex-row items-center justify-between gap-4">
 								<View className="flex-1">
 									<Text className="font-poppins-bold text-[16px] text-[#0C0F24] leading-[22px]">
@@ -263,7 +263,7 @@ export default function AudioLessonScreen() {
 								</TouchableOpacity>
 							</View>
 							{/* Speech pointer block */}
-							<View className="absolute bottom-[-6px] left-[50px] w-3 h-3 bg-white border-r border-b border-[#E5E7EB] rotate-45" />
+							<View className="absolute bottom-[-6px] right-[75px] w-3 h-3 bg-white border-r border-b border-[#E5E7EB] rotate-45" />
 						</View>
 					)}
 
@@ -273,15 +273,15 @@ export default function AudioLessonScreen() {
 							<TouchableOpacity
 								onPress={() => setIsCameraActive(!isCameraActive)}
 								activeOpacity={0.8}
-								className={`w-12 h-12 rounded-full items-center justify-center shadow-md bg-white`}
+								className="w-14 h-14 rounded-full items-center justify-center shadow-md bg-white"
 							>
 								<Feather
 									name={isCameraActive ? "video" : "video-off"}
-									size={20}
+									size={24}
 									color={isCameraActive ? "#0D132B" : "#A1A1AA"}
 								/>
 							</TouchableOpacity>
-							<Text className="font-poppins text-[10px] text-white mt-1 uppercase tracking-wider">
+							<Text className="font-poppins-medium text-[12px] text-white/90 mt-1.5 shadow-sm">
 								Camera
 							</Text>
 						</View>
@@ -290,17 +290,17 @@ export default function AudioLessonScreen() {
 							<TouchableOpacity
 								onPress={() => setIsMuted(!isMuted)}
 								activeOpacity={0.8}
-								className={`w-12 h-12 rounded-full items-center justify-center shadow-md ${
-									isMuted ? "bg-[#EB5757]" : "bg-white"
+								className={`w-14 h-14 rounded-full items-center justify-center shadow-md ${
+									isMuted ? "bg-[#FF4B4B]" : "bg-white"
 								}`}
 							>
 								<Feather
 									name={isMuted ? "mic-off" : "mic"}
-									size={20}
+									size={24}
 									color={isMuted ? "#FFFFFF" : "#0D132B"}
 								/>
 							</TouchableOpacity>
-							<Text className="font-poppins text-[10px] text-white mt-1 uppercase tracking-wider">
+							<Text className="font-poppins-medium text-[12px] text-white/90 mt-1.5 shadow-sm">
 								Mic
 							</Text>
 						</View>
@@ -309,15 +309,15 @@ export default function AudioLessonScreen() {
 							<TouchableOpacity
 								onPress={() => setSubtitlesVisible(!subtitlesVisible)}
 								activeOpacity={0.8}
-								className={`w-12 h-12 rounded-full items-center justify-center shadow-md bg-white`}
+								className="w-14 h-14 rounded-full items-center justify-center shadow-md bg-white"
 							>
-								<Feather
-									name="message-square"
-									size={20}
+								<MaterialIcons
+									name="translate"
+									size={24}
 									color={subtitlesVisible ? "#6C4EF5" : "#0D132B"}
 								/>
 							</TouchableOpacity>
-							<Text className="font-poppins text-[10px] text-white mt-1 uppercase tracking-wider">
+							<Text className="font-poppins-medium text-[12px] text-white/90 mt-1.5 shadow-sm">
 								Subtitles
 							</Text>
 						</View>
@@ -326,11 +326,11 @@ export default function AudioLessonScreen() {
 							<TouchableOpacity
 								onPress={() => setIsEndCallModalVisible(true)}
 								activeOpacity={0.8}
-								className="w-12 h-12 rounded-full items-center justify-center bg-[#EB5757] shadow-md"
+								className="w-14 h-14 rounded-full items-center justify-center bg-[#FF4B4B] shadow-md"
 							>
-								<Feather name="phone-off" size={20} color="#FFFFFF" />
+								<MaterialIcons name="call-end" size={24} color="#FFFFFF" />
 							</TouchableOpacity>
-							<Text className="font-poppins text-[10px] text-white mt-1 uppercase tracking-wider">
+							<Text className="font-poppins-medium text-[12px] text-white/90 mt-1.5 shadow-sm">
 								End Call
 							</Text>
 						</View>
@@ -338,30 +338,30 @@ export default function AudioLessonScreen() {
 				</View>
 
 				{/* Bottom Live Feedback Summary Card */}
-				<View className="flex-row items-center justify-around bg-white rounded-2xl border border-[#E5E7EB] p-4 mt-3 shadow-sm">
+				<View className="flex-row items-center justify-around bg-white rounded-[24px] border border-[#E5E7EB] py-5 px-4 mt-3 shadow-sm">
 					<View className="items-center flex-1">
-						<Text className="font-poppins text-[11px] text-neutral-secondary uppercase tracking-wider">
+						<Text className="font-poppins-semibold text-[14px] text-[#0C0F24]">
 							Speaking
 						</Text>
-						<Text className="font-poppins-bold text-[14px] text-[#21C16B] mt-1">
+						<Text className="font-poppins-bold text-[16px] text-[#21C16B] mt-1">
 							{speakingRating}
 						</Text>
 					</View>
 					<View style={{ width: 1, height: 28, backgroundColor: "#E5E7EB" }} />
 					<View className="items-center flex-1">
-						<Text className="font-poppins text-[11px] text-neutral-secondary uppercase tracking-wider">
+						<Text className="font-poppins-semibold text-[14px] text-[#0C0F24]">
 							Pronunciation
 						</Text>
-						<Text className="font-poppins-bold text-[14px] text-[#2F80ED] mt-1">
+						<Text className="font-poppins-bold text-[16px] text-[#2F80ED] mt-1">
 							{pronunciationRating}
 						</Text>
 					</View>
 					<View style={{ width: 1, height: 28, backgroundColor: "#E5E7EB" }} />
 					<View className="items-center flex-1">
-						<Text className="font-poppins text-[11px] text-neutral-secondary uppercase tracking-wider">
+						<Text className="font-poppins-semibold text-[14px] text-[#0C0F24]">
 							Grammar
 						</Text>
-						<Text className="font-poppins-bold text-[14px] text-[#9B51E0] mt-1">
+						<Text className="font-poppins-bold text-[16px] text-[#9B51E0] mt-1">
 							{grammarRating}
 						</Text>
 					</View>

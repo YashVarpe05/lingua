@@ -1,15 +1,13 @@
 import React, { useState } from "react";
 import {
 	StyleSheet,
-	TouchableOpacity,
-	ScrollView,
 	Modal,
 	Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { Feather, Ionicons } from "@expo/vector-icons";
-import { Text, View, Pressable } from "@/tw";
+import { Text, View, Pressable, ScrollView, TouchableOpacity } from "@/tw";
 import { Image } from "@/tw/image";
 import { images } from "@/constants/images";
 import { languages } from "@/data/languages";

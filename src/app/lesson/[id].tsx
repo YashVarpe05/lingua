@@ -1,17 +1,14 @@
 import React, { useState } from "react";
 import {
 	StyleSheet,
-	TouchableOpacity,
-	ScrollView,
 	KeyboardAvoidingView,
 	Platform,
-	TextInput,
 	ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Feather } from "@expo/vector-icons";
-import { Text, View } from "@/tw";
+import { Text, View, ScrollView, TouchableOpacity, TextInput } from "@/tw";
 import { useLanguageStore } from "@/store/useLanguageStore";
 import { useProgressStore } from "@/store/useProgressStore";
 import { getLanguageUnitsAndLessons } from "@/utils/learning";

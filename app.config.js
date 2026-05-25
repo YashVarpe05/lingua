@@ -8,7 +8,7 @@ export default {
     scheme: "lingua",
     userInterfaceStyle: "automatic",
     ios: {
-      icon: "./assets/expo.icon",
+      icon: "./assets/images/icon.png",
     },
     android: {
       adaptiveIcon: {

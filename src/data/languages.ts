@@ -26,7 +26,7 @@ export const languages: Language[] = [
 		id: "en",
 		name: "English",
 		nativeName: "English",
-		flag: "https://flagcdn.com/w320/gb.png",
+		flag: "https://flagcdn.com/w320/us.png",
 		code: "en-US",
 	},
 	{

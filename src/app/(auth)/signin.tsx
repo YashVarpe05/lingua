@@ -20,6 +20,22 @@ import * as Linking from "expo-linking";
 import { usePostHog } from "posthog-react-native";
 import { blurActiveElement } from "@/utils/dom";
 
+interface EmailCodeFactor {
+	strategy: "email_code";
+	emailAddressId: string;
+}
+
+function isEmailCodeFactor(factor: unknown): factor is EmailCodeFactor {
+	return (
+		typeof factor === "object" &&
+		factor !== null &&
+		"strategy" in factor &&
+		(factor as any).strategy === "email_code" &&
+		"emailAddressId" in factor &&
+		typeof (factor as any).emailAddressId === "string"
+	);
+}
+
 export default function SignIn() {
 	const router = useRouter();
 	const posthog = usePostHog();
@@ -58,13 +74,15 @@ export default function SignIn() {
 			}
 
 			// Find email_code strategy in supported first factors
-			const emailCodeFactor = signIn.supportedFirstFactors.find(
+			const foundFactor = signIn.supportedFirstFactors.find(
 				(factor) => factor.strategy === "email_code"
-			) as any;
+			);
 
-			if (!emailCodeFactor) {
+			if (!foundFactor || !isEmailCodeFactor(foundFactor)) {
 				throw new Error("Passwordless email sign-in is not supported on this account. Please use standard authentication.");
 			}
+
+			const emailCodeFactor = foundFactor;
 
 			// Send verification email code
 			const sendResult = await signIn.emailCode.sendCode({
@@ -79,10 +97,10 @@ export default function SignIn() {
 
 			// Open modal to enter code
 			setModalVisible(true);
-		} catch (err: any) {
-			posthog.captureException(err, { flow: "signin", method: "email", step: "initiate" });
-			const errMsg = err?.message || "Sign in failed. Please try again.";
-			setError(errMsg);
+		} catch (err: unknown) {
+			const errorInstance = err instanceof Error ? err : new Error(String(err));
+			posthog.captureException(errorInstance, { flow: "signin", method: "email", step: "initiate" });
+			setError(errorInstance.message || "Sign in failed. Please try again.");
 		} finally {
 			setLoading(false);
 		}
@@ -117,9 +135,10 @@ export default function SignIn() {
 			} else {
 				throw new Error("Sign in not complete. Please check status: " + signIn.status);
 			}
-		} catch (err: any) {
-			posthog.captureException(err, { flow: "signin", method: "email", step: "verify" });
-			throw err;
+		} catch (err: unknown) {
+			const errorInstance = err instanceof Error ? err : new Error(String(err));
+			posthog.captureException(errorInstance, { flow: "signin", method: "email", step: "verify" });
+			throw errorInstance;
 		}
 	};
 
@@ -137,16 +156,18 @@ export default function SignIn() {
 				await setActive({ session: createdSessionId });
 				posthog.capture("sign_in_completed", { method: strategy });
 			}
-		} catch (err: any) {
-			if (err?.message?.includes("cancel") || err?.code === "CANCELLED") {
+		} catch (err: unknown) {
+			const errorInstance = err instanceof Error ? err : new Error(String(err));
+			const errCode = typeof err === "object" && err !== null && "code" in err ? (err as any).code : undefined;
+			if (errorInstance.message.includes("cancel") || errCode === "CANCELLED") {
 				return;
 			}
-			posthog.captureException(err, {
+			posthog.captureException(errorInstance, {
 				flow: "signin",
 				method: strategy,
 				step: "oauth",
 			});
-			setError(err?.message || "Social authentication failed.");
+			setError(errorInstance.message || "Social authentication failed.");
 		} finally {
 			setLoading(false);
 		}

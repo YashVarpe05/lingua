@@ -93,11 +93,12 @@ export default function HomeScreen() {
 
 	// Calculate unit progress details
 	const unitLessons = activeLessons.filter((l) => l.unitId === currentUnit.id);
-	const completedCount = unitLessons.filter((l) => completedLessons.includes(l.id)).length;
 	
-	// Daily goal calculations (20 XP standard goal, 10 XP per lesson)
+	// Daily goal calculations (20 XP standard goal, sum of completed lesson XP rewards)
 	const dailyGoalXp = 20;
-	const currentXpProgress = completedCount * 10;
+	const currentXpProgress = unitLessons
+		.filter((l) => completedLessons.includes(l.id))
+		.reduce((sum, l) => sum + (l.xpReward || 0), 0);
 	const dailyGoalPercent = Math.min((currentXpProgress / dailyGoalXp) * 100, 100);
 
 	// Find the next uncompleted lesson to recommend
@@ -256,9 +257,9 @@ export default function HomeScreen() {
 								{streak}
 							</Text>
 						</View>
-						<TouchableOpacity activeOpacity={0.7} className="p-1">
+						<View className="p-1">
 							<Feather name="bell" size={18} color="#0D132B" />
-						</TouchableOpacity>
+						</View>
 					</View>
 				</View>
 
@@ -328,11 +329,11 @@ export default function HomeScreen() {
 					<Text className="font-poppins-bold text-[17px] text-neutral-primary">
 						Today&apos;s plan
 					</Text>
-					<TouchableOpacity activeOpacity={0.7}>
+					<View>
 						<Text className="font-poppins-semibold text-[13px] text-lingua-blue">
 							View all
 						</Text>
-					</TouchableOpacity>
+					</View>
 				</View>
 
 				{/* Today's Plan list of lessons */}
@@ -537,7 +538,10 @@ export default function HomeScreen() {
 												language_id: selectedLanguageId,
 											});
 											setModalVisible(false);
-											router.push(`/lesson/${selectedLesson.id}` as any);
+											router.push({
+												pathname: "/lesson/[id]",
+												params: { id: selectedLesson.id },
+											});
 										}}
 										style={[styles.modalStartBtn, { backgroundColor: "#6C4EF5" }]}
 										activeOpacity={0.85}

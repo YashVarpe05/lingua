@@ -76,10 +76,10 @@ export default function SignUp() {
 
 			// Open modal to enter code
 			setModalVisible(true);
-		} catch (err: any) {
-			posthog.captureException(err, { flow: "signup", method: "email", step: "initiate" });
-			const errMsg = err?.message || "Sign up failed. Please try again.";
-			setError(errMsg);
+		} catch (err: unknown) {
+			const errorInstance = err instanceof Error ? err : new Error(String(err));
+			posthog.captureException(errorInstance, { flow: "signup", method: "email", step: "initiate" });
+			setError(errorInstance.message || "Sign up failed. Please try again.");
 		} finally {
 			setLoading(false);
 		}
@@ -113,7 +113,6 @@ export default function SignUp() {
 				}
 				posthog.capture("sign_up_completed", {
 					method: "email",
-					email: signUp.emailAddress,
 				});
 			} else if (signUp.status === "missing_requirements") {
 				// Inform developer about missing fields (e.g. phone number required in dashboard)
@@ -127,9 +126,15 @@ export default function SignUp() {
 			} else {
 				throw new Error("Sign up not complete. Please check status: " + signUp.status);
 			}
-		} catch (err: any) {
-			posthog.captureException(err, { flow: "signup", method: "email", step: "verify" });
-			throw err;
+		} catch (err: unknown) {
+			if (err instanceof Error) {
+				posthog.captureException(err, { flow: "signup", method: "email", step: "verify" });
+				throw err;
+			} else {
+				const newErr = new Error(String(err));
+				posthog.captureException(newErr, { flow: "signup", method: "email", step: "verify" });
+				throw newErr;
+			}
 		}
 	};
 
@@ -147,16 +152,18 @@ export default function SignUp() {
 				await setActive({ session: createdSessionId });
 				posthog.capture("sign_up_completed", { method: strategy });
 			}
-		} catch (err: any) {
-			if (err?.message?.includes("cancel") || err?.code === "CANCELLED") {
+		} catch (err: unknown) {
+			const errorInstance = err instanceof Error ? err : new Error(String(err));
+			const errCode = typeof err === "object" && err !== null && "code" in err ? (err as any).code : undefined;
+			if (errorInstance.message.includes("cancel") || errCode === "CANCELLED") {
 				return;
 			}
-			posthog.captureException(err, {
+			posthog.captureException(errorInstance, {
 				flow: "signup",
 				method: strategy,
 				step: "oauth",
 			});
-			setError(err?.message || "Social authentication failed.");
+			setError(errorInstance.message || "Social authentication failed.");
 		} finally {
 			setLoading(false);
 		}

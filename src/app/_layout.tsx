@@ -126,7 +126,7 @@ export default function RootLayout() {
 		<PostHogProvider
 			client={posthog}
 			autocapture={{
-				captureScreens: true,
+				captureScreens: false,
 				captureTouches: true,
 				propsToCapture: ["testID"],
 				maxElementsCaptured: 20,

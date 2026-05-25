@@ -1,9 +1,14 @@
 import PostHog from "posthog-react-native";
 import Constants from "expo-constants";
 
-const apiKey = Constants.expoConfig?.extra?.posthogProjectToken as string | undefined;
-const host = Constants.expoConfig?.extra?.posthogHost as string | undefined;
-const isPostHogConfigured = !!apiKey && apiKey !== "phc_your_project_token_here";
+const rawApiKey = Constants.expoConfig?.extra?.posthogProjectToken;
+const rawHost = Constants.expoConfig?.extra?.posthogHost;
+
+const sanitizedApiKey = typeof rawApiKey === "string" ? rawApiKey.trim() : "";
+const host = typeof rawHost === "string" ? rawHost.trim() : undefined;
+
+const apiKey = sanitizedApiKey || undefined;
+const isPostHogConfigured = Boolean(sanitizedApiKey) && sanitizedApiKey !== "phc_your_project_token_here";
 
 if (__DEV__) {
 	console.log("PostHog config:", {
@@ -13,7 +18,7 @@ if (__DEV__) {
 	});
 }
 
-if (!isPostHogConfigured) {
+if (__DEV__ && !isPostHogConfigured) {
 	console.warn(
 		"PostHog project token not configured. Analytics will be disabled. " +
 			"Set POSTHOG_PROJECT_TOKEN in your .env file to enable analytics."

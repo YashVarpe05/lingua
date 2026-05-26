@@ -18,41 +18,6 @@ import { getLanguageUnitsAndLessons } from "@/utils/learning";
 import { usePostHog } from "posthog-react-native";
 import { useUser } from "@clerk/expo";
 
-// Dynamically require Stream Video SDK to prevent crash in Expo Go / Web
-let StreamCall: any = null;
-let StreamVideo: any = null;
-let StreamVideoClient: any = null;
-let useCallStateHooks: any = null;
-let CallingStateEnum: any = null;
-let hasNativeSDK = false;
-
-/* eslint-disable @typescript-eslint/no-require-imports */
-try {
-	const sdk = require("@stream-io/video-react-native-sdk");
-	StreamCall = sdk.StreamCall;
-	StreamVideo = sdk.StreamVideo;
-	StreamVideoClient = sdk.StreamVideoClient;
-	useCallStateHooks = sdk.useCallStateHooks;
-	CallingStateEnum = sdk.CallingState;
-	hasNativeSDK = true;
-} catch {
-	console.log("Stream Video SDK native modules not found. Falling back to simulated calling.");
-}
-
-// Fallback values for CallingState if native SDK is not loaded
-const LocalCallingState = {
-	UNKNOWN: "unknown",
-	IDLE: "idle",
-	RINGING: "ringing",
-	JOINING: "joining",
-	JOINED: "joined",
-	RECONNECTING: "reconnecting",
-	RECONNECTING_FAILED: "reconnectingFailed",
-	LEFT: "left",
-};
-
-const CallingState = CallingStateEnum || LocalCallingState;
-
 // Localized phrases for lesson info overlay
 const getLocalizedPhrases = (langId: string): string[] => {
 	switch (langId) {
@@ -122,12 +87,12 @@ export default function AudioLessonScreen() {
 	const { lessons: activeLessons } = getLanguageUnitsAndLessons(selectedLanguageId || "es");
 	const lesson = activeLessons.find((l) => l.id === id);
 
-	// Fallback UI / Mock States (used when hasNativeSDK is false)
-	const [callingStateMock, setCallingStateMock] = useState<string>("connecting");
-	const [isMutedMock, setIsMutedMock] = useState(false);
-
-	// Shared States
+	// Web Mocked Calling States
+	const [callingState, setCallingState] = useState<"connecting" | "joined" | "left" | "reconnecting_failed">("connecting");
+	const [isMuted, setIsMuted] = useState(false);
 	const [elapsedSeconds, setElapsedSeconds] = useState(0);
+
+	// UI States
 	const [isCameraActive, setIsCameraActive] = useState(true);
 	const [subtitlesVisible, setSubtitlesVisible] = useState(true);
 	const [isInfoVisible, setIsInfoVisible] = useState(false);
@@ -139,10 +104,22 @@ export default function AudioLessonScreen() {
 	const [pronunciationRating, setPronunciationRating] = useState("Listening...");
 	const [grammarRating, setGrammarRating] = useState("Listening...");
 
-	// Stream client & call instances
-	const [client, setClient] = useState<any>(null);
-	const [call, setCall] = useState<any>(null);
-	const [initError, setInitError] = useState<string | null>(null);
+	// Simulates call connection on Web
+	useEffect(() => {
+		const connectTimeout = setTimeout(() => {
+			setCallingState("joined");
+		}, 1500);
+		return () => clearTimeout(connectTimeout);
+	}, []);
+
+	// Ticking call duration timer
+	useEffect(() => {
+		if (callingState !== "joined") return;
+		const interval = setInterval(() => {
+			setElapsedSeconds((prev) => prev + 1);
+		}, 1000);
+		return () => clearInterval(interval);
+	}, [callingState]);
 
 	// Simulates live AI evaluation updates
 	useEffect(() => {
@@ -153,113 +130,6 @@ export default function AudioLessonScreen() {
 		}, 5000);
 		return () => clearTimeout(feedbackTimeout);
 	}, []);
-
-	// Simulates call connection on Web/Expo Go fallback
-	useEffect(() => {
-		if (hasNativeSDK) return;
-		const connectTimeout = setTimeout(() => {
-			setCallingStateMock("joined");
-		}, 1500);
-		return () => clearTimeout(connectTimeout);
-	}, []);
-
-	// Ticking call duration timer (for mock fallback only; active version handles this inside AudioLessonContent)
-	useEffect(() => {
-		if (hasNativeSDK) return;
-		if (callingStateMock !== "joined") return;
-		const interval = setInterval(() => {
-			setElapsedSeconds((prev) => prev + 1);
-		}, 1000);
-		return () => clearInterval(interval);
-	}, [callingStateMock]);
-
-	// Stream Video Client Connection Effect
-	useEffect(() => {
-		if (!hasNativeSDK) return;
-
-		let active = true;
-		let clientInstance: any = null;
-		let callInstance: any = null;
-
-		async function initCall() {
-			try {
-				if (!user || !lesson) return;
-
-				// Fetch client token and call config from backend route
-				const response = await fetch("/api/stream", {
-					method: "POST",
-					headers: {
-						"Content-Type": "application/json",
-					},
-					body: JSON.stringify({
-						userId: user.id,
-						userName: user.fullName || user.username || user.id,
-						userImage: user.imageUrl || "",
-						lessonId: lesson.id,
-						languageId: selectedLanguageId || "es",
-					}),
-				});
-
-				if (!response.ok) {
-					throw new Error(`Failed to initialize Stream token: ${response.statusText}`);
-				}
-
-				const data = await response.json();
-				if (data.error) {
-					throw new Error(data.error);
-				}
-
-				if (!active) return;
-
-				const streamUser = {
-					id: user.id,
-					name: user.fullName || user.username || user.id,
-					image: user.imageUrl || "",
-				};
-
-				// Setup video client locally
-				clientInstance = new StreamVideoClient({
-					apiKey: data.apiKey,
-					user: streamUser,
-					token: data.token,
-				});
-
-				// Create call instance locally
-				callInstance = clientInstance.call("default", data.callId);
-
-				// Connect user and join call
-				await callInstance.join({ create: true });
-
-				// Ensure audio is enabled and microphone is active by default
-				await callInstance.microphone.enable();
-
-				if (active) {
-					setClient(clientInstance);
-					setCall(callInstance);
-				}
-			} catch (err: any) {
-				console.error("Stream init error:", err);
-				if (active) {
-					setInitError(err.message || "Failed to establish AI calling connection");
-				}
-			}
-		}
-
-		initCall();
-
-		return () => {
-			active = false;
-			// Clean up asynchronously with 50ms delay
-			setTimeout(() => {
-				if (callInstance) {
-					callInstance.leave().catch((e: any) => console.log("Error leaving call:", e));
-				}
-				if (clientInstance) {
-					clientInstance.disconnectUser().catch((e: any) => console.log("Error disconnecting user:", e));
-				}
-			}, 50);
-		};
-	}, [user, id, selectedLanguageId, lesson]);
 
 	if (!lesson) {
 		return (
@@ -283,9 +153,6 @@ export default function AudioLessonScreen() {
 	const handleFinishCall = async () => {
 		setIsSubmitting(true);
 		try {
-			if (call) {
-				await call.leave();
-			}
 			await completeLesson(lesson.id, lesson.xpReward);
 			posthog.capture("lesson_completed", {
 				lesson_id: lesson.id,
@@ -293,241 +160,47 @@ export default function AudioLessonScreen() {
 				lesson_type: lesson.type,
 				language_id: selectedLanguageId,
 				xp_earned: lesson.xpReward,
-				method: hasNativeSDK ? "audio_session" : "audio_session_fallback",
+				method: "audio_session_web",
 			});
 			setIsEndCallModalVisible(false);
 			router.back();
 		} catch (err) {
-			posthog.captureException(err, { flow: "audio_lesson", step: "finish_call" });
+			posthog.captureException(err, { flow: "audio_lesson_web", step: "finish_call" });
 			console.error("Failed to complete audio session:", err);
 		} finally {
 			setIsSubmitting(false);
 		}
 	};
 
-	if (initError) {
-		return (
-			<SafeAreaView style={styles.safeArea}>
-				<View className="flex-1 items-center justify-center p-6 bg-white">
-					<Feather name="alert-triangle" size={48} color="#FF4B4B" className="mb-4" />
-					<Text className="font-poppins-bold text-[18px] text-neutral-primary mb-2 text-center">
-						Calling connection failed
-					</Text>
-					<Text className="font-poppins text-[14px] text-neutral-secondary mb-6 text-center max-w-[280px]">
-						{initError}
-					</Text>
-					<TouchableOpacity
-						onPress={() => router.back()}
-						className="bg-lingua-purple px-6 py-2.5 rounded-full"
-					>
-						<Text className="font-poppins-semibold text-white">Go Back</Text>
-					</TouchableOpacity>
-				</View>
-			</SafeAreaView>
-		);
-	}
-
-	// If native SDK is supported but client/call is not ready yet, render loading spinner
-	if (hasNativeSDK && (!client || !call)) {
-		return (
-			<SafeAreaView style={styles.safeArea}>
-				<View className="flex-1 bg-[#F6F7FB] items-center justify-center w-full">
-					<View className="flex-1 w-full max-w-[480px] p-4 justify-center items-center relative">
-						<Image
-							source={{ uri: "https://images.unsplash.com/photo-1513694203232-719a280e022f?w=800&auto=format&fit=crop&q=80" }}
-							className="absolute w-full h-full opacity-60"
-							contentFit="cover"
-							blurRadius={5}
-						/>
-						<Image
-							source={images.mascotWelcome}
-							className="w-[260px] h-[260px] mb-8"
-							contentFit="contain"
-						/>
-						<ActivityIndicator size="large" color="#6C4EF5" />
-						<Text className="font-poppins-bold text-[16px] text-neutral-primary mt-4">
-							Connecting to AI Teacher...
-						</Text>
-						<Text className="font-poppins text-[13px] text-neutral-secondary mt-1">
-							Preparing your audio session
-						</Text>
-					</View>
-				</View>
-			</SafeAreaView>
-		);
-	}
-
-	// Render Mock Version directly if native SDK is absent (e.g. running in Expo Go)
-	if (!hasNativeSDK) {
-		return (
-			<AudioLessonContent
-				lesson={lesson}
-				selectedLanguageId={selectedLanguageId}
-				elapsedSeconds={elapsedSeconds}
-				setElapsedSeconds={setElapsedSeconds}
-				isCameraActive={isCameraActive}
-				setIsCameraActive={setIsCameraActive}
-				subtitlesVisible={subtitlesVisible}
-				setSubtitlesVisible={setSubtitlesVisible}
-				isInfoVisible={isInfoVisible}
-				setIsInfoVisible={setIsInfoVisible}
-				isEndCallModalVisible={isEndCallModalVisible}
-				setIsEndCallModalVisible={setIsEndCallModalVisible}
-				isSubmitting={isSubmitting}
-				handleFinishCall={handleFinishCall}
-				speakingRating={speakingRating}
-				pronunciationRating={pronunciationRating}
-				grammarRating={grammarRating}
-				user={user}
-				isMute={isMutedMock}
-				toggleMute={() => setIsMutedMock(!isMutedMock)}
-				callingState={callingStateMock}
-			/>
-		);
-	}
-
-	// Render real SDK connection
-	return (
-		<StreamVideo client={client}>
-			<StreamCall call={call}>
-				<AudioLessonContentWrapper
-					lesson={lesson}
-					selectedLanguageId={selectedLanguageId}
-					elapsedSeconds={elapsedSeconds}
-					setElapsedSeconds={setElapsedSeconds}
-					isCameraActive={isCameraActive}
-					setIsCameraActive={setIsCameraActive}
-					subtitlesVisible={subtitlesVisible}
-					setSubtitlesVisible={setSubtitlesVisible}
-					isInfoVisible={isInfoVisible}
-					setIsInfoVisible={setIsInfoVisible}
-					isEndCallModalVisible={isEndCallModalVisible}
-					setIsEndCallModalVisible={setIsEndCallModalVisible}
-					isSubmitting={isSubmitting}
-					handleFinishCall={handleFinishCall}
-					speakingRating={speakingRating}
-					pronunciationRating={pronunciationRating}
-					grammarRating={grammarRating}
-					user={user}
-				/>
-			</StreamCall>
-		</StreamVideo>
-	);
-}
-
-// Wrapper for AudioLessonContent when using active Stream SDK Call Context
-function AudioLessonContentWrapper(props: any) {
-	const { useCallCallingState, useMicrophoneState } = useCallStateHooks();
-	const callingState = useCallCallingState();
-	const { microphone, isMute } = useMicrophoneState();
-
-	return (
-		<AudioLessonContent
-			{...props}
-			isMute={isMute}
-			toggleMute={() => microphone.toggle()}
-			callingState={callingState}
-			useActiveTimer={true}
-		/>
-	);
-}
-
-// Inner Content Component to access Stream Call state and hooks
-interface AudioLessonContentProps {
-	lesson: any;
-	selectedLanguageId: string | null;
-	elapsedSeconds: number;
-	setElapsedSeconds: React.Dispatch<React.SetStateAction<number>>;
-	isCameraActive: boolean;
-	setIsCameraActive: (active: boolean) => void;
-	subtitlesVisible: boolean;
-	setSubtitlesVisible: (visible: boolean) => void;
-	isInfoVisible: boolean;
-	setIsInfoVisible: (visible: boolean) => void;
-	isEndCallModalVisible: boolean;
-	setIsEndCallModalVisible: (visible: boolean) => void;
-	isSubmitting: boolean;
-	handleFinishCall: () => Promise<void>;
-	speakingRating: string;
-	pronunciationRating: string;
-	grammarRating: string;
-	user: any;
-	isMute: boolean;
-	toggleMute: () => void;
-	callingState: string;
-	useActiveTimer?: boolean;
-}
-
-function AudioLessonContent({
-	lesson,
-	selectedLanguageId,
-	elapsedSeconds,
-	setElapsedSeconds,
-	isCameraActive,
-	setIsCameraActive,
-	subtitlesVisible,
-	setSubtitlesVisible,
-	isInfoVisible,
-	setIsInfoVisible,
-	isEndCallModalVisible,
-	setIsEndCallModalVisible,
-	isSubmitting,
-	handleFinishCall,
-	speakingRating,
-	pronunciationRating,
-	grammarRating,
-	user,
-	isMute,
-	toggleMute,
-	callingState,
-	useActiveTimer = false,
-}: AudioLessonContentProps) {
-	// Ticking call duration timer (only when the call has successfully joined and we useActiveTimer is true)
-	useEffect(() => {
-		if (!useActiveTimer) return;
-		if (callingState !== CallingState.JOINED) return;
-		const interval = setInterval(() => {
-			setElapsedSeconds((prev) => prev + 1);
-		}, 1000);
-		return () => clearInterval(interval);
-	}, [callingState, setElapsedSeconds, useActiveTimer]);
-
 	// Maps active calling state to top status line
 	const getCallStatusProps = () => {
-		if (isMute) {
+		if (isMuted) {
 			return {
 				text: "Muted",
-				color: "#FF8A00", // Muted status gets an orange/amber theme
+				color: "#FF8A00",
 				dotClass: "bg-[#FF8A00]",
 			};
 		}
 		switch (callingState) {
-			case CallingState.JOINING:
-			case CallingState.RINGING:
+			case "connecting":
 				return {
 					text: "Connecting...",
 					color: "#FFB020",
 					dotClass: "bg-[#FFB020] animate-pulse",
 				};
-			case CallingState.JOINED:
+			case "joined":
 				return {
-					text: "Online",
+					text: "Online (Web Demo)",
 					color: "#21C16B",
 					dotClass: "bg-[#21C16B]",
 				};
-			case CallingState.RECONNECTING:
-				return {
-					text: "Reconnecting...",
-					color: "#FFB020",
-					dotClass: "bg-[#FFB020]",
-				};
-			case CallingState.RECONNECTING_FAILED:
+			case "reconnecting_failed":
 				return {
 					text: "Connection Failed",
 					color: "#FF4B4B",
 					dotClass: "bg-[#FF4B4B]",
 				};
-			case CallingState.LEFT:
+			case "left":
 				return {
 					text: "Offline",
 					color: "#6B7280",
@@ -681,16 +354,16 @@ function AudioLessonContent({
 
 							<View className="items-center">
 								<TouchableOpacity
-									onPress={toggleMute}
+									onPress={() => setIsMuted(!isMuted)}
 									activeOpacity={0.8}
 									className={`w-14 h-14 rounded-full items-center justify-center shadow-md ${
-										isMute ? "bg-[#FF4B4B]" : "bg-white"
+										isMuted ? "bg-[#FF4B4B]" : "bg-white"
 									}`}
 								>
 									<Feather
-										name={isMute ? "mic-off" : "mic"}
+										name={isMuted ? "mic-off" : "mic"}
 										size={24}
-										color={isMute ? "#FFFFFF" : "#0D132B"}
+										color={isMuted ? "#FFFFFF" : "#0D132B"}
 									/>
 								</TouchableOpacity>
 								<Text className="font-poppins-medium text-[12px] text-white/90 mt-1.5 shadow-sm">

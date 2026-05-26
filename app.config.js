@@ -11,6 +11,7 @@ export default {
       icon: "./assets/images/icon.png",
     },
     android: {
+      package: "com.yashvarpe.lingua",
       adaptiveIcon: {
         backgroundColor: "#E6F4FE",
         foregroundImage: "./assets/images/android-icon-foreground.png",
@@ -40,6 +41,22 @@ export default {
       "expo-secure-store",
       "expo-web-browser",
       "expo-localization",
+      "@stream-io/video-react-native-sdk",
+      [
+        "@config-plugins/react-native-webrtc",
+        {
+          "cameraPermission": "Allow $(PRODUCT_NAME) to access your camera for video lessons.",
+          "microphonePermission": "Allow $(PRODUCT_NAME) to access your microphone for audio lessons."
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "minSdkVersion": 24
+          }
+        }
+      ]
     ],
     experiments: {
       typedRoutes: true,
@@ -48,6 +65,9 @@ export default {
     extra: {
       posthogProjectToken: process.env.POSTHOG_PROJECT_TOKEN,
       posthogHost: process.env.POSTHOG_HOST,
+      eas: {
+        projectId: "2b64dd4c-81c8-4c87-8d7b-ed55271ee436",
+      },
     },
   },
 };

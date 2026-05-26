@@ -42,3 +42,7 @@ app-example
 /ios
 /android
 .env
+
+# Agent config directories
+.agents/
+.claude/

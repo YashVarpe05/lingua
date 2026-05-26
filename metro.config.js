@@ -9,8 +9,8 @@ const config = getDefaultConfig(__dirname);
 config.resolver.unstable_conditionNames = ["require", "react-native"];
 
 module.exports = withNativewind(config, {
-  // inline variables break PlatformColor in CSS variables
-  inlineVariables: false,
-  // We add className support manually via tw/ wrappers
-  globalClassNamePolyfill: false,
+	// inline variables break PlatformColor in CSS variables
+	inlineVariables: false,
+	// We add className support manually via tw/ wrappers
+	globalClassNamePolyfill: false,
 });

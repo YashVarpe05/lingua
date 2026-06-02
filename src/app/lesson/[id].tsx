@@ -89,25 +89,7 @@ const getLocalizedPhrases = (langId: string): string[] => {
 	}
 };
 
-// Localized greeting dialog for floating speech bubble
-const getLocalizedGreeting = (langId: string): string => {
-	switch (langId) {
-		case "es":
-			return "¡Muy bien!";
-		case "fr":
-			return "Très bien !";
-		case "ja":
-			return "素晴らしい！";
-		case "de":
-			return "Sehr gut!";
-		case "it":
-			return "Molto bene!";
-		case "nl":
-			return "Heel goed!";
-		default:
-			return "Excellent!";
-	}
-};
+
 
 export default function AudioLessonScreen() {
 	const router = useRouter();
@@ -162,6 +144,74 @@ export default function AudioLessonScreen() {
 		}, 1500);
 		return () => clearTimeout(connectTimeout);
 	}, []);
+
+	// Simulates agent status on Web/Expo Go fallback
+	const [agentStatusMock, setAgentStatusMock] = useState<"idle" | "connecting" | "connected" | "failed">("idle");
+	useEffect(() => {
+		if (hasNativeSDK) return;
+		if (callingStateMock !== "joined") {
+			setAgentStatusMock("idle");
+			return;
+		}
+
+		setAgentStatusMock("connecting");
+		const agentTimeout = setTimeout(() => {
+			setAgentStatusMock("connected");
+		}, 3000);
+		return () => clearTimeout(agentTimeout);
+	}, [callingStateMock]);
+
+	// Simulates agent closed captions on Web/Expo Go fallback
+	const [mockCaptions, setMockCaptions] = useState<{ speakerName: string; text: string } | null>(null);
+	useEffect(() => {
+		if (hasNativeSDK) return;
+		if (callingStateMock !== "joined") {
+			setMockCaptions(null);
+			return;
+		}
+
+		const timers: any[] = [];
+
+		// 1. Teacher starts lesson
+		timers.push(setTimeout(() => {
+			setMockCaptions({
+				speakerName: "AI Teacher",
+				text: selectedLanguageId === "fr" 
+					? "Bonjour! Welcome to your French lesson today." 
+					: selectedLanguageId === "ja"
+					? "Konnichiwa! Welcome to your Japanese lesson today."
+					: "¡Hola! Welcome to your Spanish lesson today."
+			});
+		}, 5000));
+
+		// 2. User replies
+		timers.push(setTimeout(() => {
+			setMockCaptions({
+				speakerName: "You",
+				text: selectedLanguageId === "fr"
+					? "Bonjour Pierre! Let's start."
+					: selectedLanguageId === "ja"
+					? "Konnichiwa Kenji! Let's start."
+					: "¡Hola Maria! Let's start."
+			});
+		}, 10000));
+
+		// 3. Teacher gives instruction
+		timers.push(setTimeout(() => {
+			setMockCaptions({
+				speakerName: "AI Teacher",
+				text: selectedLanguageId === "fr"
+					? "Excellent. Let's practice introductions. Repeat after me: Je m'appelle."
+					: selectedLanguageId === "ja"
+					? "Excellent. Let's practice introductions. Repeat after me: Yoroshiku."
+					: "Excellent. Let's practice introductions. Repeat after me: Me llamo."
+			});
+		}, 15000));
+
+		return () => {
+			timers.forEach(clearTimeout);
+		};
+	}, [callingStateMock, selectedLanguageId]);
 
 	// Ticking call duration timer (for mock fallback only; active version handles this inside AudioLessonContent)
 	useEffect(() => {
@@ -233,6 +283,12 @@ export default function AudioLessonScreen() {
 				// Ensure audio is enabled and microphone is active by default
 				await callInstance.microphone.enable();
 
+				try {
+					await callInstance.startClosedCaptions();
+				} catch (err) {
+					console.log("Error starting closed captions:", err);
+				}
+
 				if (active) {
 					setClient(clientInstance);
 					setCall(callInstance);
@@ -259,7 +315,8 @@ export default function AudioLessonScreen() {
 				}
 			}, 50);
 		};
-	}, [user, id, selectedLanguageId, lesson]);
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [user?.id, id, selectedLanguageId, lesson?.id]);
 
 	if (!lesson) {
 		return (
@@ -269,7 +326,13 @@ export default function AudioLessonScreen() {
 						Lesson not found
 					</Text>
 					<TouchableOpacity
-						onPress={() => router.back()}
+						onPress={() => {
+							if (router.canGoBack()) {
+								router.back();
+							} else {
+								router.replace("/(tabs)");
+							}
+						}}
 						className="bg-lingua-purple px-6 py-2.5 rounded-full"
 					>
 						<Text className="font-poppins-semibold text-white">Go Back</Text>
@@ -296,7 +359,11 @@ export default function AudioLessonScreen() {
 				method: hasNativeSDK ? "audio_session" : "audio_session_fallback",
 			});
 			setIsEndCallModalVisible(false);
-			router.back();
+			if (router.canGoBack()) {
+				router.back();
+			} else {
+				router.replace("/(tabs)");
+			}
 		} catch (err) {
 			posthog.captureException(err, { flow: "audio_lesson", step: "finish_call" });
 			console.error("Failed to complete audio session:", err);
@@ -317,7 +384,13 @@ export default function AudioLessonScreen() {
 						{initError}
 					</Text>
 					<TouchableOpacity
-						onPress={() => router.back()}
+						onPress={() => {
+							if (router.canGoBack()) {
+								router.back();
+							} else {
+								router.replace("/(tabs)");
+							}
+						}}
 						className="bg-lingua-purple px-6 py-2.5 rounded-full"
 					>
 						<Text className="font-poppins-semibold text-white">Go Back</Text>
@@ -382,6 +455,8 @@ export default function AudioLessonScreen() {
 				isMute={isMutedMock}
 				toggleMute={() => setIsMutedMock(!isMutedMock)}
 				callingState={callingStateMock}
+				agentStatus={agentStatusMock}
+				captions={mockCaptions}
 			/>
 		);
 	}
@@ -391,6 +466,7 @@ export default function AudioLessonScreen() {
 		<StreamVideo client={client}>
 			<StreamCall call={call}>
 				<AudioLessonContentWrapper
+					call={call}
 					lesson={lesson}
 					selectedLanguageId={selectedLanguageId}
 					elapsedSeconds={elapsedSeconds}
@@ -417,9 +493,118 @@ export default function AudioLessonScreen() {
 
 // Wrapper for AudioLessonContent when using active Stream SDK Call Context
 function AudioLessonContentWrapper(props: any) {
-	const { useCallCallingState, useMicrophoneState } = useCallStateHooks();
+	const { useCallCallingState, useMicrophoneState, useParticipants, useCallClosedCaptions } = useCallStateHooks();
 	const callingState = useCallCallingState();
 	const { microphone, isMute } = useMicrophoneState();
+	const participants = useParticipants();
+	const closedCaptions = useCallClosedCaptions();
+	const call = props.call;
+
+	const [agentStatus, setAgentStatus] = useState<"idle" | "connecting" | "connected" | "failed">("idle");
+	const [activeCaption, setActiveCaption] = useState<{ speakerName: string; text: string } | null>(null);
+
+	const isTeacherJoined = participants && participants.some((p: any) => p.userId === "teacher");
+
+	const latestCaption = closedCaptions && closedCaptions.length > 0 ? closedCaptions[closedCaptions.length - 1] : null;
+
+	useEffect(() => {
+		if (latestCaption && latestCaption.text) {
+			const speakerName = latestCaption.user?.id === "teacher" ? "AI Teacher" : "You";
+			const text = latestCaption.text;
+			setActiveCaption((prev) => {
+				if (prev && prev.speakerName === speakerName && prev.text === text) {
+					return prev;
+				}
+				return { speakerName, text };
+			});
+		} else {
+			setActiveCaption((prev) => {
+				if (prev === null) return null;
+				return null;
+			});
+		}
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [latestCaption?.text, latestCaption?.user?.id]);
+
+	useEffect(() => {
+		if (callingState !== CallingState.JOINED) {
+			if (agentStatus !== "idle") {
+				setAgentStatus("idle");
+			}
+			return;
+		}
+
+		let active = true;
+		let spawnedSessionId: string | null = null;
+
+		async function startAgent() {
+			try {
+				if (agentStatus !== "connecting") {
+					setAgentStatus("connecting");
+				}
+				const response = await fetch("/api/agent/start", {
+					method: "POST",
+					headers: {
+						"Content-Type": "application/json",
+					},
+					body: JSON.stringify({
+						callId: call.id,
+					}),
+				});
+
+				if (!response.ok) {
+					throw new Error("Failed to start agent via proxy");
+				}
+
+				const data = await response.json();
+				if (data.session_id) {
+					spawnedSessionId = data.session_id;
+				} else {
+					throw new Error("No session_id returned from agent start");
+				}
+			} catch (err) {
+				console.error("Error starting agent session:", err);
+				if (active) {
+					setAgentStatus("failed");
+				}
+			}
+		}
+
+		startAgent();
+
+		return () => {
+			active = false;
+			if (spawnedSessionId) {
+				fetch("/api/agent/stop", {
+					method: "POST",
+					headers: {
+						"Content-Type": "application/json",
+					},
+					body: JSON.stringify({
+						callId: call.id,
+						sessionId: spawnedSessionId,
+					}),
+				}).catch((err) => {
+					console.warn("Failed to stop agent session on unmount:", err);
+				});
+			}
+		};
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [callingState, call.id]);
+
+	useEffect(() => {
+		if (callingState !== CallingState.JOINED) {
+			return;
+		}
+
+		if (isTeacherJoined) {
+			if (agentStatus !== "connected") {
+				setAgentStatus("connected");
+			}
+		} else if (agentStatus !== "failed" && agentStatus !== "connecting") {
+			setAgentStatus("connecting");
+		}
+	}, [callingState, isTeacherJoined, agentStatus]);
 
 	return (
 		<AudioLessonContent
@@ -428,11 +613,12 @@ function AudioLessonContentWrapper(props: any) {
 			toggleMute={() => microphone.toggle()}
 			callingState={callingState}
 			useActiveTimer={true}
+			agentStatus={agentStatus}
+			captions={activeCaption}
 		/>
 	);
 }
 
-// Inner Content Component to access Stream Call state and hooks
 interface AudioLessonContentProps {
 	lesson: any;
 	selectedLanguageId: string | null;
@@ -456,6 +642,8 @@ interface AudioLessonContentProps {
 	toggleMute: () => void;
 	callingState: string;
 	useActiveTimer?: boolean;
+	agentStatus: "idle" | "connecting" | "connected" | "failed";
+	captions: { speakerName: string; text: string } | null;
 }
 
 function AudioLessonContent({
@@ -481,6 +669,8 @@ function AudioLessonContent({
 	toggleMute,
 	callingState,
 	useActiveTimer = false,
+	agentStatus,
+	captions,
 }: AudioLessonContentProps) {
 	// Ticking call duration timer (only when the call has successfully joined and we useActiveTimer is true)
 	useEffect(() => {
@@ -494,48 +684,79 @@ function AudioLessonContent({
 
 	// Maps active calling state to top status line
 	const getCallStatusProps = () => {
-		if (isMute) {
-			return {
-				text: "Muted",
-				color: "#FF8A00", // Muted status gets an orange/amber theme
-				dotClass: "bg-[#FF8A00]",
-			};
+		if (callingState !== CallingState.JOINED) {
+			// User is connecting/joining the call
+			switch (callingState) {
+				case CallingState.JOINING:
+				case CallingState.RINGING:
+					return {
+						text: "Joining Room...",
+						color: "#FFB020",
+						dotClass: "bg-[#FFB020] animate-pulse",
+					};
+				case CallingState.RECONNECTING:
+					return {
+						text: "Reconnecting...",
+						color: "#FFB020",
+						dotClass: "bg-[#FFB020]",
+					};
+				case CallingState.RECONNECTING_FAILED:
+					return {
+						text: "Connection Failed",
+						color: "#FF4B4B",
+						dotClass: "bg-[#FF4B4B]",
+					};
+				case CallingState.LEFT:
+					return {
+						text: "Offline",
+						color: "#6B7280",
+						dotClass: "bg-[#6B7280]",
+					};
+				default:
+					return {
+						text: "Connecting...",
+						color: "#FFB020",
+						dotClass: "bg-[#FFB020]",
+					};
+			}
 		}
-		switch (callingState) {
-			case CallingState.JOINING:
-			case CallingState.RINGING:
+
+		// User is joined. Now show the AI Teacher Agent connection status
+		switch (agentStatus) {
+			case "idle":
 				return {
-					text: "Connecting...",
+					text: "Teacher: Idle",
+					color: "#9CA3AF",
+					dotClass: "bg-[#9CA3AF]",
+				};
+			case "connecting":
+				return {
+					text: "Teacher: Connecting...",
 					color: "#FFB020",
 					dotClass: "bg-[#FFB020] animate-pulse",
 				};
-			case CallingState.JOINED:
+			case "connected":
+				if (isMute) {
+					return {
+						text: "Teacher: Connected (Muted)",
+						color: "#FF8A00",
+						dotClass: "bg-[#FF8A00]",
+					};
+				}
 				return {
-					text: "Online",
+					text: "Teacher: Connected",
 					color: "#21C16B",
 					dotClass: "bg-[#21C16B]",
 				};
-			case CallingState.RECONNECTING:
+			case "failed":
 				return {
-					text: "Reconnecting...",
-					color: "#FFB020",
-					dotClass: "bg-[#FFB020]",
-				};
-			case CallingState.RECONNECTING_FAILED:
-				return {
-					text: "Connection Failed",
+					text: "Teacher: Connection Failed",
 					color: "#FF4B4B",
 					dotClass: "bg-[#FF4B4B]",
 				};
-			case CallingState.LEFT:
-				return {
-					text: "Offline",
-					color: "#6B7280",
-					dotClass: "bg-[#6B7280]",
-				};
 			default:
 				return {
-					text: "Connecting...",
+					text: "Teacher: Connecting...",
 					color: "#FFB020",
 					dotClass: "bg-[#FFB020]",
 				};
@@ -621,7 +842,7 @@ function AudioLessonContent({
 						<Image
 							source={images.mascotWelcome}
 							className="absolute w-[370px] h-[370px] self-center"
-							style={{ top: "50%", marginTop: -185 }}
+							style={styles.mascot}
 							contentFit="contain"
 						/>
 
@@ -642,10 +863,18 @@ function AudioLessonContent({
 								<View className="flex-row items-center justify-between gap-4">
 									<View className="flex-1">
 										<Text className="font-poppins-bold text-[16px] text-[#0C0F24] leading-[22px]">
-											{getLocalizedGreeting(selectedLanguageId || "es")}
+											{captions ? captions.speakerName : "AI Teacher"}
 										</Text>
 										<Text className="font-poppins text-[13px] text-[#6B7280] mt-0.5 leading-[18px]">
-											That was great! 👏
+											{captions ? captions.text : (
+												agentStatus === "connected"
+													? "Ready! Say hello to start the lesson."
+													: agentStatus === "connecting"
+													? "Spawning AI Teacher..."
+													: agentStatus === "failed"
+													? "Failed to connect to AI Teacher."
+													: "Connecting to room..."
+											)}
 										</Text>
 									</View>
 									<TouchableOpacity
@@ -928,5 +1157,9 @@ const styles = StyleSheet.create({
 		padding: 24,
 		paddingBottom: Platform.OS === "ios" ? 36 : 24,
 		maxHeight: "85%",
+	},
+	mascot: {
+		top: "50%",
+		marginTop: -185,
 	},
 });

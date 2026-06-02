@@ -1,4 +1,5 @@
 import { StreamClient } from "@stream-io/node-sdk";
+import { lessons, vocabulary, phrases } from "../../data/lessons";
 
 export async function POST(request: Request) {
 	try {
@@ -21,19 +22,25 @@ export async function POST(request: Request) {
 			);
 		}
 
-		// Initialize server SDK client
-		const client = new StreamClient(apiKey, apiSecret);
+		// Initialize server SDK client with a longer timeout (10 seconds)
+		const client = new StreamClient(apiKey, apiSecret, { timeout: 10000 });
 
 		// Generate Stream user token
 		const token = client.createToken(userId);
 
-		// Upsert the user metadata so they have a name and photo in the call
+		// Upsert the user metadata and the teacher metadata so they have names and photos in the call
 		await client.upsertUsers([
 			{
 				id: userId,
 				name: userName || userId,
 				image: userImage || "",
 				role: "user",
+			},
+			{
+				id: "teacher",
+				name: "AI Teacher",
+				image: "",
+				role: "admin",
 			},
 		]);
 
@@ -45,14 +52,47 @@ export async function POST(request: Request) {
 		
 		const call = client.video.call("default", callId);
 
-		// Initialize/get the call on the backend, assigning the user as a member
+		// Find the lesson and pack its details plus relevant vocab and phrases
+		const lesson = lessons.find((l) => l.id === lessonId);
+		const filteredVocab = vocabulary
+			.filter((v) => v.languageId === languageId)
+			.map((v) => ({
+				word: v.word,
+				translation: v.translation,
+				pronunciation: v.pronunciation,
+			}));
+		const filteredPhrases = phrases
+			.filter((p) => p.languageId === languageId)
+			.map((p) => ({
+				phrase: p.phrase,
+				translation: p.translation,
+				pronunciation: p.pronunciation,
+			}));
+
+		// Initialize/get the call on the backend, assigning both the user and the teacher as admin members
 		await call.getOrCreate({
 			data: {
 				created_by_id: userId,
-				members: [{ user_id: userId, role: "admin" }],
+				members: [
+					{ user_id: userId, role: "admin" },
+					{ user_id: "teacher", role: "admin" },
+				],
+				settings_override: {
+					transcription: {
+						mode: "auto-on",
+						closed_caption_mode: "auto-on",
+						language: languageId || "en",
+					},
+				},
 				custom: {
 					lessonId,
 					languageId: languageId || "en",
+					lessonTitle: lesson?.title || "",
+					lessonDescription: lesson?.description || "",
+					goals: lesson?.goals || [],
+					aiPrompt: lesson?.aiPrompt || "",
+					vocabulary: filteredVocab,
+					phrases: filteredPhrases,
 				},
 			},
 		});

@@ -6,7 +6,6 @@ import {
 	TextInput,
 	Platform,
 	KeyboardAvoidingView,
-	ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
@@ -19,6 +18,7 @@ import { useSignUp, useSSO } from "@clerk/expo";
 import * as Linking from "expo-linking";
 import { usePostHog } from "posthog-react-native";
 import { blurActiveElement } from "@/utils/dom";
+import Button3D from "@/components/Button3D";
 
 export default function SignUp() {
 	const router = useRouter();
@@ -292,18 +292,14 @@ export default function SignUp() {
 						</View>
 
 						{/* Main Sign Up Button */}
-						<TouchableOpacity
-							style={styles.signUpButton}
-							activeOpacity={0.85}
+						<Button3D
 							onPress={handleSignUp}
-							disabled={loading}
+							variant="primary"
+							size="lg"
+							loading={loading}
 						>
-							{loading ? (
-								<ActivityIndicator size="small" color="#FFFFFF" />
-							) : (
-								<Text style={styles.signUpButtonText}>Sign Up</Text>
-							)}
-						</TouchableOpacity>
+							Sign Up
+						</Button3D>
 
 						{/* CAPTCHA widget container for Clerk on Web (custom flows) */}
 						{Platform.OS === "web" && (

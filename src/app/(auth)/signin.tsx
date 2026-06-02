@@ -6,7 +6,6 @@ import {
 	TextInput,
 	Platform,
 	KeyboardAvoidingView,
-	ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
@@ -19,6 +18,7 @@ import { useSignIn, useSSO } from "@clerk/expo";
 import * as Linking from "expo-linking";
 import { usePostHog } from "posthog-react-native";
 import { blurActiveElement } from "@/utils/dom";
+import Button3D from "@/components/Button3D";
 
 interface EmailCodeFactor {
 	strategy: "email_code";
@@ -253,18 +253,14 @@ export default function SignIn() {
 							/>
 						</View>
 
-						<TouchableOpacity
-							style={styles.signInButton}
-							activeOpacity={0.85}
+						<Button3D
 							onPress={handleSignIn}
-							disabled={loading}
+							variant="primary"
+							size="lg"
+							loading={loading}
 						>
-							{loading ? (
-								<ActivityIndicator size="small" color="#FFFFFF" />
-							) : (
-								<Text style={styles.signInButtonText}>Sign In</Text>
-							)}
-						</TouchableOpacity>
+							Sign In
+						</Button3D>
 
 						{/* CAPTCHA widget container for Clerk on Web (custom flows) */}
 						{Platform.OS === "web" && (

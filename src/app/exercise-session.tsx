@@ -1,0 +1,1643 @@
+import React, { useState, useEffect, useRef, useCallback } from "react";
+import {
+	StyleSheet,
+	Platform,
+	TextInput,
+	ScrollView,
+	Animated,
+	Dimensions,
+	KeyboardAvoidingView,
+	Modal,
+	Pressable,
+	GestureResponderEvent,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { Feather } from "@expo/vector-icons";
+import { Text, View, TouchableOpacity } from "@/tw";
+import { Image } from "@/tw/image";
+import { images } from "@/constants/images";
+import { useProgressStore } from "@/store/useProgressStore";
+import { useLanguageStore } from "@/store/useLanguageStore";
+import { getLanguageUnitsAndLessons } from "@/utils/learning";
+import { getLessonById } from "@/data/lessons";
+import { units as allUnits } from "@/data/units";
+import { Exercise } from "@/types/learning";
+import { usePostHog } from "posthog-react-native";
+import { useUser } from "@clerk/expo";
+import * as Speech from "expo-speech";
+import * as Haptics from "expo-haptics";
+import Button3D from "@/components/Button3D";
+import FeedbackDrawer from "@/components/FeedbackDrawer";
+
+const SCREEN_WIDTH = Dimensions.get("window").width;
+
+interface FillBlankOption {
+	value: string;
+	pronunciation?: string;
+}
+
+interface ExerciseSessionScreenProps {
+	forceReview?: boolean;
+}
+
+const fillBlankWordBanks: Record<string, FillBlankOption[]> = {
+	ja: [
+		{ value: "\u307E\u305B\u3093", pronunciation: "masen" },
+		{ value: "\u306B\u3061", pronunciation: "nichi" },
+		{ value: "\u3067\u3059", pronunciation: "desu" },
+		{ value: "\u3058\u3081", pronunciation: "jime" },
+		{ value: "\u3053\u3093", pronunciation: "kon" },
+		{ value: "\u307F", pronunciation: "mi" },
+		{ value: "\u3057\u304F", pronunciation: "shiku" },
+		{ value: "\u3042\u308A", pronunciation: "ari" },
+	],
+	es: [
+		{ value: "hola", pronunciation: "OH-lah" },
+		{ value: "gracias", pronunciation: "GRAH-syahs" },
+		{ value: "favor", pronunciation: "fah-VOR" },
+		{ value: "dias", pronunciation: "DEE-ahs" },
+		{ value: "noches", pronunciation: "NOH-ches" },
+		{ value: "llamo", pronunciation: "YAH-moh" },
+	],
+	fr: [
+		{ value: "bonjour", pronunciation: "bohn-ZHOOR" },
+		{ value: "merci", pronunciation: "mair-SEE" },
+		{ value: "plait", pronunciation: "pleh" },
+		{ value: "soir", pronunciation: "swahr" },
+		{ value: "appelle", pronunciation: "ah-PELL" },
+		{ value: "oui", pronunciation: "wee" },
+	],
+};
+
+const knownFillBlankPronunciations: Record<string, string> = {
+	"\u307E\u305B\u3093": "masen",
+	"\u306B\u3061": "nichi",
+	"\u3067\u3059": "desu",
+	"\u3058\u3081": "jime",
+};
+
+const shuffleItems = <T,>(items: T[]) => [...items].sort(() => Math.random() - 0.5);
+
+const getFillBlankPronunciation = (value: string, languageId?: string | null) => {
+	if (!value) return "";
+	if (knownFillBlankPronunciations[value]) return knownFillBlankPronunciations[value];
+
+	const bankMatch = fillBlankWordBanks[languageId ?? ""]?.find((option) => option.value === value);
+	return bankMatch?.pronunciation ?? "";
+};
+
+const buildFillBlankOptions = (
+	correctAnswer: string,
+	languageId?: string | null,
+	exerciseOptions: string[] = []
+) => {
+	const correctOption: FillBlankOption = {
+		value: correctAnswer,
+		pronunciation: getFillBlankPronunciation(correctAnswer, languageId),
+	};
+
+	const sourceOptions: FillBlankOption[] = [
+		...exerciseOptions.map((option) => ({
+			value: option,
+			pronunciation: getFillBlankPronunciation(option, languageId),
+		})),
+		...(fillBlankWordBanks[languageId ?? ""] ?? []),
+	];
+
+	const uniqueDistractors = Array.from(
+		new Map(
+			sourceOptions
+				.filter((option) => option.value.trim() !== "" && option.value !== correctAnswer)
+				.map((option) => [option.value, option])
+		).values()
+	);
+
+	return shuffleItems([correctOption, ...shuffleItems(uniqueDistractors).slice(0, 5)]);
+};
+
+export default function ExerciseSessionScreen({
+	forceReview = false,
+}: ExerciseSessionScreenProps) {
+	const router = useRouter();
+	const posthog = usePostHog();
+	const { user } = useUser();
+	const { lessonId, isDailyChallenge, mode, isCheckpoint, unitId } = useLocalSearchParams<{
+		lessonId?: string;
+		isDailyChallenge?: string;
+		mode?: "mistakes" | "vocabulary" | "listening" | "review" | "checkpoint";
+		isCheckpoint?: string;
+		unitId?: string;
+	}>();
+	const isReviewSession = forceReview || mode === "review";
+	const isCheckpointMode = mode === "checkpoint";
+
+	const selectedLanguageId = useLanguageStore((state) => state.selectedLanguageId);
+	const completeExerciseSession = useProgressStore((state) => state.completeExerciseSession);
+	const addMistake = useProgressStore((state) => state.addMistake);
+	const removeMistake = useProgressStore((state) => state.removeMistake);
+	const completeCheckpoint = useProgressStore((state) => state.completeCheckpoint);
+	const markCheckpointComplete = useProgressStore((state) => state.markCheckpointComplete);
+	const addXp = useProgressStore((state) => state.addXp);
+	const recordPractice = useProgressStore((state) => state.recordPractice);
+	const getMostUrgentLessons = useProgressStore((state) => state.getMostUrgentLessons);
+
+	// Fetch active lessons for selected language
+	const { lessons: activeLessons, units: activeUnits } = getLanguageUnitsAndLessons(selectedLanguageId || "es");
+	const lesson = activeLessons.find((l) => l.id === lessonId) || activeLessons[0];
+	const checkpointUnit = allUnits.find((unit) => unit.id === unitId);
+	const currentUnit = checkpointUnit || activeUnits.find((u) => u.id === lesson?.unitId) || activeUnits[0];
+
+	// Session State
+	const [exercises, setExercises] = useState<Exercise[]>([]);
+	const [loading, setLoading] = useState(true);
+	const [currentIndex, setCurrentIndex] = useState(0);
+	const [reviewedLessonIds, setReviewedLessonIds] = useState<string[]>([]);
+
+	// Load and filter exercises dynamically on mount
+	useEffect(() => {
+		if (isCheckpointMode) {
+			setExercises(checkpointUnit?.checkpointQuiz?.exercises?.slice(0, 5) ?? []);
+			setLoading(false);
+			return;
+		}
+
+		if (isReviewSession) {
+			const urgentIds = getMostUrgentLessons(3);
+			const reviewItems = urgentIds
+				.flatMap((id) => {
+					const reviewLesson = getLessonById(id);
+					const lessonExercises = reviewLesson?.exercises ?? [];
+					return [...lessonExercises]
+						.sort(() => Math.random() - 0.5)
+						.slice(0, 2)
+						.map((exercise) => ({ exercise, lessonId: id }));
+				})
+				.slice(0, 5);
+
+			setReviewedLessonIds([...new Set(reviewItems.map((item) => item.lessonId))]);
+			setExercises(reviewItems.map((item) => item.exercise));
+			setLoading(false);
+			return;
+		}
+
+		if (!lesson) {
+			setLoading(false);
+			return;
+		}
+
+		let list: Exercise[] = [];
+
+		if (mode === "mistakes") {
+			const currentMistakes = useProgressStore.getState().recentMistakes || [];
+			const allExercises: Exercise[] = [];
+			activeLessons.forEach((l) => {
+				if (l.exercises) {
+					allExercises.push(...l.exercises);
+				}
+			});
+			list = allExercises.filter((ex) => currentMistakes.includes(ex.id));
+			// Shuffle mistakes
+			list = [...list].sort(() => Math.random() - 0.5);
+		} else if (mode === "vocabulary") {
+			const unitLessons = activeLessons.filter((l) => l.unitId === lesson.unitId);
+			const allUnitExercises: Exercise[] = [];
+			unitLessons.forEach((l) => {
+				if (l.exercises) {
+					allUnitExercises.push(...l.exercises);
+				}
+			});
+			list = allUnitExercises.filter(
+				(ex) => ex.type === "mcq" || ex.type === "matching-pairs" || ex.type === "tap-word"
+			);
+			// Shuffle vocabulary exercises
+			list = [...list].sort(() => Math.random() - 0.5);
+		} else if (mode === "listening") {
+			const unitLessons = activeLessons.filter((l) => l.unitId === lesson.unitId);
+			const allUnitExercises: Exercise[] = [];
+			unitLessons.forEach((l) => {
+				if (l.exercises) {
+					allUnitExercises.push(...l.exercises);
+				}
+			});
+			list = allUnitExercises.filter((ex) => ex.type === "listen-type");
+			// Shuffle listening exercises
+			list = [...list].sort(() => Math.random() - 0.5);
+		} else if (isCheckpoint === "true") {
+			const unitLessons = activeLessons.filter((l) => l.unitId === lesson.unitId);
+			const allUnitExercises: Exercise[] = [];
+			unitLessons.forEach((l) => {
+				if (l.exercises) {
+					allUnitExercises.push(...l.exercises);
+				}
+			});
+			// Shuffle checkpoint exercises
+			list = [...allUnitExercises].sort(() => Math.random() - 0.5);
+		} else {
+			list = lesson.exercises || [];
+		}
+
+		const limit = isCheckpoint === "true" ? 10 : 8;
+		setExercises(list.slice(0, limit));
+		setLoading(false);
+	}, [
+		lessonId,
+		mode,
+		isCheckpoint,
+		selectedLanguageId,
+		activeLessons,
+		lesson,
+		isReviewSession,
+		isCheckpointMode,
+		checkpointUnit,
+		getMostUrgentLessons,
+	]);
+	const [selectedOption, setSelectedOption] = useState<string | null>(null);
+	const [typedAnswer, setTypedAnswer] = useState("");
+	const [fillBlankOptions, setFillBlankOptions] = useState<FillBlankOption[]>([]);
+	
+	// Matching Pairs specific state
+	const [leftOptions, setLeftOptions] = useState<string[]>([]);
+	const [rightOptions, setRightOptions] = useState<string[]>([]);
+	const [selectedLeft, setSelectedLeft] = useState<string | null>(null);
+	const [selectedRight, setSelectedRight] = useState<string | null>(null);
+	const [matchedLefts, setMatchedLefts] = useState<string[]>([]);
+	const [matchedRights, setMatchedRights] = useState<string[]>([]);
+	const [mismatchedLeft, setMismatchedLeft] = useState<string | null>(null);
+	const [mismatchedRight, setMismatchedRight] = useState<string | null>(null);
+
+	// Check/Answer Feedback State
+	const [isAnswered, setIsAnswered] = useState(false);
+	const [isCorrect, setIsCorrect] = useState(false);
+	const [correctAnswersCount, setCorrectAnswersCount] = useState(0);
+	const [showQuitModal, setShowQuitModal] = useState(false);
+	const [combo, setCombo] = useState(0);
+	const [hearts, setHearts] = useState(3);
+	const [feedbackVisible, setFeedbackVisible] = useState(false);
+	const [lastAnswerCorrect, setLastAnswerCorrect] = useState(false);
+	const [correctAnswerText, setCorrectAnswerText] = useState("");
+	const [showHeartModal, setShowHeartModal] = useState(false);
+	const [animatingLostHeart, setAnimatingLostHeart] = useState<number | null>(null);
+	const [isFinished, setIsFinished] = useState(false);
+
+	// Local results state to render on results screen
+	const [resultsData, setResultsData] = useState<{
+		xpEarned: number;
+		newTotalXp: number;
+		newStreak: number;
+		levelledUp: boolean;
+		newLevel: number;
+	} | null>(null);
+
+	// Animation
+	const slideAnim = useRef(new Animated.Value(0)).current;
+	const progressAnim = useRef(new Animated.Value(0)).current;
+	const heartScaleAnims = useRef([1, 2, 3].map(() => new Animated.Value(1))).current;
+	const reviewSavedRef = useRef(false);
+	const checkpointSavedRef = useRef(false);
+	const goldPulseAnim = useRef(new Animated.Value(1)).current;
+
+	const currentExercise = exercises[currentIndex];
+
+	// Trigger completion when session is finished
+	useEffect(() => {
+		if (isFinished && !resultsData && lesson) {
+			const score = exercises.length > 0
+				? Math.round((correctAnswersCount / exercises.length) * 100)
+				: 0;
+
+			if (isCheckpointMode) {
+				if (checkpointSavedRef.current) return;
+				checkpointSavedRef.current = true;
+
+				const passedCheckpoint = score >= 80;
+				const xpEarned = passedCheckpoint ? 50 : 10;
+
+				addXp(xpEarned).then(() => {
+					if (passedCheckpoint && unitId) {
+						markCheckpointComplete(unitId);
+					}
+
+					setResultsData({
+						xpEarned,
+						newTotalXp: 0,
+						newStreak: 0,
+						levelledUp: false,
+						newLevel: 0,
+					});
+				});
+				return;
+			}
+
+			if (isReviewSession) {
+				if (reviewSavedRef.current) return;
+				reviewSavedRef.current = true;
+
+				const lessonIds = reviewedLessonIds.length > 0 ? reviewedLessonIds : [lesson.id];
+				lessonIds.forEach((id) => recordPractice(id, score));
+				router.replace("/");
+				return;
+			}
+
+			const xpEarned = isCheckpoint === "true" ? 50 : correctAnswersCount * 10;
+			const isDaily = isDailyChallenge === "true";
+			
+			completeExerciseSession(lesson.id, xpEarned, isDaily).then((res) => {
+				recordPractice(lesson.id, score);
+				setResultsData({
+					xpEarned,
+					newTotalXp: res.newTotalXp,
+					newStreak: res.newStreak,
+					levelledUp: res.levelledUp,
+					newLevel: res.newLevel,
+				});
+
+				if (isCheckpoint === "true" && currentUnit) {
+					completeCheckpoint(currentUnit.id);
+				}
+
+				// Leaderboard integration (fire & forget)
+				if (user?.id) {
+					const displayName = user.fullName ?? user.username ?? "Anonymous";
+					const avatarUrl = user.imageUrl;
+					
+					console.log("Initiating leaderboard upsert fetch call with data:", {
+						clerkUserId: user.id,
+						displayName,
+						avatarUrl,
+						sessionXP: xpEarned,
+					});
+
+					fetch("/api/leaderboard/upsert", {
+						method: "POST",
+						headers: {
+							"Content-Type": "application/json",
+						},
+						body: JSON.stringify({
+							clerkUserId: user.id,
+							displayName,
+							avatarUrl,
+							sessionXP: xpEarned,
+						}),
+					})
+						.then((r) => {
+							console.log("Leaderboard upsert fetch returned response status:", r.status);
+							return r.json();
+						})
+						.then((data) => {
+							if (data.error) {
+								console.error("Leaderboard upsert failed on server:", data.error);
+							} else {
+								console.log("Leaderboard upsert success response:", data);
+							}
+						})
+						.catch((err) => {
+							console.error("Leaderboard upsert network error:", err);
+						});
+				}
+			});
+		}
+	}, [
+		isFinished,
+		resultsData,
+		lesson,
+		correctAnswersCount,
+		exercises.length,
+		isDailyChallenge,
+		completeExerciseSession,
+		recordPractice,
+		addXp,
+		user,
+		isCheckpoint,
+		currentUnit,
+		completeCheckpoint,
+		markCheckpointComplete,
+		isReviewSession,
+		isCheckpointMode,
+		reviewedLessonIds,
+		router,
+		unitId,
+	]);
+
+	const playAudio = useCallback(() => {
+		if (!currentExercise?.audioText) return;
+		let locale = "en-US";
+		if (selectedLanguageId === "es") locale = "es-ES";
+		if (selectedLanguageId === "fr") locale = "fr-FR";
+		if (selectedLanguageId === "ja") locale = "ja-JP";
+
+		Speech.speak(currentExercise.audioText, {
+			language: locale,
+			rate: 0.85,
+			pitch: 1.0,
+		});
+	}, [currentExercise?.audioText, selectedLanguageId]);
+
+	// Randomize matching pairs options on exercise change
+	useEffect(() => {
+		if (currentExercise?.type === "matching-pairs" && currentExercise.pairs) {
+			const pairs = currentExercise.pairs;
+			const left = pairs.map(p => p.left).sort(() => Math.random() - 0.5);
+			const right = pairs.map(p => p.right).sort(() => Math.random() - 0.5);
+			setLeftOptions(left);
+			setRightOptions(right);
+			setMatchedLefts([]);
+			setMatchedRights([]);
+			setSelectedLeft(null);
+			setSelectedRight(null);
+		}
+	}, [currentIndex, currentExercise]);
+
+	useEffect(() => {
+		if (currentExercise?.type === "fill-in-the-blank") {
+			setFillBlankOptions(
+				buildFillBlankOptions(currentExercise.correctAnswer, selectedLanguageId, currentExercise.options)
+			);
+			return;
+		}
+
+		setFillBlankOptions([]);
+	}, [
+		currentExercise?.correctAnswer,
+		currentExercise?.id,
+		currentExercise?.options,
+		currentExercise?.type,
+		selectedLanguageId,
+	]);
+
+	// Listen & Type speak initially
+	useEffect(() => {
+		if (currentExercise?.type === "listen-type" && currentExercise.audioText) {
+			// Small timeout to allow screen transition to complete
+			const timer = setTimeout(() => {
+				playAudio();
+			}, 600);
+			return () => clearTimeout(timer);
+		}
+	}, [currentIndex, currentExercise, playAudio]);
+
+	// Slide In Spring Animation
+	useEffect(() => {
+		slideAnim.setValue(SCREEN_WIDTH);
+		Animated.spring(slideAnim, {
+			toValue: 0,
+			speed: 12,
+			bounciness: 6,
+			useNativeDriver: true,
+		}).start();
+	}, [currentIndex, slideAnim]);
+
+	useEffect(() => {
+		Animated.timing(progressAnim, {
+			toValue: exercises.length > 0 ? currentIndex / exercises.length : 0,
+			duration: 300,
+			useNativeDriver: false,
+		}).start();
+	}, [currentIndex, exercises.length, progressAnim]);
+
+	useEffect(() => {
+		if (!isCheckpointMode || !isFinished || !resultsData || resultsData.xpEarned < 50) {
+			goldPulseAnim.setValue(1);
+			return;
+		}
+
+		const animation = Animated.loop(
+			Animated.sequence([
+				Animated.timing(goldPulseAnim, {
+					toValue: 1.12,
+					duration: 500,
+					useNativeDriver: true,
+				}),
+				Animated.timing(goldPulseAnim, {
+					toValue: 1,
+					duration: 500,
+					useNativeDriver: true,
+				}),
+			])
+		);
+
+		animation.start();
+		return () => animation.stop();
+	}, [goldPulseAnim, isCheckpointMode, isFinished, resultsData]);
+
+	const animateLostHeart = (heartNumber: number) => {
+		const heartAnim = heartScaleAnims[heartNumber - 1];
+		if (!heartAnim) return;
+
+		setAnimatingLostHeart(heartNumber);
+		heartAnim.setValue(1);
+
+		Animated.sequence([
+			Animated.timing(heartAnim, {
+				toValue: 1.4,
+				duration: 150,
+				useNativeDriver: true,
+			}),
+			Animated.timing(heartAnim, {
+				toValue: 0,
+				duration: 150,
+				useNativeDriver: true,
+			}),
+		]).start(() => {
+			setAnimatingLostHeart((current) => (current === heartNumber ? null : current));
+			heartAnim.setValue(1);
+		});
+	};
+
+	const handleAnswer = (correct: boolean, correctAnswer: string) => {
+		if (correct) {
+			if (!isCheckpointMode) {
+				setCombo((prev) => prev + 1);
+			}
+			Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+		} else {
+			if (!isCheckpointMode) {
+				setCombo(0);
+				animateLostHeart(hearts);
+				setHearts((prev) => Math.max(prev - 1, 0));
+			}
+			Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
+		}
+
+		setLastAnswerCorrect(correct);
+		setCorrectAnswerText(correctAnswer);
+		setFeedbackVisible(true);
+	};
+
+	// Match pairs verification
+	const handlePairTap = (word: string, column: "left" | "right") => {
+		if (isAnswered) return;
+
+		if (column === "left") {
+			if (matchedLefts.includes(word)) return;
+			setSelectedLeft(word);
+
+			if (selectedRight) {
+				verifyMatch(word, selectedRight);
+			}
+		} else {
+			if (matchedRights.includes(word)) return;
+			setSelectedRight(word);
+
+			if (selectedLeft) {
+				verifyMatch(selectedLeft, word);
+			}
+		}
+	};
+
+	const verifyMatch = (leftWord: string, rightWord: string) => {
+		const pairs = currentExercise?.pairs || [];
+		const isMatch = pairs.some(p => p.left === leftWord && p.right === rightWord);
+
+		if (isMatch) {
+			const nextMatchedLefts = [...matchedLefts, leftWord];
+			const nextMatchedRights = [...matchedRights, rightWord];
+			setMatchedLefts(nextMatchedLefts);
+			setMatchedRights(nextMatchedRights);
+			setSelectedLeft(null);
+			setSelectedRight(null);
+
+			if (nextMatchedLefts.length === pairs.length) {
+				setIsAnswered(true);
+				setIsCorrect(true);
+				setCorrectAnswersCount(prev => prev + 1);
+				removeMistake(currentExercise.id);
+				handleAnswer(true, currentExercise.correctAnswer);
+			}
+		} else {
+			setMismatchedLeft(leftWord);
+			setMismatchedRight(rightWord);
+			setSelectedLeft(null);
+			setSelectedRight(null);
+			addMistake(currentExercise.id);
+
+			setTimeout(() => {
+				setMismatchedLeft(null);
+				setMismatchedRight(null);
+			}, 800);
+		}
+	};
+
+	// Formats strings for loose matching in Listen & Type and Fill In Blank
+	const normalizeText = (text: string) => {
+		return text
+			.toLowerCase()
+			.replace(/[¿?¡!.,]/g, "")
+			.replace(/\s+/g, " ")
+			.trim();
+	};
+
+	// Check Answer
+	const handleCheckAnswer = () => {
+		if (isAnswered) return;
+
+		let correct = false;
+
+		switch (currentExercise.type) {
+			case "mcq":
+			case "tap-word":
+				correct = selectedOption === currentExercise.correctAnswer;
+				break;
+			case "fill-in-the-blank":
+			case "listen-type":
+				correct = normalizeText(typedAnswer) === normalizeText(currentExercise.correctAnswer);
+				break;
+			default:
+				break;
+		}
+
+		setIsCorrect(correct);
+		setIsAnswered(true);
+		if (correct) {
+			setCorrectAnswersCount(prev => prev + 1);
+			removeMistake(currentExercise.id);
+		} else {
+			addMistake(currentExercise.id);
+		}
+		handleAnswer(correct, currentExercise.correctAnswer);
+
+		posthog.capture("exercise_answered", {
+			exercise_id: currentExercise.id,
+			exercise_type: currentExercise.type,
+			is_correct: correct,
+			lesson_id: lessonId ?? "review-session",
+		});
+	};
+
+	const resetCurrentExerciseState = () => {
+		setSelectedOption(null);
+		setTypedAnswer("");
+		setIsAnswered(false);
+		setIsCorrect(false);
+		setSelectedLeft(null);
+		setSelectedRight(null);
+		setMatchedLefts([]);
+		setMatchedRights([]);
+		setMismatchedLeft(null);
+		setMismatchedRight(null);
+	};
+
+	const advanceExercise = () => {
+		if (currentIndex < exercises.length - 1) {
+			setCurrentIndex(prev => prev + 1);
+			resetCurrentExerciseState();
+		} else {
+			setIsFinished(true);
+		}
+	};
+
+	// Advance flow
+	const handleContinue = () => {
+		setFeedbackVisible(false);
+
+		if (!isCheckpointMode && hearts <= 0 && !lastAnswerCorrect) {
+			setShowHeartModal(true);
+			return;
+		}
+
+		advanceExercise();
+	};
+
+	const handleTryAgain = () => {
+		setShowHeartModal(false);
+		setCurrentIndex(0);
+		setCombo(0);
+		setHearts(3);
+		setFeedbackVisible(false);
+		setLastAnswerCorrect(false);
+		setCorrectAnswerText("");
+		setCorrectAnswersCount(0);
+		setIsFinished(false);
+		setResultsData(null);
+		resetCurrentExerciseState();
+	};
+
+	const handleRetryCheckpoint = () => {
+		setCurrentIndex(0);
+		setCombo(0);
+		setFeedbackVisible(false);
+		setLastAnswerCorrect(false);
+		setCorrectAnswerText("");
+		setCorrectAnswersCount(0);
+		setIsFinished(false);
+		setResultsData(null);
+		checkpointSavedRef.current = false;
+		resetCurrentExerciseState();
+	};
+
+	const handleEndSession = () => {
+		setShowHeartModal(false);
+		router.replace("/");
+	};
+
+	// Quit exercise session flow
+	const handleQuit = () => {
+		setShowQuitModal(true);
+	};
+
+	const handleConfirmQuit = () => {
+		setShowQuitModal(false);
+		if (router.canGoBack()) {
+			router.back();
+		} else {
+			router.replace("/(tabs)");
+		}
+	};
+
+
+
+	// Helper checking if Check button should be disabled
+	const isCheckDisabled = () => {
+		if (currentExercise?.type === "mcq" || currentExercise?.type === "tap-word") {
+			return selectedOption === null;
+		}
+		if (currentExercise?.type === "fill-in-the-blank" || currentExercise?.type === "listen-type") {
+			return typedAnswer.trim() === "";
+		}
+		if (currentExercise?.type === "matching-pairs") {
+			return true; // matching pairs validates automatically
+		}
+		return true;
+	};
+
+	if (loading) {
+		return (
+			<SafeAreaView style={styles.safeArea}>
+				<View className="flex-1 justify-center items-center px-6 bg-white">
+					<Text className="font-poppins-semibold text-[16px] text-neutral-secondary">
+						Loading exercises...
+					</Text>
+				</View>
+			</SafeAreaView>
+		);
+	}
+
+	if (exercises.length === 0) {
+		return (
+			<SafeAreaView style={styles.safeArea}>
+				<View className="flex-1 items-center justify-center p-6 bg-white">
+					<Feather name="alert-circle" size={48} color="#6C4EF5" className="mb-4" />
+					<Text className="font-poppins-bold text-[18px] text-neutral-primary mb-2 text-center">
+						No Exercises Found
+					</Text>
+					<Text className="font-poppins text-[14px] text-neutral-secondary mb-6 text-center max-w-[280px]">
+						{isCheckpointMode
+							? "This unit does not have checkpoint questions yet."
+							: isReviewSession
+							? "No review exercises are ready yet. Complete a lesson first, then come back to review."
+							: mode === "mistakes"
+							? "No mistakes to review right now! Great job keeping your practice clean."
+							: "This lesson or unit does not contain exercises yet."}
+					</Text>
+					<TouchableOpacity
+						onPress={() => {
+							if (router.canGoBack()) {
+								router.back();
+							} else {
+								router.replace("/(tabs)");
+							}
+						}}
+						className="bg-lingua-purple px-6 py-2.5 rounded-full"
+					>
+						<Text className="font-poppins-semibold text-white">Go Back</Text>
+					</TouchableOpacity>
+				</View>
+			</SafeAreaView>
+		);
+	}
+
+	if (isFinished) {
+		const scorePercent = (correctAnswersCount / exercises.length) * 100;
+		const passed = scorePercent >= 70;
+
+		if (!resultsData) {
+			return (
+				<SafeAreaView style={styles.safeArea}>
+					<View className="flex-1 justify-center items-center px-6 bg-white">
+						<Text className="font-poppins-semibold text-[16px] text-neutral-secondary">
+							Saving progress...
+						</Text>
+					</View>
+				</SafeAreaView>
+			);
+		}
+
+		if (isCheckpointMode) {
+			const checkpointPassed = scorePercent >= 80;
+
+			return (
+				<SafeAreaView style={styles.safeArea}>
+					<View className="flex-1 justify-center items-center px-6 bg-white w-full">
+						<Animated.View
+							style={[
+								styles.checkpointResultIcon,
+								{
+									transform: [{ scale: goldPulseAnim }],
+									backgroundColor: checkpointPassed ? "#FFF3CC" : "#FFF8F2",
+								},
+							]}
+						>
+							<Feather
+								name={checkpointPassed ? "award" : "refresh-cw"}
+								size={58}
+								color={checkpointPassed ? "#FFC800" : "#FF9600"}
+							/>
+						</Animated.View>
+
+						<Text className="font-poppins-bold text-[28px] text-neutral-primary text-center leading-[36px]">
+							{checkpointPassed ? "Unit Complete! \u{1F393}" : "Almost there! \u{1F4AA}"}
+						</Text>
+						<Text className="font-poppins text-[15px] text-neutral-secondary text-center mt-2 leading-[22px] max-w-[300px]">
+							{checkpointPassed
+								? "You passed the checkpoint and unlocked the next unit."
+								: "Review this unit once more, then give the checkpoint another try."}
+						</Text>
+
+						<View className="bg-[#FFF8E6] border border-[#FFE8B3] rounded-2xl px-5 py-3 mt-7 mb-4 flex-row items-center">
+							<Feather name="zap" size={18} color="#FF9600" />
+							<Text className="font-poppins-bold text-[16px] text-[#FF9600] ml-2">
+								+{resultsData.xpEarned} XP
+							</Text>
+						</View>
+
+						<View className="bg-neutral-surface border border-neutral-border rounded-xl px-5 py-2.5 mb-8 flex-row items-center">
+							<Feather name="check" size={16} color={checkpointPassed ? "#58CC02" : "#FF9600"} />
+							<Text className="font-poppins-bold text-[14px] text-neutral-primary ml-2">
+								{correctAnswersCount} / {exercises.length} Correct
+							</Text>
+						</View>
+
+						<View className="gap-3 w-full max-w-[320px]">
+							{!checkpointPassed && (
+								<Button3D
+									onPress={handleRetryCheckpoint}
+									variant="warning"
+									size="lg"
+									title="Try Again?"
+								/>
+							)}
+							<Button3D
+								onPress={() => router.replace("/")}
+								variant="primary"
+								size="lg"
+								title="Continue"
+							/>
+						</View>
+					</View>
+				</SafeAreaView>
+			);
+		}
+
+		return (
+			<SafeAreaView style={styles.safeArea}>
+				<View className="flex-1 justify-center items-center px-6 bg-white w-full">
+					{/* Checkpoint Completed Banner */}
+					{isCheckpoint === "true" && (
+						<View className="w-full max-w-[320px] bg-[#FFFBE6] border-2 border-[#FFC800] rounded-2xl p-4 mb-6 items-center">
+							<Text className="font-poppins-bold text-[20px] text-[#FFC800]">
+								Checkpoint Passed! 🏆
+							</Text>
+							<Text className="font-poppins-semibold text-[14px] text-neutral-primary mt-1 text-center">
+								You completed Unit {currentUnit?.order || 1} checkpoint quiz and unlocked the next unit!
+							</Text>
+						</View>
+					)}
+
+					{/* Level Up Banner */}
+					{resultsData.levelledUp && (
+						<View className="w-full max-w-[320px] bg-[#F5F2FF] border-2 border-lingua-purple rounded-2xl p-4 mb-6 items-center">
+							<Text className="font-poppins-bold text-[20px] text-lingua-purple">
+								Level Up! 🎉
+							</Text>
+							<Text className="font-poppins-semibold text-[14px] text-neutral-primary mt-1">
+								You reached Level {resultsData.newLevel}!
+							</Text>
+						</View>
+					)}
+
+					<Feather
+						name={isCheckpoint === "true" ? "award" : passed ? "check-circle" : "award"}
+						size={80}
+						color={isCheckpoint === "true" ? "#FFC800" : passed ? "#21C16B" : "#FF8A00"}
+						className="mb-6"
+					/>
+
+					<Text className="font-poppins-bold text-[28px] text-neutral-primary text-center leading-[36px]">
+						{isCheckpoint === "true" 
+							? "Checkpoint Completed!" 
+							: passed 
+							? "Terrific Job!" 
+							: "Session Complete!"}
+					</Text>
+
+					<Text className="font-poppins text-[15px] text-neutral-secondary text-center mt-2 leading-[22px] max-w-[280px]">
+						{isCheckpoint === "true"
+							? "You've successfully proven your skills for this unit! Keep up the great work! ⚡"
+							: passed
+							? "Awesome job! You're a natural language learner! 🥳"
+							: "Keep practicing! Consistency is key to learning a new language. ⚡"}
+					</Text>
+
+					{/* XP Score Badge & Streak and Total XP Grid */}
+					<View className="flex-row gap-2 mt-8 mb-6 px-2 w-full max-w-[360px]">
+						{/* XP Earned */}
+						<View className="flex-1 items-center bg-[#FFF8E6] border border-[#FFE8B3] rounded-2xl py-4 justify-center">
+							<Feather name="zap" size={24} color="#FF8A00" />
+							<Text className="font-poppins-bold text-[18px] text-[#FF8A00] mt-1">
+								+{resultsData.xpEarned} XP
+							</Text>
+							<Text className="font-poppins text-[10px] text-neutral-secondary mt-0.5 uppercase tracking-wider">
+								Earned
+							</Text>
+						</View>
+
+						{/* Total XP */}
+						<View className="flex-1 items-center bg-[#F0EDFF] border border-[#E1D9FF] rounded-2xl py-4 justify-center">
+							<Feather name="award" size={24} color="#6C4EF5" />
+							<Text className="font-poppins-bold text-[18px] text-lingua-purple mt-1">
+								{resultsData.newTotalXp} XP
+							</Text>
+							<Text className="font-poppins text-[10px] text-neutral-secondary mt-0.5 uppercase tracking-wider">
+								Total XP
+							</Text>
+						</View>
+
+						{/* Daily Streak */}
+						<View className="flex-1 items-center bg-[#FFF8F2] border border-[#FFEAD4] rounded-2xl py-4 justify-center">
+							<Image
+								source={images.streakFire}
+								style={{ width: 24, height: 24 }}
+								contentFit="contain"
+							/>
+							<Text className="font-poppins-bold text-[18px] text-streak mt-1">
+								{resultsData.newStreak}
+							</Text>
+							<Text className="font-poppins text-[10px] text-neutral-secondary mt-0.5 uppercase tracking-wider">
+								Streak
+							</Text>
+						</View>
+					</View>
+
+					{/* Correct counter badge */}
+					<View className="bg-neutral-surface border border-neutral-border rounded-xl px-5 py-2.5 mb-8 flex-row items-center">
+						<Feather name="check" size={16} color="#21C16B" />
+						<Text className="font-poppins-bold text-[14px] text-neutral-primary ml-2">
+							{correctAnswersCount} / {exercises.length} Correct
+						</Text>
+					</View>
+
+					{/* Confirm exit */}
+					<Button3D
+						onPress={() => router.replace("/")}
+						variant="primary"
+						size="lg"
+						style={{ maxWidth: 320 }}
+					>
+						Continue
+					</Button3D>
+				</View>
+			</SafeAreaView>
+		);
+	}
+
+	return (
+		<SafeAreaView style={styles.safeArea}>
+			<KeyboardAvoidingView
+				behavior={Platform.OS === "ios" ? "padding" : "height"}
+				style={{ flex: 1 }}
+			>
+				{/* Top bar progress track */}
+				<View className="flex-row items-center px-4 pt-3 pb-3 border-b border-neutral-border bg-white">
+					<TouchableOpacity onPress={handleQuit} activeOpacity={0.7} className="p-1 mr-3">
+						<Feather name="x" size={24} color="#6B7280" />
+					</TouchableOpacity>
+					
+					<View style={styles.progressTrack}>
+						<Animated.View
+							style={[
+								styles.progressFill,
+								{
+									width: progressAnim.interpolate({
+										inputRange: [0, 1],
+										outputRange: ["0%", "100%"],
+									}),
+								},
+							]}
+						/>
+					</View>
+
+					{!isCheckpointMode && (
+						<View className="flex-row items-center gap-1.5 mr-3">
+							{[1, 2, 3].map((heartNumber) => {
+								const isHeartFilled = heartNumber <= hearts || animatingLostHeart === heartNumber;
+
+								return (
+									<Animated.View
+										key={heartNumber}
+										style={{
+											transform: [{ scale: heartScaleAnims[heartNumber - 1] }],
+										}}
+									>
+										<Text style={styles.heartText}>
+											{isHeartFilled ? "\u2764\uFE0F" : "\u{1F90D}"}
+										</Text>
+									</Animated.View>
+								);
+							})}
+						</View>
+					)}
+
+					{/* XP accumulation text */}
+					<View className="flex-row items-center bg-[#FFF8E6] px-2.5 py-1 rounded-full border border-[#FFE8B3]">
+						<Feather name="zap" size={12} color="#FF8A00" />
+						<Text className="font-poppins-bold text-[11px] text-[#FF8A00] ml-1">
+							{isCheckpointMode
+								? "Checkpoint"
+								: isReviewSession
+								? "Review"
+								: `${isCheckpoint === "true" ? 50 : correctAnswersCount * 10} XP`}
+						</Text>
+					</View>
+				</View>
+
+				{/* Animated Exercise container */}
+				<ScrollView
+					style={styles.scrollView}
+					contentContainerStyle={styles.scrollContent}
+					keyboardShouldPersistTaps="handled"
+				>
+					<Animated.View
+						style={{
+							flex: 1,
+							transform: [{ translateX: slideAnim }],
+						}}
+					>
+						{/* Mode Label Indicator */}
+						<View className="mb-1">
+							<Text 
+								className={`font-poppins-bold text-[11px] uppercase tracking-wider ${
+									isCheckpointMode || isCheckpoint === "true"
+										? "text-[#FFC800]"
+										: isReviewSession
+										? "text-[#FFC800]"
+										: mode === "mistakes"
+										? "text-[#FF4B4B]"
+										: mode === "vocabulary"
+										? "text-[#FFC800]"
+										: mode === "listening"
+										? "text-[#1CB0F6]"
+										: "text-lingua-purple"
+								}`}
+							>
+								{isCheckpointMode
+									? "\u2B50 CHECKPOINT QUIZ"
+									: isCheckpoint === "true"
+									? "Unit Checkpoint Quiz"
+									: isReviewSession
+									? "\u{1F9E0} Review Session"
+									: mode === "mistakes"
+									? "Mistakes Review"
+									: mode === "vocabulary"
+									? "Vocabulary Practice"
+									: mode === "listening"
+									? "Listening Practice"
+									: "Lesson Practice"}
+							</Text>
+						</View>
+
+						<Text className="font-poppins-bold text-[20px] text-neutral-primary leading-[26px] mb-5">
+							{currentExercise.question}
+						</Text>
+
+						{/* Rendering details per exercise type */}
+						{currentExercise.type === "mcq" && (
+							<View className="gap-3">
+								{currentExercise.options?.map((option, index) => {
+									const isSelected = selectedOption === option;
+									let statusClass = "";
+
+									if (isSelected) {
+										statusClass = "card-3d-active";
+									}
+									if (isAnswered) {
+										if (option === currentExercise.correctAnswer) {
+											statusClass = "card-3d-correct";
+										} else if (isSelected) {
+											statusClass = "card-3d-incorrect";
+										}
+									}
+
+									return (
+										<TouchableOpacity
+											key={index}
+											disabled={isAnswered}
+											onPress={() => setSelectedOption(option)}
+											activeOpacity={0.7}
+											className={`flex-row items-center p-4 card-3d ${statusClass}`}
+										>
+											<View className="w-8 h-8 rounded-full bg-[#F6F7FB] border border-[#E5E7EB] items-center justify-center mr-3.5">
+												<Text className="font-poppins-bold text-[13px] text-neutral-secondary">
+													{String.fromCharCode(65 + index)}
+												</Text>
+											</View>
+											<Text className="font-poppins-semibold text-[15px] text-neutral-primary flex-1">
+												{option}
+											</Text>
+										</TouchableOpacity>
+									);
+								})}
+							</View>
+						)}
+
+						{currentExercise.type === "fill-in-the-blank" && (
+							<View className="bg-white border border-neutral-border rounded-[24px] p-5 shadow-sm">
+								{/* Missing slot sentence display */}
+								<View className="flex-row items-center justify-center flex-wrap gap-2.5 py-6">
+									{currentExercise.sentence?.split(" ").map((word, idx) => {
+										const isBlank = word.includes("___");
+										if (isBlank) {
+											const [beforeBlank = "", afterBlank = ""] = word.split("___");
+											let blankStatusClass = "";
+											const pronunciation = getFillBlankPronunciation(typedAnswer, selectedLanguageId);
+
+											if (typedAnswer) {
+												blankStatusClass = "card-3d-active";
+											}
+											if (isAnswered) {
+												blankStatusClass = isCorrect ? "card-3d-correct" : "card-3d-incorrect";
+											}
+
+											return (
+												<View key={idx} className="flex-row items-center gap-2">
+													{beforeBlank ? (
+														<Text className="font-poppins-semibold text-[18px] text-neutral-primary">
+															{beforeBlank}
+														</Text>
+													) : null}
+													<TouchableOpacity
+														disabled={isAnswered || !typedAnswer}
+														onPress={() => setTypedAnswer("")}
+														activeOpacity={0.75}
+														className={`min-w-[120px] px-4 py-2.5 items-center card-3d ${blankStatusClass}`}
+													>
+														<Text
+															className={`font-poppins-bold text-[18px] ${
+																typedAnswer ? "text-neutral-primary" : "text-neutral-secondary"
+															}`}
+														>
+															{typedAnswer || "Tap answer"}
+														</Text>
+														{pronunciation ? (
+															<Text className="font-poppins-semibold text-[11px] text-neutral-secondary mt-0.5">
+																{pronunciation}
+															</Text>
+														) : null}
+													</TouchableOpacity>
+													{afterBlank ? (
+														<Text className="font-poppins-semibold text-[18px] text-neutral-primary">
+															{afterBlank}
+														</Text>
+													) : null}
+												</View>
+											);
+										}
+										return (
+											<Text key={idx} className="font-poppins-semibold text-[18px] text-neutral-primary">
+												{word}
+											</Text>
+										);
+									})}
+								</View>
+
+								<View className="border-t border-neutral-border pt-4">
+									<Text className="font-poppins-bold text-[12px] text-neutral-secondary uppercase tracking-[0.5px] mb-3 text-center">
+										Choose the missing part
+									</Text>
+									<View className="flex-row flex-wrap justify-center gap-3">
+										{fillBlankOptions
+											.filter((option) => option.value !== typedAnswer)
+											.map((option) => (
+												<TouchableOpacity
+													key={option.value}
+													disabled={isAnswered}
+													onPress={() => setTypedAnswer(option.value)}
+													activeOpacity={0.75}
+													className="min-w-[92px] px-4 py-3 items-center card-3d"
+												>
+													<Text className="font-poppins-bold text-[15px] text-neutral-primary text-center">
+														{option.value}
+													</Text>
+													{option.pronunciation ? (
+														<Text className="font-poppins-semibold text-[11px] text-neutral-secondary mt-0.5 text-center">
+															{option.pronunciation}
+														</Text>
+													) : null}
+												</TouchableOpacity>
+											))}
+									</View>
+								</View>
+							</View>
+						)}
+
+						{currentExercise.type === "matching-pairs" && (
+							<View className="flex-row justify-between w-full mt-2 gap-4">
+								{/* Left Column (Target words) */}
+								<View className="flex-1 gap-3">
+									{leftOptions.map((word, idx) => {
+										const isSelected = selectedLeft === word;
+										const isMatched = matchedLefts.includes(word);
+										const isMismatched = mismatchedLeft === word;
+
+										let statusClass = "";
+
+										if (isSelected) {
+											statusClass = "card-3d-active";
+										} else if (isMatched) {
+											statusClass = "card-3d-correct";
+										} else if (isMismatched) {
+											statusClass = "card-3d-incorrect";
+										}
+
+										return (
+											<TouchableOpacity
+												key={idx}
+												onPress={() => handlePairTap(word, "left")}
+												disabled={isMatched || isAnswered}
+												activeOpacity={0.7}
+												className={`p-4 justify-center items-center card-3d ${statusClass}`}
+											>
+												<Text className="font-poppins-semibold text-[14px] text-neutral-primary text-center">
+													{word}
+												</Text>
+											</TouchableOpacity>
+										);
+									})}
+								</View>
+
+								{/* Right Column (English meanings) */}
+								<View className="flex-1 gap-3">
+									{rightOptions.map((word, idx) => {
+										const isSelected = selectedRight === word;
+										const isMatched = matchedRights.includes(word);
+										const isMismatched = mismatchedRight === word;
+
+										let statusClass = "";
+
+										if (isSelected) {
+											statusClass = "card-3d-active";
+										} else if (isMatched) {
+											statusClass = "card-3d-correct";
+										} else if (isMismatched) {
+											statusClass = "card-3d-incorrect";
+										}
+
+										return (
+											<TouchableOpacity
+												key={idx}
+												onPress={() => handlePairTap(word, "right")}
+												disabled={isMatched || isAnswered}
+												activeOpacity={0.7}
+												className={`p-4 justify-center items-center card-3d ${statusClass}`}
+											>
+												<Text className="font-poppins-semibold text-[14px] text-neutral-primary text-center">
+													{word}
+												</Text>
+											</TouchableOpacity>
+										);
+									})}
+								</View>
+							</View>
+						)}
+
+						{currentExercise.type === "tap-word" && (
+							<View>
+								{/* Selected selection placeholder */}
+								<View className="bg-white border border-neutral-border rounded-[24px] p-5 shadow-sm min-h-[90px] justify-center items-center mb-6">
+									{selectedOption ? (
+										<View
+											className={`px-5 py-2.5 card-3d ${
+												isAnswered
+													? isCorrect
+														? "card-3d-correct"
+														: "card-3d-incorrect"
+													: "card-3d-active"
+											}`}
+										>
+											<Text className="font-poppins-bold text-[16px] text-neutral-primary">
+												{selectedOption}
+											</Text>
+										</View>
+									) : (
+										<Text className="font-poppins text-[13px] text-neutral-secondary">
+											Tap a word tile below to select
+										</Text>
+									)}
+								</View>
+
+								{/* Tile options block */}
+								<View className="flex-row flex-wrap justify-center gap-3.5 px-2">
+									{currentExercise.options?.map((option, index) => {
+										const isSelected = selectedOption === option;
+										if (isSelected) return null;
+
+										return (
+											<TouchableOpacity
+												key={index}
+												disabled={isAnswered}
+												onPress={() => setSelectedOption(option)}
+												activeOpacity={0.7}
+												className="px-[18px] py-3 card-3d"
+											>
+												<Text className="font-poppins-semibold text-[14px] text-neutral-primary">
+													{option}
+												</Text>
+											</TouchableOpacity>
+										);
+									})}
+								</View>
+							</View>
+						)}
+
+						{currentExercise.type === "listen-type" && (
+							<View className="bg-white border border-neutral-border rounded-[24px] p-5 shadow-sm items-center">
+								{/* Voice trigger play button */}
+								<TouchableOpacity
+									onPress={playAudio}
+									activeOpacity={0.8}
+									className="w-20 h-20 rounded-full bg-[#6C4EF5] items-center justify-center shadow-md mb-6"
+								>
+									<Feather name="volume-2" size={32} color="#FFFFFF" />
+								</TouchableOpacity>
+
+								<Text className="font-poppins-semibold text-[12px] text-neutral-secondary uppercase tracking-[0.5px] mb-6">
+									Tap to hear phrase
+								</Text>
+
+								<TextInput
+									style={styles.textInput}
+									placeholder="Type what you hear..."
+									placeholderTextColor="#9CA3AF"
+									value={typedAnswer}
+									onChangeText={setTypedAnswer}
+									editable={!isAnswered}
+									autoCorrect={false}
+								/>
+							</View>
+						)}
+					</Animated.View>
+				</ScrollView>
+
+				<View className="bg-white border-t border-neutral-border px-5 py-4 pb-6">
+					<Button3D
+						onPress={handleCheckAnswer}
+						disabled={isCheckDisabled() || isAnswered || feedbackVisible}
+						variant={isCheckDisabled() || isAnswered || feedbackVisible ? "gray" : "primary"}
+						title="CHECK"
+					/>
+				</View>
+
+				<FeedbackDrawer
+					visible={feedbackVisible}
+					isCorrect={lastAnswerCorrect}
+					correctAnswer={correctAnswerText}
+					combo={isCheckpointMode ? 0 : combo}
+					onContinue={handleContinue}
+				/>
+
+				<Modal
+					visible={showHeartModal}
+					transparent
+					animationType="fade"
+					onRequestClose={() => {}}
+				>
+					<Pressable style={styles.heartModalBg}>
+						<Pressable
+							style={styles.heartModalBody}
+							onPress={(e: GestureResponderEvent) => e.stopPropagation()}
+						>
+							<Text style={styles.heartModalEmoji}>{"\u{1F614}"}</Text>
+							<Text className="font-poppins-bold text-[24px] text-neutral-primary text-center">
+								Out of Hearts!
+							</Text>
+							<Text className="font-poppins text-[15px] text-neutral-secondary text-center mt-2 mb-7">
+								{"Take a breath and try again \u{1F4AA}"}
+							</Text>
+
+							<View className="gap-3 w-full">
+								<Button3D
+									onPress={handleTryAgain}
+									variant="primary"
+									title="Try Again"
+									fullWidth
+								/>
+								<Button3D
+									onPress={handleEndSession}
+									variant="ghost"
+									title="End Session"
+									fullWidth
+								/>
+							</View>
+						</Pressable>
+					</Pressable>
+				</Modal>
+
+				{/* Exit Confirmation Dialog Modal */}
+				<Modal
+					visible={showQuitModal}
+					transparent
+					animationType="fade"
+					onRequestClose={() => setShowQuitModal(false)}
+				>
+					<Pressable
+						style={styles.modalBg}
+						onPress={() => setShowQuitModal(false)}
+					>
+						<Pressable
+							style={styles.modalBody}
+							onPress={(e: GestureResponderEvent) => e.stopPropagation()}
+						>
+							<View className="items-center">
+								<Feather name="alert-triangle" size={40} color="#FF8A00" className="mb-4" />
+								<Text className="font-poppins-bold text-[18px] text-neutral-primary text-center">
+									Are you sure?
+								</Text>
+								<Text className="font-poppins text-[13px] text-neutral-secondary text-center mt-2 leading-[20px] px-2 mb-6">
+									{isCheckpointMode
+										? "You are in the middle of a Checkpoint Quiz. Leaving now will lose all session progress."
+										: isCheckpoint === "true"
+										? "You are in the middle of a Unit Checkpoint Quiz. Leaving now will lose all session progress."
+										: isReviewSession
+										? "You are in the middle of a review session. Leaving now will lose all session progress."
+										: mode === "mistakes"
+										? "You are in the middle of a mistakes review. Leaving now will lose all session progress."
+										: "Leaving now will lose all session progress."}
+								</Text>
+
+								<View className="gap-2.5 w-full">
+									<TouchableOpacity
+										onPress={handleConfirmQuit}
+										className="rounded-2xl h-[48px] items-center justify-center w-full bg-[#FF4B4B]"
+										activeOpacity={0.85}
+									>
+										<Text className="font-poppins-bold text-[14px] text-white">
+											Quit Session
+										</Text>
+									</TouchableOpacity>
+
+									<TouchableOpacity
+										onPress={() => setShowQuitModal(false)}
+										className="rounded-2xl h-[46px] items-center justify-center w-full border border-neutral-border bg-white"
+										activeOpacity={0.7}
+									>
+										<Text className="font-poppins-semibold text-[13px] text-neutral-secondary">
+											Cancel
+										</Text>
+									</TouchableOpacity>
+								</View>
+							</View>
+						</Pressable>
+					</Pressable>
+				</Modal>
+			</KeyboardAvoidingView>
+		</SafeAreaView>
+	);
+}
+
+const styles = StyleSheet.create({
+	safeArea: {
+		flex: 1,
+		backgroundColor: "#FFFFFF",
+	},
+	scrollView: {
+		flex: 1,
+		backgroundColor: "#F6F7FB",
+	},
+	scrollContent: {
+		flexGrow: 1,
+		padding: 20,
+		paddingBottom: 40,
+	},
+	mcqCard: {
+		flexDirection: "row",
+		alignItems: "center",
+		borderWidth: 2,
+		borderRadius: 18,
+		padding: 16,
+		shadowColor: "#000",
+		shadowOffset: { width: 0, height: 1 },
+		shadowOpacity: 0.05,
+		shadowRadius: 2,
+		elevation: 1,
+	},
+	textInput: {
+		width: "100%",
+		height: 52,
+		backgroundColor: "#F6F7FB",
+		borderWidth: 1.5,
+		borderColor: "#E5E7EB",
+		borderRadius: 14,
+		paddingHorizontal: 16,
+		fontFamily: "Poppins-SemiBold",
+		fontSize: 15,
+		color: "#0D132B",
+		textAlign: "center",
+	},
+	pairButton: {
+		borderWidth: 2,
+		borderRadius: 16,
+		paddingVertical: 18,
+		paddingHorizontal: 10,
+		justifyContent: "center",
+		alignItems: "center",
+		shadowColor: "#000",
+		shadowOffset: { width: 0, height: 1 },
+		shadowOpacity: 0.04,
+		shadowRadius: 1,
+		elevation: 1,
+	},
+	wordTile: {
+		borderWidth: 2,
+		borderRadius: 14,
+		paddingHorizontal: 18,
+		paddingVertical: 12,
+		shadowColor: "#000",
+		shadowOffset: { width: 0, height: 1 },
+		shadowOpacity: 0.05,
+		shadowRadius: 1.5,
+		elevation: 1,
+	},
+	progressTrack: {
+		height: 8,
+		backgroundColor: "#E5E5E5",
+		borderRadius: 4,
+		flex: 1,
+		marginRight: 12,
+		overflow: "hidden",
+	},
+	progressFill: {
+		height: 8,
+		backgroundColor: "#58CC02",
+		borderRadius: 4,
+	},
+	heartText: {
+		fontSize: 18,
+		lineHeight: 22,
+	},
+	checkpointResultIcon: {
+		width: 112,
+		height: 112,
+		borderRadius: 56,
+		alignItems: "center",
+		justifyContent: "center",
+		marginBottom: 24,
+	},
+	continueButton: {
+		borderRadius: 16,
+		height: 54,
+		alignItems: "center",
+		justifyContent: "center",
+		width: "100%",
+	},
+	modalBg: {
+		flex: 1,
+		backgroundColor: "rgba(13, 19, 43, 0.4)",
+		justifyContent: "center",
+		alignItems: "center",
+		paddingHorizontal: 24,
+	},
+	modalBody: {
+		backgroundColor: "#FFFFFF",
+		borderRadius: 24,
+		padding: 24,
+		width: "100%",
+		maxWidth: 320,
+	},
+	heartModalBg: {
+		flex: 1,
+		backgroundColor: "rgba(0, 0, 0, 0.35)",
+		justifyContent: "center",
+		alignItems: "center",
+		paddingHorizontal: 24,
+	},
+	heartModalBody: {
+		backgroundColor: "#FFFFFF",
+		borderRadius: 16,
+		padding: 32,
+		width: "100%",
+		maxWidth: 320,
+		alignItems: "center",
+		...(Platform.OS === "android"
+			? { elevation: 8 }
+			: {
+					shadowColor: "#000000",
+					shadowOffset: { width: 0, height: 12 },
+					shadowOpacity: 0.14,
+					shadowRadius: 18,
+				}),
+	},
+	heartModalEmoji: {
+		fontSize: 48,
+		lineHeight: 56,
+		marginBottom: 12,
+	},
+});

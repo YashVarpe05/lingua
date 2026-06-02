@@ -42,6 +42,69 @@ export const lessons: Lesson[] = [
         correctAnswer: "Adiós",
       },
     ],
+    exercises: [
+      {
+        id: "es_u1_l1_e1",
+        type: "mcq",
+        question: "Select the correct translation for 'Hello'",
+        options: ["Adiós", "Gracias", "Hola", "Por favor"],
+        correctAnswer: "Hola"
+      },
+      {
+        id: "es_u1_l1_e2",
+        type: "fill-in-the-blank",
+        question: "Translate 'Please' into Spanish",
+        sentence: "___ favor",
+        correctAnswer: "Por"
+      },
+      {
+        id: "es_u1_l1_e3",
+        type: "matching-pairs",
+        question: "Match the greetings with their meanings",
+        pairs: [
+          { id: "p1", left: "Hola", right: "Hello" },
+          { id: "p2", left: "Adiós", right: "Goodbye" },
+          { id: "p3", left: "Gracias", right: "Thank you" },
+          { id: "p4", left: "Por favor", right: "Please" }
+        ],
+        correctAnswer: ""
+      },
+      {
+        id: "es_u1_l1_e4",
+        type: "tap-word",
+        question: "Select the correct word for 'Goodbye'",
+        options: ["Hola", "Gracias", "Adiós", "De nada"],
+        correctAnswer: "Adiós"
+      },
+      {
+        id: "es_u1_l1_e5",
+        type: "listen-type",
+        question: "Listen and type what you hear",
+        correctAnswer: "Hola",
+        audioText: "Hola"
+      },
+      {
+        id: "es_u1_l1_e6",
+        type: "mcq",
+        question: "Select the correct translation for 'Thank you'",
+        options: ["De nada", "Por favor", "Hola", "Gracias"],
+        correctAnswer: "Gracias"
+      },
+      {
+        id: "es_u1_l1_e7",
+        type: "fill-in-the-blank",
+        question: "Translate 'You're welcome' into Spanish",
+        sentence: "De ___",
+        correctAnswer: "nada"
+      },
+      {
+        id: "es_u1_l1_e8",
+        type: "listen-type",
+        question: "Listen and type what you hear",
+        correctAnswer: "Gracias",
+        audioText: "Gracias"
+      }
+    ]
   },
   {
     id: "es_u1_l2",
@@ -53,7 +116,7 @@ export const lessons: Lesson[] = [
     xpReward: 20,
     durationMinutes: 5,
     goals: ["Ask for someone's name", "State your own name in Spanish", "Exchange pleasantries"],
-    aiPrompt: "You are Maria, a warm and friendly Spanish teacher. Teach the user how to introduce themselves. Explain the question '¿Cómo te llamas?' (What is your name?) and how to reply with 'Me llamo...' (My name is...). End with 'Mucho gusto' (Nice to meet you). Speak slowly, clearly, and keep it extremely interactive.",
+    aiPrompt: "You are Maria, a warm, energetic, and highly encouraging Spanish teacher. Your goal is strictly to teach the user how to introduce themselves using the question '¿Cómo te llamas?' (What is your name?) and reply with 'Me llamo...' (My name is...). Introduce 'Mucho gusto' (Nice to meet you) at the end. Stay strictly within this focus and do not teach other words or topics. Speak mostly in English, and introduce Spanish words slowly with translations. Keep your sentences short, natural, and friendly (use contractions like 'let's', 'I'm'). Actively listen to the student's responses: if they make a mistake, gently encourage them to try again. Keep your replies to one or two conversational sentences. Ask the student to repeat or try introducing themselves.",
     activities: [
       {
         id: "es_u1_l2_a1",
@@ -72,6 +135,69 @@ export const lessons: Lesson[] = [
         translationContext: "Exchange this pleasantry after meeting someone new.",
       },
     ],
+    exercises: [
+      {
+        id: "es_u1_l2_e1",
+        type: "mcq",
+        question: "Which phrase means 'What is your name?'",
+        options: ["¿Cómo estás?", "¿Cómo te llamas?", "Mucho gusto", "Me llamo"],
+        correctAnswer: "¿Cómo te llamas?"
+      },
+      {
+        id: "es_u1_l2_e2",
+        type: "fill-in-the-blank",
+        question: "Fill in the blank to say 'My name is...'",
+        sentence: "___ llamo...",
+        correctAnswer: "Me"
+      },
+      {
+        id: "es_u1_l2_e3",
+        type: "matching-pairs",
+        question: "Match the introduction terms",
+        pairs: [
+          { id: "p1", left: "¿Cómo te llamas?", right: "What is your name?" },
+          { id: "p2", left: "Me llamo", right: "My name is" },
+          { id: "p3", left: "Mucho gusto", right: "Nice to meet you" },
+          { id: "p4", left: "Yo soy", right: "I am" }
+        ],
+        correctAnswer: ""
+      },
+      {
+        id: "es_u1_l2_e4",
+        type: "tap-word",
+        question: "Select the word for 'Nice to meet you'",
+        options: ["Mucho gusto", "Me llamo", "Hola", "¿Cómo te llamas?"],
+        correctAnswer: "Mucho gusto"
+      },
+      {
+        id: "es_u1_l2_e5",
+        type: "listen-type",
+        question: "Listen and type what you hear",
+        correctAnswer: "Mucho gusto",
+        audioText: "Mucho gusto"
+      },
+      {
+        id: "es_u1_l2_e6",
+        type: "mcq",
+        question: "Select the correct translation for 'How are you?'",
+        options: ["Me llamo", "¿Cómo te llamas?", "¿Cómo estás?", "Mucho gusto"],
+        correctAnswer: "¿Cómo estás?"
+      },
+      {
+        id: "es_u1_l2_e7",
+        type: "fill-in-the-blank",
+        question: "Fill in the blank to say 'I am Maria'",
+        sentence: "Yo ___ Maria",
+        correctAnswer: "soy"
+      },
+      {
+        id: "es_u1_l2_e8",
+        type: "listen-type",
+        question: "Listen and type what you hear",
+        correctAnswer: "Me llamo",
+        audioText: "Me llamo"
+      }
+    ]
   },
   {
     id: "es_u1_l3",
@@ -82,6 +208,7 @@ export const lessons: Lesson[] = [
     order: 3,
     xpReward: 15,
     durationMinutes: 4,
+    isCheckpoint: true,
     goals: ["Introduce yourself in a conversation", "Respond to simple questions"],
     aiPrompt: "You are Carlos, a helpful local language partner in Madrid. Initiate a chat conversation by saying hello and asking the user's name ('Hola! ¿Cómo te llamas?'). Guide the user to respond in Spanish. Keep your sentences short and beginner-friendly, correcting mistakes gently.",
     activities: [
@@ -93,6 +220,69 @@ export const lessons: Lesson[] = [
         correctAnswer: "Hola Carlos, mucho gusto",
       },
     ],
+    exercises: [
+      {
+        id: "es_u1_l3_e1",
+        type: "mcq",
+        question: "Translate 'Nice to meet you, Carlos'",
+        options: ["Hola Carlos", "Adiós Carlos", "Mucho gusto, Carlos", "Me llamo Carlos"],
+        correctAnswer: "Mucho gusto, Carlos"
+      },
+      {
+        id: "es_u1_l3_e2",
+        type: "fill-in-the-blank",
+        question: "Fill in the blank for 'Hello, how are you?'",
+        sentence: "Hola, ¿cómo ___?",
+        correctAnswer: "estás"
+      },
+      {
+        id: "es_u1_l3_e3",
+        type: "matching-pairs",
+        question: "Match the conversation elements",
+        pairs: [
+          { id: "p1", left: "Hola", right: "Hello" },
+          { id: "p2", left: "¿Cómo estás?", right: "How are you?" },
+          { id: "p3", left: "Bien, gracias", right: "Good, thank you" },
+          { id: "p4", left: "Adiós", right: "Goodbye" }
+        ],
+        correctAnswer: ""
+      },
+      {
+        id: "es_u1_l3_e4",
+        type: "tap-word",
+        question: "Select the correct word for 'Good'",
+        options: ["Mal", "Bien", "Gracias", "Hola"],
+        correctAnswer: "Bien"
+      },
+      {
+        id: "es_u1_l3_e5",
+        type: "listen-type",
+        question: "Listen and type what you hear",
+        correctAnswer: "Hola, ¿cómo estás?",
+        audioText: "Hola, ¿cómo estás?"
+      },
+      {
+        id: "es_u1_l3_e6",
+        type: "mcq",
+        question: "Translate 'Goodbye, see you later'",
+        options: ["Hola, adiós", "Adiós, hasta luego", "Gracias, de nada", "Mucho gusto"],
+        correctAnswer: "Adiós, hasta luego"
+      },
+      {
+        id: "es_u1_l3_e7",
+        type: "fill-in-the-blank",
+        question: "Fill in the blank to say 'See you later'",
+        sentence: "Hasta ___",
+        correctAnswer: "luego"
+      },
+      {
+        id: "es_u1_l3_e8",
+        type: "listen-type",
+        question: "Listen and type what you hear",
+        correctAnswer: "Bien, gracias",
+        audioText: "Bien, gracias"
+      }
+    ]
   },
 
   // Unit 2
@@ -124,6 +314,69 @@ export const lessons: Lesson[] = [
         translationContext: "Ordering a basic drink.",
       },
     ],
+    exercises: [
+      {
+        id: "es_u2_l1_e1",
+        type: "mcq",
+        question: "Translate 'The bill, please'",
+        options: ["El menú, por favor", "La comida, por favor", "La cuenta, por favor", "Un agua, por favor"],
+        correctAnswer: "La cuenta, por favor"
+      },
+      {
+        id: "es_u2_l1_e2",
+        type: "fill-in-the-blank",
+        question: "Fill in the blank for 'A coffee, please'",
+        sentence: "Un ___, por favor",
+        correctAnswer: "café"
+      },
+      {
+        id: "es_u2_l1_e3",
+        type: "matching-pairs",
+        question: "Match the food & drink items",
+        pairs: [
+          { id: "p1", left: "La cuenta", right: "The bill" },
+          { id: "p2", left: "El café", right: "Coffee" },
+          { id: "p3", left: "El agua", right: "Water" },
+          { id: "p4", left: "El menú", right: "Menu" }
+        ],
+        correctAnswer: ""
+      },
+      {
+        id: "es_u2_l1_e4",
+        type: "tap-word",
+        question: "Select the correct word for 'Water'",
+        options: ["Agua", "Leche", "Café", "Té"],
+        correctAnswer: "Agua"
+      },
+      {
+        id: "es_u2_l1_e5",
+        type: "listen-type",
+        question: "Listen and type what you hear",
+        correctAnswer: "Un café, por favor",
+        audioText: "Un café, por favor"
+      },
+      {
+        id: "es_u2_l1_e6",
+        type: "mcq",
+        question: "Translate 'The menu, please'",
+        options: ["La cuenta, por favor", "Un agua, por favor", "El menú, por favor", "El café, por favor"],
+        correctAnswer: "El menú, por favor"
+      },
+      {
+        id: "es_u2_l1_e7",
+        type: "fill-in-the-blank",
+        question: "Fill in the blank for 'With milk'",
+        sentence: "Con ___",
+        correctAnswer: "leche"
+      },
+      {
+        id: "es_u2_l1_e8",
+        type: "listen-type",
+        question: "Listen and type what you hear",
+        correctAnswer: "La cuenta, por favor",
+        audioText: "La cuenta, por favor"
+      }
+    ]
   },
   {
     id: "es_u2_l2",
@@ -134,6 +387,7 @@ export const lessons: Lesson[] = [
     order: 2,
     xpReward: 20,
     durationMinutes: 5,
+    isCheckpoint: true,
     goals: ["Order a drink and snack politely", "Understand pricing questions"],
     aiPrompt: "You are Sofia, a friendly barista at a café in Buenos Aires. Greet the user ('Buenas tardes! ¿Qué desea tomar?') and guide them through ordering coffee or a snack. Respond realistically, ask if they want anything else, and present the bill ('la cuenta') when asked.",
     activities: [
@@ -146,6 +400,69 @@ export const lessons: Lesson[] = [
         correctAnswer: "Café con leche",
       },
     ],
+    exercises: [
+      {
+        id: "es_u2_l2_e1",
+        type: "mcq",
+        question: "Select the correct word for 'Barista'",
+        options: ["Barista", "Camarero", "Cliente", "Cocinero"],
+        correctAnswer: "Barista"
+      },
+      {
+        id: "es_u2_l2_e2",
+        type: "fill-in-the-blank",
+        question: "Fill in the blank to say 'I want a croissant'",
+        sentence: "Quiero un ___",
+        correctAnswer: "croissant"
+      },
+      {
+        id: "es_u2_l2_e3",
+        type: "matching-pairs",
+        question: "Match the café terms",
+        pairs: [
+          { id: "p1", left: "Barista", right: "Barista" },
+          { id: "p2", left: "La cuenta", right: "The bill" },
+          { id: "p3", left: "Café con leche", right: "Coffee with milk" },
+          { id: "p4", left: "Croissant", right: "Croissant" }
+        ],
+        correctAnswer: ""
+      },
+      {
+        id: "es_u2_l2_e4",
+        type: "tap-word",
+        question: "Select the correct word for 'Milk'",
+        options: ["Leche", "Agua", "Café", "Té"],
+        correctAnswer: "Leche"
+      },
+      {
+        id: "es_u2_l2_e5",
+        type: "listen-type",
+        question: "Listen and type what you hear",
+        correctAnswer: "Café con leche",
+        audioText: "Café con leche"
+      },
+      {
+        id: "es_u2_l2_e6",
+        type: "mcq",
+        question: "Translate 'Good afternoon'",
+        options: ["Buenos días", "Buenas tardes", "Buenas noches", "Hola"],
+        correctAnswer: "Buenas tardes"
+      },
+      {
+        id: "es_u2_l2_e7",
+        type: "fill-in-the-blank",
+        question: "Fill in the blank for 'Green tea'",
+        sentence: "Té ___",
+        correctAnswer: "verde"
+      },
+      {
+        id: "es_u2_l2_e8",
+        type: "listen-type",
+        question: "Listen and type what you hear",
+        correctAnswer: "Buenas tardes",
+        audioText: "Buenas tardes"
+      }
+    ]
   },
 
   // ==========================================
@@ -181,6 +498,69 @@ export const lessons: Lesson[] = [
         translationContext: "Expressing strong gratitude.",
       },
     ],
+    exercises: [
+      {
+        id: "fr_u1_l1_e1",
+        type: "mcq",
+        question: "How do you say 'Hello' formally in French?",
+        options: ["Salut", "Bonjour", "Merci", "Au revoir"],
+        correctAnswer: "Bonjour"
+      },
+      {
+        id: "fr_u1_l1_e2",
+        type: "fill-in-the-blank",
+        question: "Translate 'Thank you very much' into French",
+        sentence: "Merci ___",
+        correctAnswer: "beaucoup"
+      },
+      {
+        id: "fr_u1_l1_e3",
+        type: "matching-pairs",
+        question: "Match the French greetings",
+        pairs: [
+          { id: "p1", left: "Bonjour", right: "Hello" },
+          { id: "p2", left: "Salut", right: "Hi" },
+          { id: "p3", left: "Merci", right: "Thank you" },
+          { id: "p4", left: "Au revoir", right: "Goodbye" }
+        ],
+        correctAnswer: ""
+      },
+      {
+        id: "fr_u1_l1_e4",
+        type: "tap-word",
+        question: "Select the correct word for 'Goodbye'",
+        options: ["Bonjour", "Salut", "Au revoir", "Merci"],
+        correctAnswer: "Au revoir"
+      },
+      {
+        id: "fr_u1_l1_e5",
+        type: "listen-type",
+        question: "Listen and type what you hear",
+        correctAnswer: "Bonjour",
+        audioText: "Bonjour"
+      },
+      {
+        id: "fr_u1_l1_e6",
+        type: "mcq",
+        question: "Translate 'Excuse me'",
+        options: ["Excusez-moi", "S'il vous plaît", "Merci", "De rien"],
+        correctAnswer: "Excusez-moi"
+      },
+      {
+        id: "fr_u1_l1_e7",
+        type: "fill-in-the-blank",
+        question: "Translate 'You're welcome' into French",
+        sentence: "De ___",
+        correctAnswer: "rien"
+      },
+      {
+        id: "fr_u1_l1_e8",
+        type: "listen-type",
+        question: "Listen and type what you hear",
+        correctAnswer: "Merci beaucoup",
+        audioText: "Merci beaucoup"
+      }
+    ]
   },
   {
     id: "fr_u1_l2",
@@ -191,8 +571,9 @@ export const lessons: Lesson[] = [
     order: 2,
     xpReward: 20,
     durationMinutes: 5,
+    isCheckpoint: true,
     goals: ["Ask name in French", "Say 'My name is...'", "Express pleasure in meeting"],
-    aiPrompt: "You are Pierre, a charming French language instructor in Paris. Teach the user how to introduce themselves. Cover the expressions 'Comment vous appelez-vous?' (formal name question) and 'Je m'appelle...' (My name is...). Introduce the closing expression 'Enchanté' (Delighted to meet you). Maintain an elegant and engaging tone.",
+    aiPrompt: "You are Pierre, a warm, energetic, and highly encouraging French teacher. Your goal is strictly to teach the user how to introduce themselves using the question 'Comment vous appelez-vous?' (What is your name?) and reply with 'Je m'appelle...' (My name is...). Introduce 'Enchanté' (Nice to meet you / Delighted) at the end. Stay strictly within this focus and do not teach other words or topics. Speak mostly in English, and introduce French words slowly with translations. Keep your sentences short, natural, and friendly (use contractions like 'let's', 'I'm'). Actively listen to the student's responses: if they make a mistake, gently encourage them to try again. Keep your replies to one or two conversational sentences. Ask the student to repeat or try introducing themselves.",
     activities: [
       {
         id: "fr_u1_l2_a1",
@@ -203,6 +584,69 @@ export const lessons: Lesson[] = [
         correctAnswer: "Enchanté",
       },
     ],
+    exercises: [
+      {
+        id: "fr_u1_l2_e1",
+        type: "mcq",
+        question: "Which word means 'Delighted / Nice to meet you'?",
+        options: ["Bonjour", "Merci", "Enchanté", "S'il vous plaît"],
+        correctAnswer: "Enchanté"
+      },
+      {
+        id: "fr_u1_l2_e2",
+        type: "fill-in-the-blank",
+        question: "Fill in the blank for 'My name is Pierre'",
+        sentence: "Je ___ appelle Pierre",
+        correctAnswer: "m'"
+      },
+      {
+        id: "fr_u1_l2_e3",
+        type: "matching-pairs",
+        question: "Match the introduction terms",
+        pairs: [
+          { id: "p1", left: "Enchanté", right: "Nice to meet you" },
+          { id: "p2", left: "Je m'appelle", right: "My name is" },
+          { id: "p3", left: "Oui", right: "Yes" },
+          { id: "p4", left: "Non", right: "No" }
+        ],
+        correctAnswer: ""
+      },
+      {
+        id: "fr_u1_l2_e4",
+        type: "tap-word",
+        question: "Select the word for 'Delighted / Nice to meet you'",
+        options: ["Enchanté", "Bonjour", "Merci", "S'il vous plaît"],
+        correctAnswer: "Enchanté"
+      },
+      {
+        id: "fr_u1_l2_e5",
+        type: "listen-type",
+        question: "Listen and type what you hear",
+        correctAnswer: "Enchanté",
+        audioText: "Enchanté"
+      },
+      {
+        id: "fr_u1_l2_e6",
+        type: "mcq",
+        question: "Translate 'What is your name?'",
+        options: ["Comment ça va ?", "Comment vous appelez-vous ?", "Où sont les toilettes ?", "Je m'appelle Pierre"],
+        correctAnswer: "Comment vous appelez-vous ?"
+      },
+      {
+        id: "fr_u1_l2_e7",
+        type: "fill-in-the-blank",
+        question: "Fill in the blank to say 'My name is...'",
+        sentence: "Je m'___...",
+        correctAnswer: "appelle"
+      },
+      {
+        id: "fr_u1_l2_e8",
+        type: "listen-type",
+        question: "Listen and type what you hear",
+        correctAnswer: "Je m'appelle Pierre",
+        audioText: "Je m'appelle Pierre"
+      }
+    ]
   },
 
   // ==========================================
@@ -238,6 +682,69 @@ export const lessons: Lesson[] = [
         translationContext: "Used strictly when meeting someone for the first time.",
       },
     ],
+    exercises: [
+      {
+        id: "ja_u1_l1_e1",
+        type: "mcq",
+        question: "How do you say 'Thank you' in Japanese?",
+        options: ["こんにちは (Konnichiwa)", "ありがとう (Arigatou)", "さようなら (Sayounara)", "すみません (Sumimasen)"],
+        correctAnswer: "ありがとう (Arigatou)"
+      },
+      {
+        id: "ja_u1_l1_e2",
+        type: "fill-in-the-blank",
+        question: "Translate 'Excuse me' into Japanese",
+        sentence: "すみ___",
+        correctAnswer: "ません"
+      },
+      {
+        id: "ja_u1_l1_e3",
+        type: "matching-pairs",
+        question: "Match the Japanese greetings",
+        pairs: [
+          { id: "p1", left: "こんにちは", right: "Hello" },
+          { id: "p2", left: "ありがとう", right: "Thank you" },
+          { id: "p3", left: "さようなら", right: "Goodbye" },
+          { id: "p4", left: "すみません", right: "Excuse me" }
+        ],
+        correctAnswer: ""
+      },
+      {
+        id: "ja_u1_l1_e4",
+        type: "tap-word",
+        question: "Select the word for 'Hello'",
+        options: ["こんにちは (Konnichiwa)", "ありがとう (Arigatou)", "さようなら (Sayounara)", "すみません (Sumimasen)"],
+        correctAnswer: "こんにちは (Konnichiwa)"
+      },
+      {
+        id: "ja_u1_l1_e5",
+        type: "listen-type",
+        question: "Listen and type what you hear",
+        correctAnswer: "こんにちは",
+        audioText: "こんにちは"
+      },
+      {
+        id: "ja_u1_l1_e6",
+        type: "mcq",
+        question: "Translate 'Goodbye'",
+        options: ["こんにちは (Konnichiwa)", "ありがとう (Arigatou)", "さようなら (Sayounara)", "すみません (Sumimasen)"],
+        correctAnswer: "さようなら (Sayounara)"
+      },
+      {
+        id: "ja_u1_l1_e7",
+        type: "fill-in-the-blank",
+        question: "Translate 'Hello' into Japanese",
+        sentence: "こん___は",
+        correctAnswer: "にち"
+      },
+      {
+        id: "ja_u1_l1_e8",
+        type: "listen-type",
+        question: "Listen and type what you hear",
+        correctAnswer: "ありがとう",
+        audioText: "ありがとう"
+      }
+    ]
   },
   {
     id: "ja_u1_l2",
@@ -248,6 +755,7 @@ export const lessons: Lesson[] = [
     order: 2,
     xpReward: 15,
     durationMinutes: 4,
+    isCheckpoint: true,
     goals: ["Exchange names", "End a self-introduction with Yoroshiku"],
     aiPrompt: "You are Kenji, a polite Japanese student in Tokyo. Greet the user warmly and introduce yourself ('Hajimemashite, Kenji desu. Yoroshiku onegai shimasu. O-namae wa?'). Encourage the user to state their name using '[Name] desu' and close with 'Yoroshiku'. Use simple romaji or hiragana as preferred by the user.",
     activities: [
@@ -260,8 +768,123 @@ export const lessons: Lesson[] = [
         correctAnswer: "よろしくおねがいします (Yoroshiku onegai shimasu)",
       },
     ],
+    exercises: [
+      {
+        id: "ja_u1_l2_e1",
+        type: "mcq",
+        question: "Translate 'Nice to meet you'",
+        options: ["こんにちは (Konnichiwa)", "はじめまして (Hajimemashite)", "よろしくおねがいします (Yoroshiku onegai shimasu)", "すみません (Sumimasen)"],
+        correctAnswer: "はじめまして (Hajimemashite)"
+      },
+      {
+        id: "ja_u1_l2_e2",
+        type: "fill-in-the-blank",
+        question: "Translate 'I am Kenji' into Japanese",
+        sentence: "ケンジ___",
+        correctAnswer: "です"
+      },
+      {
+        id: "ja_u1_l2_e3",
+        type: "matching-pairs",
+        question: "Match the Japanese introduction terms",
+        pairs: [
+          { id: "p1", left: "はじめまして", right: "Nice to meet you" },
+          { id: "p2", left: "です", right: "I am" },
+          { id: "p3", left: "よろしくおねがいします", right: "Goodwill close" },
+          { id: "p4", left: "お名前", right: "Name" }
+        ],
+        correctAnswer: ""
+      },
+      {
+        id: "ja_u1_l2_e4",
+        type: "tap-word",
+        question: "Select the word for 'Goodwill close'",
+        options: ["よろしくおねがいします (Yoroshiku onegai shimasu)", "はじめまして (Hajimemashite)", "こんにちは (Konnichiwa)", "ありがとう (Arigatou)"],
+        correctAnswer: "よろしくおねがいします (Yoroshiku onegai shimasu)"
+      },
+      {
+        id: "ja_u1_l2_e5",
+        type: "listen-type",
+        question: "Listen and type what you hear",
+        correctAnswer: "はじめまして",
+        audioText: "はじめまして"
+      },
+      {
+        id: "ja_u1_l2_e6",
+        type: "mcq",
+        question: "Translate 'What is your name?'",
+        options: ["お元気ですか (O-genki desu ka)?", "お名前は (O-namae wa)?", "はじめまして (Hajimemashite)", "これをください (Kore wo kudasai)"],
+        correctAnswer: "お名前は (O-namae wa)?"
+      },
+      {
+        id: "ja_u1_l2_e7",
+        type: "fill-in-the-blank",
+        question: "Translate 'Nice to meet you' into Japanese",
+        sentence: "は___まして",
+        correctAnswer: "じめ"
+      },
+      {
+        id: "ja_u1_l2_e8",
+        type: "listen-type",
+        question: "Listen and type what you hear",
+        correctAnswer: "よろしくおねがいします",
+        audioText: "よろしくおねがいします"
+      }
+    ]
   },
+  {
+    id: "es_u3_l1",
+    unitId: "es_unit_3",
+    title: "Dining Vocabulary",
+    description: "Learn vocabulary for ordering food and discussing meals in Spanish.",
+    type: "vocabulary",
+    order: 1,
+    xpReward: 10,
+    durationMinutes: 4,
+    goals: ["Name common foods", "Ask for a menu"],
+    activities: [],
+    exercises: [
+      {
+        id: "es_u3_l1_e1",
+        type: "mcq",
+        question: "What is 'La cuenta'?",
+        options: ["The food", "The bill", "The menu", "The table"],
+        correctAnswer: "The bill"
+      }
+    ]
+  },
+  {
+    id: "es_u3_l2",
+    unitId: "es_unit_3",
+    title: "AI Chat: Ordering Food",
+    description: "Chat with a waiter to order food and request the bill.",
+    type: "chat",
+    order: 2,
+    xpReward: 15,
+    durationMinutes: 5,
+    isCheckpoint: true,
+    goals: ["Order food politely", "Ask for the bill"],
+    activities: [],
+    exercises: [
+      {
+        id: "es_u3_l2_e1",
+        type: "mcq",
+        question: "How do you say 'The bill, please'?",
+        options: ["La cuenta, por favor", "Hola, buenas tardes", "Gracias por la comida", "Un café, por favor"],
+        correctAnswer: "La cuenta, por favor"
+      }
+    ]
+  }
 ];
+
+export const getAllLessonsFromData = (): Lesson[] => lessons;
+
+export const getLessonById = (lessonId?: string): Lesson | undefined => {
+  if (!lessonId) return undefined;
+  return lessons.find((lesson) => lesson.id === lessonId);
+};
+
+export const getFirstLesson = (): Lesson | undefined => lessons[0];
 
 // ==========================================
 // STATIC VOCABULARY DATA

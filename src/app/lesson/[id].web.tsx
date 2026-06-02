@@ -54,25 +54,7 @@ const getLocalizedPhrases = (langId: string): string[] => {
 	}
 };
 
-// Localized greeting dialog for floating speech bubble
-const getLocalizedGreeting = (langId: string): string => {
-	switch (langId) {
-		case "es":
-			return "¡Muy bien!";
-		case "fr":
-			return "Très bien !";
-		case "ja":
-			return "素晴らしい！";
-		case "de":
-			return "Sehr gut!";
-		case "it":
-			return "Molto bene!";
-		case "nl":
-			return "Heel goed!";
-		default:
-			return "Excellent!";
-	}
-};
+
 
 export default function AudioLessonScreen() {
 	const router = useRouter();
@@ -104,6 +86,9 @@ export default function AudioLessonScreen() {
 	const [pronunciationRating, setPronunciationRating] = useState("Listening...");
 	const [grammarRating, setGrammarRating] = useState("Listening...");
 
+	// Simulated subtitles/closed captions state
+	const [mockCaptions, setMockCaptions] = useState<{ speakerName: string; text: string } | null>(null);
+
 	// Simulates call connection on Web
 	useEffect(() => {
 		const connectTimeout = setTimeout(() => {
@@ -131,6 +116,56 @@ export default function AudioLessonScreen() {
 		return () => clearTimeout(feedbackTimeout);
 	}, []);
 
+	// Simulates agent closed captions on Web fallback
+	useEffect(() => {
+		if (callingState !== "joined") {
+			setMockCaptions(null);
+			return;
+		}
+
+		const timers: any[] = [];
+
+		// 1. Teacher starts lesson
+		timers.push(setTimeout(() => {
+			setMockCaptions({
+				speakerName: "AI Teacher",
+				text: selectedLanguageId === "fr" 
+					? "Bonjour! Welcome to your French lesson today." 
+					: selectedLanguageId === "ja"
+					? "Konnichiwa! Welcome to your Japanese lesson today."
+					: "¡Hola! Welcome to your Spanish lesson today."
+			});
+		}, 5000));
+
+		// 2. User replies
+		timers.push(setTimeout(() => {
+			setMockCaptions({
+				speakerName: "You",
+				text: selectedLanguageId === "fr"
+					? "Bonjour Pierre! Let's start."
+					: selectedLanguageId === "ja"
+					? "Konnichiwa Kenji! Let's start."
+					: "¡Hola Maria! Let's start."
+			});
+		}, 10000));
+
+		// 3. Teacher gives instruction
+		timers.push(setTimeout(() => {
+			setMockCaptions({
+				speakerName: "AI Teacher",
+				text: selectedLanguageId === "fr"
+					? "Excellent. Let's practice introductions. Repeat after me: Je m'appelle."
+					: selectedLanguageId === "ja"
+					? "Excellent. Let's practice introductions. Repeat after me: Yoroshiku."
+					: "Excellent. Let's practice introductions. Repeat after me: Me llamo."
+			});
+		}, 15000));
+
+		return () => {
+			timers.forEach(clearTimeout);
+		};
+	}, [callingState, selectedLanguageId]);
+
 	if (!lesson) {
 		return (
 			<SafeAreaView style={styles.safeArea}>
@@ -139,7 +174,13 @@ export default function AudioLessonScreen() {
 						Lesson not found
 					</Text>
 					<TouchableOpacity
-						onPress={() => router.back()}
+						onPress={() => {
+							if (router.canGoBack()) {
+								router.back();
+							} else {
+								router.replace("/(tabs)");
+							}
+						}}
 						className="bg-lingua-purple px-6 py-2.5 rounded-full"
 					>
 						<Text className="font-poppins-semibold text-white">Go Back</Text>
@@ -163,7 +204,11 @@ export default function AudioLessonScreen() {
 				method: "audio_session_web",
 			});
 			setIsEndCallModalVisible(false);
-			router.back();
+			if (router.canGoBack()) {
+				router.back();
+			} else {
+				router.replace("/(tabs)");
+			}
 		} catch (err) {
 			posthog.captureException(err, { flow: "audio_lesson_web", step: "finish_call" });
 			console.error("Failed to complete audio session:", err);
@@ -294,7 +339,7 @@ export default function AudioLessonScreen() {
 						<Image
 							source={images.mascotWelcome}
 							className="absolute w-[370px] h-[370px] self-center"
-							style={{ top: "50%", marginTop: -185 }}
+							style={styles.mascot}
 							contentFit="contain"
 						/>
 
@@ -315,10 +360,14 @@ export default function AudioLessonScreen() {
 								<View className="flex-row items-center justify-between gap-4">
 									<View className="flex-1">
 										<Text className="font-poppins-bold text-[16px] text-[#0C0F24] leading-[22px]">
-											{getLocalizedGreeting(selectedLanguageId || "es")}
+											{mockCaptions ? mockCaptions.speakerName : "AI Teacher"}
 										</Text>
 										<Text className="font-poppins text-[13px] text-[#6B7280] mt-0.5 leading-[18px]">
-											That was great! 👏
+											{mockCaptions ? mockCaptions.text : (
+												callingState === "joined"
+													? "Ready! Say hello to start the lesson."
+													: "Connecting to room..."
+											)}
 										</Text>
 									</View>
 									<TouchableOpacity
@@ -601,5 +650,9 @@ const styles = StyleSheet.create({
 		padding: 24,
 		paddingBottom: Platform.OS === "ios" ? 36 : 24,
 		maxHeight: "85%",
+	},
+	mascot: {
+		top: "50%",
+		marginTop: -185,
 	},
 });

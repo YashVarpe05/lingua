@@ -48,6 +48,24 @@
     --color-neutral-surface: #F6F7FB;
     --color-neutral-bg: #FFFFFF;
 
+    /* ── Duolingo Design System Colors ──────────────────────────── */
+    --color-duo-green: #58CC02;
+    --color-duo-green-dark: #58A700;
+    --color-duo-green-light: #D7FFB8;
+    --color-duo-blue: #1CB0F6;
+    --color-duo-blue-dark: #0D90D0;
+    --color-duo-blue-light: #DDF4FF;
+    --color-duo-red: #FF4B4B;
+    --color-duo-red-dark: #EA2B2B;
+    --color-duo-red-light: #FFDFE0;
+    --color-duo-yellow: #FFC800;
+    --color-duo-yellow-dark: #E5A000;
+    --color-duo-yellow-light: #FFF3CC;
+    --color-duo-gray: #F7F7F7;
+    --color-duo-border: #E5E5E5;
+    --color-duo-text: #3C3C3C;
+    --color-duo-muted: #777777;
+
     /* ── Font Family — Poppins ──────────────────────────────────── */
     --font-poppins: "Poppins-Regular";
     --font-poppins-medium: "Poppins-Medium";
@@ -179,6 +197,39 @@
   /* Neutral surface background */
   .surface-neutral {
     background-color: #F6F7FB;
+  }
+
+  /* ── 3D Card / Element Utilities ──────────────────────────────── */
+  
+  /* 3D card with raised bottom border */
+  .card-3d {
+    border-width: 2px;
+    border-color: #E5E7EB;
+    border-bottom-width: 5px;
+    border-bottom-color: #C5C7CB;
+    border-radius: 16px;
+    background-color: #FFFFFF;
+  }
+
+  /* Active / Selected state */
+  .card-3d-active {
+    border-color: #1CB0F6;
+    border-bottom-color: #0D90D0;
+    background-color: #DDF4FF;
+  }
+
+  /* Correct answer state */
+  .card-3d-correct {
+    border-color: #58CC02;
+    border-bottom-color: #46A302;
+    background-color: #D7FFB8;
+  }
+
+  /* Incorrect answer state */
+  .card-3d-incorrect {
+    border-color: #FF4B4B;
+    border-bottom-color: #EA2B2B;
+    background-color: #FFDFE0;
   }
 
   /* ── Button Utilities ─────────────────────────────────────────── */

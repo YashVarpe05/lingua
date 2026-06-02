@@ -4,9 +4,10 @@ import { Image } from "@/tw/image";
 import { Feather } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React from "react";
-import { StyleSheet, TouchableOpacity } from "react-native";
+import { StyleSheet } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { usePostHog } from "posthog-react-native";
+import Button3D from "@/components/Button3D";
 
 export default function Onboarding() {
 	const router = useRouter();
@@ -81,16 +82,18 @@ export default function Onboarding() {
 
 				{/* Bottom Section: Get Started Button (Without pagination dots) */}
 				<View className="mb-4">
-					<TouchableOpacity
-						style={styles.button}
-						activeOpacity={0.85}
+					<Button3D
 						onPress={handleGetStarted}
+						variant="primary"
+						size="lg"
 					>
-						<Text style={styles.buttonText}>Get Started</Text>
-						<View style={styles.iconContainer}>
-							<Feather name="chevron-right" size={24} color="#FFFFFF" />
+						<View className="flex-row items-center justify-center w-full relative h-[24px]">
+							<Text className="font-poppins-bold text-[18px] text-white">Get Started</Text>
+							<View style={styles.iconContainer}>
+								<Feather name="chevron-right" size={24} color="#FFFFFF" />
+							</View>
 						</View>
-					</TouchableOpacity>
+					</Button3D>
 				</View>
 			</View>
 		</SafeAreaView>

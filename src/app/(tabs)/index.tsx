@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
 	StyleSheet,
 	Modal,
@@ -6,17 +6,21 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
+import type { Href } from "expo-router";
 import { useUser, useAuth } from "@clerk/expo";
 import { Feather } from "@expo/vector-icons";
 import { Text, View, Pressable, ScrollView, TouchableOpacity } from "@/tw";
 import { Image } from "@/tw/image";
 import { images } from "@/constants/images";
 import { languages } from "@/data/languages";
+import { getAllLessonsFromData, getFirstLesson, getLessonById } from "@/data/lessons";
+import { units } from "@/data/units";
 import { useLanguageStore } from "@/store/useLanguageStore";
 import { useProgressStore } from "@/store/useProgressStore";
 import { Lesson } from "@/types/learning";
 import { usePostHog } from "posthog-react-native";
 import { getLanguageUnitsAndLessons } from "@/utils/learning";
+import Button3D from "@/components/Button3D";
 
 // Helper function to return dynamic greeting based on selected language
 const getGreeting = (langId: string, name: string) => {
@@ -42,7 +46,53 @@ const getGreeting = (langId: string, name: string) => {
 	}
 };
 
+const getLevelProgress = (xp: number) => {
+	if (xp >= 900) return { progress: 100, min: 900, max: 900, label: "Max Level" };
+	if (xp >= 500) return { progress: ((xp - 500) / 400) * 100, min: 500, max: 900, label: `${xp} / 900 XP` };
+	if (xp >= 250) return { progress: ((xp - 250) / 250) * 100, min: 250, max: 500, label: `${xp} / 500 XP` };
+	if (xp >= 100) return { progress: ((xp - 100) / 150) * 100, min: 100, max: 250, label: `${xp} / 250 XP` };
+	return { progress: (xp / 100) * 100, min: 0, max: 100, label: `${xp} / 100 XP` };
+};
 
+const getLanguageNameForLesson = (lesson: Lesson | null, fallbackName: string) => {
+	if (!lesson) return fallbackName;
+
+	const unit = units.find((item) => item.id === lesson.unitId);
+	const language = languages.find((item) => item.id === unit?.languageId);
+	return language?.name ?? fallbackName;
+};
+
+const getDailyChallengeBadge = (isNewLesson: boolean, forgettingScore: number) => {
+	if (isNewLesson) {
+		return {
+			label: "\u{1F195} New lesson",
+			containerClassName: "bg-[#E8F9EE] border-[#BDEFBF]",
+			textClassName: "text-[#21C16B]",
+		};
+	}
+
+	if (forgettingScore > 1) {
+		return {
+			label: "\u{1F4C5} Review due",
+			containerClassName: "bg-[#FFF8E6] border-[#FFE8B3]",
+			textClassName: "text-[#FF8A00]",
+		};
+	}
+
+	if (forgettingScore > 0.5) {
+		return {
+			label: "\u{1F504} Good time to review",
+			containerClassName: "bg-[#EBF3FF] border-[#D0E5FF]",
+			textClassName: "text-[#1CB0F6]",
+		};
+	}
+
+	return {
+		label: "\u{2728} Fresh memory",
+		containerClassName: "bg-[#F3F4F6] border-[#E5E7EB]",
+		textClassName: "text-neutral-secondary",
+	};
+};
 
 export default function HomeScreen() {
 	const router = useRouter();
@@ -58,10 +108,45 @@ export default function HomeScreen() {
 	const streak = useProgressStore((state) => state.streak);
 	const completeLesson = useProgressStore((state) => state.completeLesson);
 	const resetProgress = useProgressStore((state) => state.resetProgress);
+	const todayXP = useProgressStore((state) => state.todayXP) || 0;
+	const level = useProgressStore((state) => state.level) || 1;
+	const dailyChallengeCompletedDate = useProgressStore((state) => state.dailyChallengeCompletedDate);
+	const lessonMemory = useProgressStore((state) => state.lessonMemory);
+	const getForgettingScore = useProgressStore((state) => state.getForgettingScore);
+	const getMostUrgentLessons = useProgressStore((state) => state.getMostUrgentLessons);
 
 	// Active lesson modal state
 	const [selectedLesson, setSelectedLesson] = useState<Lesson | null>(null);
 	const [modalVisible, setModalVisible] = useState(false);
+
+	const [userWeeklyRank, setUserWeeklyRank] = useState<number | null>(null);
+	const [hasEntry, setHasEntry] = useState<boolean>(false);
+
+	useEffect(() => {
+		if (user?.id) {
+			fetch(`/api/leaderboard/fetch?type=weekly&clerkUserId=${user.id}`)
+				.then((res) => res.json())
+				.then((data) => {
+					if (data.userRow) {
+						setUserWeeklyRank(data.userRow.rank);
+						setHasEntry(true);
+					} else {
+						// Check if user is in the fetched rows list
+						const found = data.rows?.find((r: any) => r.clerkUserId === user.id);
+						if (found) {
+							setUserWeeklyRank(found.rank);
+							setHasEntry(true);
+						} else {
+							setUserWeeklyRank(null);
+							setHasEntry(false);
+						}
+					}
+				})
+				.catch((err) => {
+					console.error("Failed to fetch user weekly rank:", err);
+				});
+		}
+	}, [user?.id]);
 
 	// Get active language details
 	const selectedLanguage = selectedLanguageId
@@ -103,6 +188,16 @@ export default function HomeScreen() {
 
 	// Find the next uncompleted lesson to recommend
 	const nextLesson = unitLessons.find((l) => !completedLessons.includes(l.id)) || null;
+	const urgentLessonId = getMostUrgentLessons(1)[0];
+	const dailyChallengeLesson = getLessonById(urgentLessonId) ?? getFirstLesson() ?? activeLessons[0] ?? null;
+	const dailyChallengeLessonId = dailyChallengeLesson?.id ?? urgentLessonId;
+	const forgettingScore = dailyChallengeLessonId ? getForgettingScore(dailyChallengeLessonId) : 0;
+	const isNewDailyLesson = dailyChallengeLessonId ? !lessonMemory[dailyChallengeLessonId] : true;
+	const dailyChallengeBadge = getDailyChallengeBadge(isNewDailyLesson, forgettingScore);
+	const dailyChallengeLanguageName = getLanguageNameForLesson(dailyChallengeLesson, selectedLanguage.name);
+	const dueReviewCount = getAllLessonsFromData().filter(
+		(item) => getForgettingScore(item.id) > 1,
+	).length;
 
 	const handleOpenLesson = (lesson: Lesson) => {
 		posthog.capture("lesson_opened", {
@@ -114,6 +209,20 @@ export default function HomeScreen() {
 		});
 		setSelectedLesson(lesson);
 		setModalVisible(true);
+	};
+
+	const handleOpenDailyChallenge = () => {
+		if (!dailyChallengeLesson) return;
+
+		posthog.capture("daily_challenge_opened", {
+			lesson_id: dailyChallengeLesson.id,
+			language_id: selectedLanguageId,
+			forgetting_score: forgettingScore,
+		});
+		router.push({
+			pathname: "/exercise-session",
+			params: { lessonId: dailyChallengeLesson.id, isDailyChallenge: "true" },
+		});
 	};
 
 	const handleCompleteMockLesson = async () => {
@@ -285,6 +394,156 @@ export default function HomeScreen() {
 						contentFit="contain"
 					/>
 				</View>
+
+				{/* Gamification Stats Cards Row */}
+				<View className="flex-row gap-3 mb-4">
+					{/* Streak Card */}
+					<View className="flex-1 bg-[#FFF8F2] border-[1.5px] border-[#FFEAD4] rounded-[20px] p-4 items-center justify-center min-h-[90px]">
+						<View className="flex-row items-center gap-1.5">
+							<Image
+								source={images.streakFire}
+								style={{ width: 24, height: 24 }}
+								contentFit="contain"
+							/>
+							<Text className="font-poppins-bold text-[22px] text-streak">
+								{streak}
+							</Text>
+						</View>
+						<Text className="font-poppins-semibold text-[11px] text-[#A25700] mt-1 text-center leading-[15px]">
+							{streak > 0 ? `${streak} day streak` : "Start your streak today!"}
+						</Text>
+					</View>
+
+					{/* XP / Level Card */}
+					<View className="flex-1 bg-[#F0EDFF] border-[1.5px] border-[#E1D9FF] rounded-[20px] p-4 min-h-[90px] justify-center">
+						<View className="flex-row justify-between items-center mb-1">
+							<Text className="font-poppins-bold text-[14px] text-lingua-purple">
+								Level {level}
+							</Text>
+							<Text className="font-poppins-semibold text-[9px] text-[#6C4EF5] bg-white border border-[#E1D9FF] px-1.5 py-0.5 rounded-md">
+								+{todayXP} XP today
+							</Text>
+						</View>
+						
+						{/* Progress Bar toward next level */}
+						{(() => {
+							const { progress, label } = getLevelProgress(xp);
+							return (
+								<View className="mt-1">
+									<View className="h-1.5 bg-[#E1D9FF] rounded-full overflow-hidden mb-0.5">
+										<View
+											style={{ width: `${progress}%` }}
+											className="h-full bg-lingua-purple rounded-full"
+										/>
+									</View>
+									<Text className="font-poppins text-[9px] text-neutral-secondary text-right">
+										{label}
+									</Text>
+								</View>
+							);
+						})()}
+					</View>
+				</View>
+
+				{/* Daily Challenge Card */}
+				{(() => {
+					const todayStr = (() => {
+						const now = new Date();
+						return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+					})();
+					const isDailyCompletedToday = dailyChallengeCompletedDate === todayStr;
+
+					return (
+						<TouchableOpacity
+							onPress={isDailyCompletedToday ? undefined : handleOpenDailyChallenge}
+							disabled={isDailyCompletedToday}
+							activeOpacity={0.8}
+							className={`border-[1.5px] rounded-[20px] p-4 flex-row items-center justify-between mb-4 shadow-sm ${
+								isDailyCompletedToday
+									? "bg-[#F3F4F6] border-[#E5E7EB]"
+									: "bg-[#EBF3FF] border-[#D0E5FF]"
+							}`}
+						>
+							<View className="flex-1 mr-4">
+								<Text className={`font-poppins-semibold text-[11px] uppercase tracking-[0.5px] ${
+									isDailyCompletedToday ? "text-[#9CA3AF]" : "text-[#4D8BFF]"
+								}`}>
+									Daily Challenge
+								</Text>
+								<View className={`self-start border rounded-full px-2.5 py-1 mt-2 ${dailyChallengeBadge.containerClassName}`}>
+									<Text className={`font-poppins-bold text-[10px] ${dailyChallengeBadge.textClassName}`}>
+										{dailyChallengeBadge.label}
+									</Text>
+								</View>
+								<Text className={`font-poppins-bold text-[18px] mt-1 ${
+									isDailyCompletedToday ? "text-[#9CA3AF]" : "text-[#0D132B]"
+								}`}>
+									{dailyChallengeLesson?.title ?? "Practice Exercises"}
+								</Text>
+								<Text className="font-poppins text-[12px] text-neutral-secondary mt-1">
+									{isDailyCompletedToday
+										? "You completed today's daily challenge! Come back tomorrow for more. \u{1F31F}"
+										: `${dailyChallengeLanguageName} - memory-smart practice`}
+								</Text>
+							</View>
+							<View className={`w-12 h-12 rounded-full items-center justify-center ${
+								isDailyCompletedToday ? "bg-[#21C16B]" : "bg-[#4D8BFF]"
+							}`}>
+								{isDailyCompletedToday ? (
+									<Feather name="check" size={20} color="#FFFFFF" />
+								) : (
+									<Feather name="play" size={20} color="#FFFFFF" style={{ marginLeft: 3 }} />
+								)}
+							</View>
+						</TouchableOpacity>
+					);
+				})()}
+
+				{/* Review & Remember Card */}
+				<View className="bg-[#FFF3CC] border-l-[3px] border-l-[#FFC800] rounded-[20px] p-4 flex-row items-center justify-between mb-4">
+					<View className="flex-1 mr-4">
+						<Text className="font-poppins-bold text-[16px] text-neutral-primary">
+							{"Review & Remember \u{1F9E0}"}
+						</Text>
+						<Text className="font-poppins text-[13px] text-neutral-secondary mt-1">
+							{dueReviewCount > 0
+								? `${dueReviewCount} lessons due for review`
+								: "All caught up! \u{2728}"}
+						</Text>
+					</View>
+					<Button3D
+						onPress={() => router.push("/review-session" as Href)}
+						variant="secondary"
+						size="sm"
+						title="Review"
+						fullWidth={false}
+						style={{ minWidth: 92 }}
+					/>
+				</View>
+
+				{/* League Card */}
+				<TouchableOpacity
+					onPress={() => router.push("/league")}
+					activeOpacity={0.8}
+					className="bg-[#FFFBE6] border-[1.5px] border-[#FFE58F] rounded-[20px] p-4 flex-row items-center justify-between mb-4 shadow-sm"
+				>
+					<View className="flex-1 mr-4">
+						<Text className="font-poppins-semibold text-[11px] text-[#B78F00] uppercase tracking-[0.5px]">
+							League
+						</Text>
+						<Text className="font-poppins-bold text-[18px] text-[#0D132B] mt-1">
+							Weekly Leaderboard
+						</Text>
+						<Text className="font-poppins text-[12px] text-neutral-secondary mt-1">
+							{hasEntry && userWeeklyRank !== null
+								? `You are #${userWeeklyRank} this week!`
+								: "Complete a lesson to join the league"}
+						</Text>
+					</View>
+					<View className="w-12 h-12 rounded-full bg-[#FFD700] items-center justify-center">
+						<Text className="text-[22px]">🏆</Text>
+					</View>
+				</TouchableOpacity>
 
 				{/* Continue learning purple card */}
 				<View className="bg-lingua-purple rounded-[24px] p-5 flex-row items-center justify-between mb-5">

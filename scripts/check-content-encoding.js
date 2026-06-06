@@ -66,6 +66,13 @@ const REQUIRED_LESSON_EXERCISE_TYPES = new Set([
 	"listen-type",
 ]);
 
+const CORE_A1_LANGUAGE_IDS = new Set(["es", "fr", "ja", "de", "ar"]);
+const CORE_A1_SCRIPT_HEAVY_LANGUAGE_IDS = new Set(["ja", "ar"]);
+const CORE_A1_UNIT_COUNT = 4;
+const CORE_A1_LESSONS_PER_UNIT = 4;
+const CORE_A1_EXERCISES_PER_LESSON = 8;
+const CORE_A1_CHECKPOINT_EXERCISES = 5;
+
 const MOJIBAKE_PATTERNS = [
 	{ name: "latin1-decoded UTF-8 lead C2", regex: /\u00c2./g },
 	{ name: "latin1-decoded UTF-8 lead C3", regex: /\u00c3./g },
@@ -109,8 +116,26 @@ const addIssue = (issues, file, type, value, line) => {
 const isNonEmptyString = (value) =>
 	typeof value === "string" && value.trim().length > 0;
 
+const tsModuleCache = new Map();
+
+const resolveTsImport = (fromFile, moduleName) => {
+	if (moduleName.startsWith("@/")) {
+		return path.join("src", `${moduleName.slice(2)}.ts`);
+	}
+	if (moduleName.startsWith(".")) {
+		const resolved = path.resolve(path.dirname(fromFile), moduleName);
+		return path.relative(ROOT, `${resolved}.ts`);
+	}
+	return undefined;
+};
+
 const loadTsExports = (relativeFile) => {
-	const filePath = path.join(ROOT, relativeFile);
+	const normalizedRelativeFile = relativeFile.replace(/\\/g, "/");
+	if (tsModuleCache.has(normalizedRelativeFile)) {
+		return tsModuleCache.get(normalizedRelativeFile).exports;
+	}
+
+	const filePath = path.join(ROOT, normalizedRelativeFile);
 	const source = fs.readFileSync(filePath, "utf8");
 	const output = ts.transpileModule(source, {
 		compilerOptions: {
@@ -120,15 +145,18 @@ const loadTsExports = (relativeFile) => {
 		fileName: filePath,
 	}).outputText;
 	const module = { exports: {} };
+	tsModuleCache.set(normalizedRelativeFile, module);
 	const sandbox = {
 		exports: module.exports,
 		module,
 		require: (moduleName) => {
-			throw new Error(`Unexpected runtime import in ${relativeFile}: ${moduleName}`);
+			const resolved = resolveTsImport(filePath, moduleName);
+			if (resolved) return loadTsExports(resolved);
+			throw new Error(`Unexpected runtime import in ${normalizedRelativeFile}: ${moduleName}`);
 		},
 	};
 
-	vm.runInNewContext(output, sandbox, { filename: relativeFile });
+	vm.runInNewContext(output, sandbox, { filename: normalizedRelativeFile });
 	return module.exports;
 };
 
@@ -183,6 +211,23 @@ const GENERIC_ENGLISH_FALLBACK_VALUES = new Set([
 ]);
 
 const hasNonAscii = (value) => /[^\x00-\x7F]/.test(value);
+
+const hasLanguageScript = (value, languageId) => {
+	if (!isNonEmptyString(value)) return false;
+	if (languageId === "ja") return /[\u3040-\u30ff\u3400-\u9fff]/.test(value);
+	if (languageId === "ar") return /[\u0600-\u06ff]/.test(value);
+	return hasNonAscii(value);
+};
+
+const isCoreA1Unit = (unit) =>
+	CORE_A1_LANGUAGE_IDS.has(unit?.languageId) &&
+	new RegExp(`^${unit.languageId}_unit_[1-${CORE_A1_UNIT_COUNT}]$`).test(unit?.id ?? "");
+
+const isCoreA1Lesson = (lesson, unit) =>
+	CORE_A1_LANGUAGE_IDS.has(unit?.languageId) &&
+	new RegExp(
+		`^${unit.languageId}_u[1-${CORE_A1_UNIT_COUNT}]_l[1-${CORE_A1_LESSONS_PER_UNIT}]$`
+	).test(lesson?.id ?? "");
 
 const getLessonPlanConceptIds = (plan) => [
 	...(plan?.primaryConceptIds ?? []),
@@ -319,6 +364,38 @@ const validateExercise = (issues, file, exercise, context) => {
 	}
 };
 
+const validateCoreScriptExercise = (issues, file, exercise, languageId, label) => {
+	if (!CORE_A1_SCRIPT_HEAVY_LANGUAGE_IDS.has(languageId)) return;
+
+	if (
+		exercise?.type !== "matching-pairs" &&
+		isNonEmptyString(exercise?.correctAnswer) &&
+		!hasLanguageScript(exercise.correctAnswer, languageId)
+	) {
+		addIssue(issues, file, "core answer should use target script", label);
+	}
+
+	if (exercise?.type === "fill-in-the-blank" && Array.isArray(exercise.wordBank)) {
+		const correctOption = exercise.wordBank.find(
+			(option) => option?.value === exercise.correctAnswer
+		);
+		if (!correctOption || !hasLanguageScript(correctOption.value, languageId)) {
+			addIssue(issues, file, "core wordBank correct tile should use target script", label);
+		}
+		if (correctOption && !hasLanguageScript(correctOption.label, languageId)) {
+			addIssue(issues, file, "core wordBank label should use target script", label);
+		}
+	}
+
+	if (exercise?.type === "matching-pairs" && Array.isArray(exercise.pairs)) {
+		for (const pair of exercise.pairs) {
+			if (!hasLanguageScript(pair?.left, languageId)) {
+				addIssue(issues, file, "core matching pair should use target script", label);
+			}
+		}
+	}
+};
+
 const normalizeSelectableValue = (value) =>
 	String(value ?? "")
 		.normalize("NFKC")
@@ -411,6 +488,40 @@ const validateDataGraph = (issues) => {
 	);
 	const allExerciseIds = new Set();
 
+	for (const languageId of CORE_A1_LANGUAGE_IDS) {
+		const label = `coreA1:${languageId}`;
+		if (!languageIds.has(languageId)) {
+			addIssue(issues, DATA_FILES.languages, "core A1 language missing", label);
+			continue;
+		}
+
+		const expectedUnitIds = Array.from(
+			{ length: CORE_A1_UNIT_COUNT },
+			(_, index) => `${languageId}_unit_${index + 1}`
+		);
+		const expectedLessonIds = expectedUnitIds.flatMap((_, unitIndex) =>
+			Array.from(
+				{ length: CORE_A1_LESSONS_PER_UNIT },
+				(__, lessonIndex) => `${languageId}_u${unitIndex + 1}_l${lessonIndex + 1}`
+			)
+		);
+		const coreUnits = expectedUnitIds.map((unitId) => unitById.get(unitId)).filter(Boolean);
+		const coreLessons = expectedLessonIds
+			.map((lessonId) => lessonById.get(lessonId))
+			.filter(Boolean);
+
+		if (coreUnits.length !== CORE_A1_UNIT_COUNT) {
+			addIssue(issues, DATA_FILES.units, "core A1 must have 4 units", label);
+		}
+		if (coreLessons.length !== CORE_A1_UNIT_COUNT * CORE_A1_LESSONS_PER_UNIT) {
+			addIssue(issues, DATA_FILES.lessons, "core A1 must have 16 lessons", label);
+		}
+		const checkpointCount = coreUnits.filter((unit) => unit?.checkpointQuiz).length;
+		if (checkpointCount !== CORE_A1_UNIT_COUNT) {
+			addIssue(issues, DATA_FILES.units, "core A1 must have 4 checkpoints", label);
+		}
+	}
+
 	for (const language of languages) {
 		const label = `language:${language?.id ?? "missing-id"}`;
 		["id", "name", "nativeName", "flag", "code"].forEach((field) => {
@@ -448,6 +559,7 @@ const validateDataGraph = (issues) => {
 
 	for (const unit of units) {
 		const label = `unit:${unit?.id ?? "missing-id"}`;
+		const coreUnit = isCoreA1Unit(unit);
 		if (!languageIds.has(unit.languageId)) {
 			addIssue(issues, DATA_FILES.units, "unit languageId missing", label);
 		}
@@ -457,15 +569,31 @@ const validateDataGraph = (issues) => {
 		if (typeof unit.order !== "number" || unit.order < 1) {
 			addIssue(issues, DATA_FILES.units, "unit invalid order", label);
 		}
+		if (coreUnit) {
+			const unitConceptPrefix = `${unit.languageId}:unit_${unit.order}:`;
+			const unitConceptCount = curriculumConcepts.filter(
+				(concept) => concept?.id?.startsWith(unitConceptPrefix)
+			).length;
+			if (unitConceptCount < 6 || unitConceptCount > 10) {
+				addIssue(issues, DATA_FILES.curriculum, "core A1 unit should have 6-10 concepts", label);
+			}
+			if (!Array.isArray(unit.targetVocabulary) || unit.targetVocabulary.length < 6) {
+				addIssue(issues, DATA_FILES.units, "core A1 unit needs target vocabulary", label);
+			}
+		}
 
 		const checkpoint = unit.checkpointQuiz;
 		if (checkpoint) {
 			if (!isNonEmptyString(checkpoint.id) || !isNonEmptyString(checkpoint.title)) {
 				addIssue(issues, DATA_FILES.units, "checkpoint missing id or title", label);
 			}
-			if (!Array.isArray(checkpoint.exercises) || checkpoint.exercises.length !== 5) {
+			if (
+				!Array.isArray(checkpoint.exercises) ||
+				checkpoint.exercises.length !== CORE_A1_CHECKPOINT_EXERCISES
+			) {
 				addIssue(issues, DATA_FILES.units, "checkpoint must have 5 exercises", label);
 			} else {
+				const checkpointConceptIds = new Set();
 				checkpoint.exercises.forEach((exercise) => {
 					if (allExerciseIds.has(exercise.id)) {
 						addIssue(issues, DATA_FILES.units, "duplicate exercise id", exercise.id);
@@ -477,6 +605,27 @@ const validateDataGraph = (issues) => {
 						languageId: unit.languageId,
 						toString: () => label,
 					});
+					if (coreUnit) {
+						if (!String(exercise?.question ?? "").toLowerCase().includes("full sentence")) {
+							addIssue(issues, DATA_FILES.units, "core checkpoint should use full-sentence prompts", `${label}:${exercise.id}`);
+						}
+						if (!Array.isArray(exercise?.conceptIds) || exercise.conceptIds.length === 0) {
+							addIssue(issues, DATA_FILES.units, "core checkpoint exercise missing conceptIds", `${label}:${exercise.id}`);
+						}
+						for (const conceptId of exercise?.conceptIds ?? []) {
+							checkpointConceptIds.add(conceptId);
+							if (!conceptById.has(conceptId)) {
+								addIssue(issues, DATA_FILES.units, "core checkpoint concept missing", `${label}:${conceptId}`);
+							}
+						}
+						validateCoreScriptExercise(
+							issues,
+							DATA_FILES.units,
+							exercise,
+							unit.languageId,
+							`${label}:${exercise.id}`
+						);
+					}
 					validateSelectableFillBlankBank(
 						issues,
 						DATA_FILES.units,
@@ -486,6 +635,9 @@ const validateDataGraph = (issues) => {
 						`${label}:${exercise.id}`
 					);
 				});
+				if (coreUnit && checkpointConceptIds.size < 4) {
+					addIssue(issues, DATA_FILES.units, "core checkpoint should cover primary concepts", label);
+				}
 			}
 		}
 	}
@@ -494,6 +646,7 @@ const validateDataGraph = (issues) => {
 		const unit = unitById.get(lesson.unitId);
 		const label = `lesson:${lesson?.id ?? "missing-id"}`;
 		const lessonPlan = lessonPlanByLessonId.get(lesson.id);
+		const coreLesson = isCoreA1Lesson(lesson, unit);
 		if (!unit) {
 			addIssue(issues, DATA_FILES.lessons, "lesson unitId missing", label);
 		}
@@ -518,6 +671,20 @@ const validateDataGraph = (issues) => {
 		const exercises = lesson.exercises ?? [];
 		if (!lesson.isCheckpoint && exercises.length < 6) {
 			addIssue(issues, DATA_FILES.lessons, "lesson needs at least 6 exercises", label);
+		}
+		if (coreLesson) {
+			if (exercises.length !== CORE_A1_EXERCISES_PER_LESSON) {
+				addIssue(issues, DATA_FILES.lessons, "core A1 lesson must have 8 exercises", label);
+			}
+			if (!isNonEmptyString(lesson.canDoStatement)) {
+				addIssue(issues, DATA_FILES.lessons, "core A1 lesson missing canDoStatement", label);
+			}
+			if (!isNonEmptyString(lesson.teachingFocus)) {
+				addIssue(issues, DATA_FILES.lessons, "core A1 lesson missing teachingFocus", label);
+			}
+			if (!Array.isArray(lesson.newConceptIds) || lesson.newConceptIds.length === 0) {
+				addIssue(issues, DATA_FILES.lessons, "core A1 lesson missing newConceptIds", label);
+			}
 		}
 		const exerciseTypes = new Set(exercises.map((exercise) => exercise.type));
 		if (!lesson.isCheckpoint) {
@@ -563,8 +730,26 @@ const validateDataGraph = (issues) => {
 				unitId: lesson.unitId,
 				languageId: unit?.languageId,
 				requireExplicitWordBank: !lesson.isCheckpoint,
-				toString: () => label,
-			});
+					toString: () => label,
+				});
+			if (coreLesson) {
+				if (!Array.isArray(exercise?.conceptIds) || exercise.conceptIds.length === 0) {
+					addIssue(issues, DATA_FILES.lessons, "core A1 exercise missing conceptIds", `${label}:${exercise.id}`);
+				}
+				if (typeof exercise?.estimatedSeconds !== "number" || exercise.estimatedSeconds < 8) {
+					addIssue(issues, DATA_FILES.lessons, "core A1 exercise missing estimatedSeconds", `${label}:${exercise.id}`);
+				}
+				if (!["intro", "practice", "challenge"].includes(exercise?.difficulty)) {
+					addIssue(issues, DATA_FILES.lessons, "core A1 exercise needs strong difficulty", `${label}:${exercise.id}`);
+				}
+				validateCoreScriptExercise(
+					issues,
+					DATA_FILES.lessons,
+					exercise,
+					unit.languageId,
+					`${label}:${exercise.id}`
+				);
+			}
 			validateSelectableFillBlankBank(
 				issues,
 				DATA_FILES.lessons,

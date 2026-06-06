@@ -25,6 +25,7 @@ import { useLanguageStore } from "@/store/useLanguageStore";
 import { getLanguageUnitsAndLessons } from "@/utils/learning";
 import { generateSessionPlan, getRepairExerciseCandidate } from "@/utils/sessionGenerator";
 import { getCurriculumExplanationContext } from "@/data/curriculum";
+import { getLessonById } from "@/data/lessons";
 import { units as allUnits } from "@/data/units";
 import { Exercise, SessionIntent } from "@/types/learning";
 import {
@@ -206,21 +207,36 @@ export default function ExerciseSessionScreen({
 	const getForgettingScore = useProgressStore((state) => state.getForgettingScore);
 	const getMostUrgentLessons = useProgressStore((state) => state.getMostUrgentLessons);
 
-	// Fetch active lessons for selected language
-	const activeLanguageId = selectedLanguageId || "es";
-	const { lessons: activeLessons, units: activeUnits } = useMemo(
-		() => getLanguageUnitsAndLessons(activeLanguageId),
-		[activeLanguageId]
-	);
-	const lesson = useMemo(
-		() => activeLessons.find((l) => l.id === lessonId) || activeLessons[0],
-		[activeLessons, lessonId]
+	const routeLesson = useMemo(() => getLessonById(lessonId), [lessonId]);
+	const routeLessonUnit = useMemo(
+		() => allUnits.find((unit) => unit.id === routeLesson?.unitId),
+		[routeLesson]
 	);
 	const checkpointUnit = useMemo(
 		() => allUnits.find((unit) => unit.id === unitId),
 		[unitId]
 	);
-	const currentUnit = checkpointUnit || activeUnits.find((u) => u.id === lesson?.unitId) || activeUnits[0];
+	const routeLanguageId =
+		checkpointUnit?.languageId ??
+		routeLessonUnit?.languageId ??
+		routeLesson?.unitId.split("_")[0] ??
+		lessonId?.split("_")[0];
+
+	// Fetch active lessons for the requested route language first, then fall back to the selected language.
+	const activeLanguageId = routeLanguageId || selectedLanguageId || "es";
+	const { lessons: activeLessons, units: activeUnits } = useMemo(
+		() => getLanguageUnitsAndLessons(activeLanguageId),
+		[activeLanguageId]
+	);
+	const lesson = useMemo(
+		() => activeLessons.find((l) => l.id === lessonId) || routeLesson || activeLessons[0],
+		[activeLessons, lessonId, routeLesson]
+	);
+	const currentUnit =
+		checkpointUnit ||
+		routeLessonUnit ||
+		activeUnits.find((u) => u.id === lesson?.unitId) ||
+		activeUnits[0];
 	const sessionIntent: SessionIntent = useMemo(() => {
 		if (isAssessmentSession) return "checkpoint";
 		if (isReviewSession) return "review";
@@ -564,16 +580,16 @@ export default function ExerciseSessionScreen({
 	const playAudio = useCallback(() => {
 		if (!currentExercise?.audioText) return;
 		let locale = "en-US";
-		if (selectedLanguageId === "es") locale = "es-ES";
-		if (selectedLanguageId === "fr") locale = "fr-FR";
-		if (selectedLanguageId === "ja") locale = "ja-JP";
+		if (activeLanguageId === "es") locale = "es-ES";
+		if (activeLanguageId === "fr") locale = "fr-FR";
+		if (activeLanguageId === "ja") locale = "ja-JP";
 
 		Speech.speak(currentExercise.audioText, {
 			language: locale,
 			rate: 0.85,
 			pitch: 1.0,
 		});
-	}, [currentExercise?.audioText, selectedLanguageId]);
+	}, [activeLanguageId, currentExercise?.audioText]);
 
 	// Randomize matching pairs options on exercise change
 	useEffect(() => {
@@ -596,7 +612,7 @@ export default function ExerciseSessionScreen({
 			setFillBlankOptions(
 				buildFillBlankOptions({
 					exercise: currentExercise,
-					languageId: selectedLanguageId,
+					languageId: activeLanguageId,
 					lessons: activeLessons,
 					difficultyBand: currentExercise.difficultyBand,
 				})
@@ -605,7 +621,7 @@ export default function ExerciseSessionScreen({
 		}
 
 		setFillBlankOptions([]);
-	}, [activeLessons, currentExercise, selectedLanguageId]);
+	}, [activeLanguageId, activeLessons, currentExercise]);
 
 	// Listen & Type speak initially
 	useEffect(() => {
@@ -1561,7 +1577,7 @@ export default function ExerciseSessionScreen({
 											);
 											const pronunciation =
 												selectedBlankOption?.pronunciation ??
-												getFillBlankPronunciation(typedAnswer, selectedLanguageId);
+												getFillBlankPronunciation(typedAnswer, activeLanguageId);
 
 											return (
 												<View key={idx} className="flex-row items-center gap-2">

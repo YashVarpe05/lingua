@@ -6,6 +6,7 @@ import type {
   LessonType,
   Unit,
 } from "@/types/learning";
+import { coreA1Concepts, coreA1LessonPlans } from "./a1Course";
 
 type CurriculumExerciseMetadata = {
   conceptIds: string[];
@@ -314,7 +315,7 @@ const fallbackPhraseBanks: Record<string, FallbackPhraseBank> = {
 
 const genericPhraseBank: FallbackPhraseBank = fallbackPhraseBanks.en;
 
-export const curriculumConcepts: CurriculumConcept[] = [
+const legacyCurriculumConcepts: CurriculumConcept[] = [
   {
     id: "es:basics:greetings",
     languageId: "es",
@@ -551,7 +552,14 @@ export const curriculumConcepts: CurriculumConcept[] = [
   },
 ];
 
-export const curriculumLessonPlans: CurriculumLessonPlan[] = [
+const coreA1ConceptIds = new Set(coreA1Concepts.map((concept) => concept.id));
+
+export const curriculumConcepts: CurriculumConcept[] = [
+  ...coreA1Concepts,
+  ...legacyCurriculumConcepts.filter((concept) => !coreA1ConceptIds.has(concept.id)),
+];
+
+const legacyCurriculumLessonPlans: CurriculumLessonPlan[] = [
   {
     lessonId: "es_u1_l1",
     unitId: "es_unit_1",
@@ -674,6 +682,13 @@ export const curriculumLessonPlans: CurriculumLessonPlan[] = [
     supportConceptIds: ["ar:basics:gratitude"],
     recommendedReviewAfterDays: 2,
   },
+];
+
+const coreA1LessonPlanIds = new Set(coreA1LessonPlans.map((plan) => plan.lessonId));
+
+export const curriculumLessonPlans: CurriculumLessonPlan[] = [
+  ...coreA1LessonPlans,
+  ...legacyCurriculumLessonPlans.filter((plan) => !coreA1LessonPlanIds.has(plan.lessonId)),
 ];
 
 const normalizeForMatch = (value: string) =>

@@ -1,6 +1,7 @@
 import { Unit } from "../types/learning";
+import { coreA1Units } from "./a1Course";
 
-export const units: Unit[] = [
+const legacyUnits: Unit[] = [
 	// Spanish Units
 	{
 		id: "es_unit_1",
@@ -332,4 +333,11 @@ export const units: Unit[] = [
 			],
 		},
 	},
+];
+
+const coreA1UnitIds = new Set(coreA1Units.map((unit) => unit.id));
+
+export const units: Unit[] = [
+	...coreA1Units,
+	...legacyUnits.filter((unit) => !coreA1UnitIds.has(unit.id)),
 ];

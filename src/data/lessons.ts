@@ -1,4 +1,5 @@
 import { Lesson, VocabularyItem, PhraseItem, WordBankOption } from "../types/learning";
+import { coreA1Lessons } from "./a1Course";
 
 const esGreetingWordBank: WordBankOption[] = [
   { value: "Por", label: "Por", pronunciation: "por", translation: "for / part of 'please'" },
@@ -82,7 +83,7 @@ const frIntroWordBank: WordBankOption[] = [
   { value: "Non", label: "Non", pronunciation: "nohn", translation: "No" },
 ];
 
-export const lessons: Lesson[] = [
+const legacyLessons: Lesson[] = [
   // ==========================================
   // SPANISH LESSONS
   // ==========================================
@@ -1147,6 +1148,13 @@ export const lessons: Lesson[] = [
       }
     ]
   }
+];
+
+const coreA1LessonIds = new Set(coreA1Lessons.map((lesson) => lesson.id));
+
+export const lessons: Lesson[] = [
+  ...coreA1Lessons,
+  ...legacyLessons.filter((lesson) => !coreA1LessonIds.has(lesson.id)),
 ];
 
 export const getAllLessonsFromData = (): Lesson[] => lessons;

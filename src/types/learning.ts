@@ -71,6 +71,8 @@ export interface CurriculumConcept {
   keywords: string[];
   examples?: string[];
   prerequisites?: string[];
+  commonMistakes?: string[];
+  explanationHint?: string;
   whyItMatters: string;
   reviewPrompt: string;
 }
@@ -83,6 +85,7 @@ export interface CurriculumLessonPlan {
   primaryConceptIds: string[];
   supportConceptIds?: string[];
   recommendedReviewAfterDays?: number;
+  teachingFocus?: string;
 }
 
 export type SessionIntent =
@@ -185,6 +188,10 @@ export interface Lesson {
   xpReward: number;
   durationMinutes: number;
   goals: string[];
+  canDoStatement?: string;
+  newConceptIds?: string[];
+  reviewConceptIds?: string[];
+  teachingFocus?: string;
   aiPrompt?: string; // Prompt configured for future AI Teacher video/audio lessons
   activities: Activity[];
   exercises?: Exercise[];

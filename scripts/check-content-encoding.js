@@ -285,6 +285,62 @@ const validateExercise = (issues, file, exercise, context) => {
 	}
 };
 
+const normalizeSelectableValue = (value) =>
+	String(value ?? "")
+		.normalize("NFKC")
+		.toLowerCase()
+		.replace(/\s+/g, " ")
+		.trim();
+
+const getSelectableValuesFromExercise = (exercise) => {
+	const values = [
+		...(exercise?.wordBank ?? []).map((option) => option?.value),
+		...(exercise?.options ?? []),
+	];
+
+	if (exercise?.type === "fill-in-the-blank" || exercise?.type === "listen-type") {
+		values.push(exercise.correctAnswer);
+	}
+	if (exercise?.type === "matching-pairs") {
+		values.push(...(exercise?.pairs ?? []).map((pair) => pair?.left));
+	}
+
+	return values.filter(isNonEmptyString);
+};
+
+const validateSelectableFillBlankBank = (
+	issues,
+	file,
+	exercise,
+	lesson,
+	languageLessons,
+	label
+) => {
+	if (exercise?.type !== "fill-in-the-blank") return;
+
+	const values = [
+		exercise.correctAnswer,
+		...getSelectableValuesFromExercise(exercise),
+		...(lesson?.exercises ?? []).flatMap(getSelectableValuesFromExercise),
+		...languageLessons.flatMap((item) =>
+			(item.exercises ?? []).flatMap(getSelectableValuesFromExercise)
+		),
+	];
+	const selectableValues = new Set(
+		values
+			.filter(isNonEmptyString)
+			.map(normalizeSelectableValue)
+			.filter(Boolean)
+	);
+
+	if (!selectableValues.has(normalizeSelectableValue(exercise.correctAnswer))) {
+		addIssue(issues, file, "fill-in generated bank missing correct answer", label);
+	}
+	if (selectableValues.size < 4) {
+		addIssue(issues, file, "fill-in generated bank has too few selectable options", label);
+	}
+};
+
 const validateDataGraph = (issues) => {
 	const { languages } = loadTsExports(DATA_FILES.languages);
 	const { units } = loadTsExports(DATA_FILES.units);
@@ -360,6 +416,14 @@ const validateDataGraph = (issues) => {
 						languageId: unit.languageId,
 						toString: () => label,
 					});
+					validateSelectableFillBlankBank(
+						issues,
+						DATA_FILES.units,
+						exercise,
+						undefined,
+						lessons.filter((lesson) => unitById.get(lesson.unitId)?.languageId === unit.languageId),
+						`${label}:${exercise.id}`
+					);
 				});
 			}
 		}
@@ -439,6 +503,14 @@ const validateDataGraph = (issues) => {
 				languageId: unit?.languageId,
 				toString: () => label,
 			});
+			validateSelectableFillBlankBank(
+				issues,
+				DATA_FILES.lessons,
+				exercise,
+				lesson,
+				lessons.filter((item) => unitById.get(item.unitId)?.languageId === unit?.languageId),
+				`${label}:${exercise.id}`
+			);
 		});
 	}
 

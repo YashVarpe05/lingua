@@ -26,7 +26,12 @@ import { getLanguageUnitsAndLessons } from "@/utils/learning";
 import { generateSessionPlan, getRepairExerciseCandidate } from "@/utils/sessionGenerator";
 import { getCurriculumExplanationContext } from "@/data/curriculum";
 import { units as allUnits } from "@/data/units";
-import { Exercise, SessionIntent, WordBankOption } from "@/types/learning";
+import { Exercise, SessionIntent } from "@/types/learning";
+import {
+	buildFillBlankOptions,
+	getFillBlankPronunciation,
+	type FillBlankOption,
+} from "@/utils/wordBank";
 import type { CurriculumExplanationConcept } from "@/data/curriculum";
 import { authFetch } from "@/lib/apiClient";
 import { usePostHog } from "posthog-react-native";
@@ -38,8 +43,6 @@ import FeedbackDrawer from "@/components/FeedbackDrawer";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
 
-type FillBlankOption = WordBankOption;
-
 interface ExerciseSessionScreenProps {
 	forceReview?: boolean;
 }
@@ -49,106 +52,6 @@ type AnswerExplanation = {
 	tip: string;
 	example?: string;
 	retryPrompt?: string;
-};
-
-const fillBlankWordBanks: Record<string, FillBlankOption[]> = {
-	ja: [
-		{ value: "\u3059\u307F\u307E\u305B\u3093", label: "\u3059\u307F\u307E\u305B\u3093", pronunciation: "sumimasen", translation: "Excuse me" },
-		{ value: "\u3053\u3093\u306B\u3061\u306F", label: "\u3053\u3093\u306B\u3061\u306F", pronunciation: "konnichiwa", translation: "Hello" },
-		{ value: "\u3042\u308A\u304C\u3068\u3046", label: "\u3042\u308A\u304C\u3068\u3046", pronunciation: "arigatou", translation: "Thank you" },
-		{ value: "\u3055\u3088\u3046\u306A\u3089", label: "\u3055\u3088\u3046\u306A\u3089", pronunciation: "sayounara", translation: "Goodbye" },
-		{ value: "\u306F\u3058\u3081\u307E\u3057\u3066", label: "\u306F\u3058\u3081\u307E\u3057\u3066", pronunciation: "hajimemashite", translation: "Nice to meet you" },
-		{ value: "\u3067\u3059", label: "\u3067\u3059", pronunciation: "desu", translation: "I am / is" },
-		{ value: "\u3088\u308D\u3057\u304F\u304A\u306D\u304C\u3044\u3057\u307E\u3059", label: "\u3088\u308D\u3057\u304F\u304A\u306D\u304C\u3044\u3057\u307E\u3059", pronunciation: "yoroshiku onegai shimasu", translation: "Goodwill close" },
-		{ value: "\u304A\u540D\u524D\u306F", label: "\u304A\u540D\u524D\u306F", pronunciation: "o-namae wa", translation: "Your name?" },
-	],
-	es: [
-		{ value: "hola", pronunciation: "OH-lah" },
-		{ value: "gracias", pronunciation: "GRAH-syahs" },
-		{ value: "favor", pronunciation: "fah-VOR" },
-		{ value: "dias", pronunciation: "DEE-ahs" },
-		{ value: "noches", pronunciation: "NOH-ches" },
-		{ value: "llamo", pronunciation: "YAH-moh" },
-	],
-	fr: [
-		{ value: "bonjour", pronunciation: "bohn-ZHOOR" },
-		{ value: "merci", pronunciation: "mair-SEE" },
-		{ value: "plait", pronunciation: "pleh" },
-		{ value: "soir", pronunciation: "swahr" },
-		{ value: "appelle", pronunciation: "ah-PELL" },
-		{ value: "oui", pronunciation: "wee" },
-	],
-};
-
-const knownFillBlankPronunciations: Record<string, string> = {
-	"\u307E\u305B\u3093": "masen",
-	"\u306B\u3061": "nichi",
-	"\u3067\u3059": "desu",
-	"\u3058\u3081": "jime",
-	"\u3059\u307F\u307E\u305B\u3093": "sumimasen",
-	"\u3053\u3093\u306B\u3061\u306F": "konnichiwa",
-	"\u3042\u308A\u304C\u3068\u3046": "arigatou",
-	"\u3055\u3088\u3046\u306A\u3089": "sayounara",
-	"\u306F\u3058\u3081\u307E\u3057\u3066": "hajimemashite",
-	"\u3088\u308D\u3057\u304F\u304A\u306D\u304C\u3044\u3057\u307E\u3059": "yoroshiku onegai shimasu",
-	"\u304A\u540D\u524D\u306F": "o-namae wa",
-};
-
-const shuffleItems = <T,>(items: T[]) => [...items].sort(() => Math.random() - 0.5);
-
-const toFillBlankOption = (option: string | FillBlankOption, languageId?: string | null): FillBlankOption => {
-	if (typeof option !== "string") {
-		return {
-			...option,
-			label: option.label ?? option.value,
-			pronunciation: option.pronunciation ?? getFillBlankPronunciation(option.value, languageId),
-		};
-	}
-
-	return {
-		value: option,
-		label: option,
-		pronunciation: getFillBlankPronunciation(option, languageId),
-	};
-};
-
-const getFillBlankPronunciation = (value: string, languageId?: string | null) => {
-	if (!value) return "";
-	if (knownFillBlankPronunciations[value]) return knownFillBlankPronunciations[value];
-
-	const bankMatch = fillBlankWordBanks[languageId ?? ""]?.find((option) => option.value === value);
-	return bankMatch?.pronunciation ?? "";
-};
-
-const buildFillBlankOptions = (
-	exercise: Exercise,
-	languageId?: string | null
-) => {
-	const explicitWordBank = exercise.wordBank ?? [];
-	const providedCorrect = explicitWordBank.find((option) => option.value === exercise.correctAnswer);
-	const correctOption: FillBlankOption = {
-		...(providedCorrect ? toFillBlankOption(providedCorrect, languageId) : {}),
-		value: exercise.correctAnswer,
-		label: providedCorrect?.label ?? exercise.correctAnswer,
-		pronunciation: providedCorrect?.pronunciation ?? getFillBlankPronunciation(exercise.correctAnswer, languageId),
-		translation: providedCorrect?.translation,
-	};
-
-	const sourceOptions: FillBlankOption[] = [
-		...explicitWordBank.map((option) => toFillBlankOption(option, languageId)),
-		...(exercise.options ?? []).map((option) => toFillBlankOption(option, languageId)),
-		...(fillBlankWordBanks[languageId ?? ""] ?? []),
-	];
-
-	const uniqueDistractors = Array.from(
-		new Map(
-			sourceOptions
-				.filter((option) => option.value.trim() !== "" && option.value !== exercise.correctAnswer)
-				.map((option) => [option.value, option])
-		).values()
-	);
-
-	return shuffleItems([correctOption, ...shuffleItems(uniqueDistractors).slice(0, 5)]);
 };
 
 const buildFallbackExplanation = (
@@ -690,12 +593,19 @@ export default function ExerciseSessionScreen({
 
 	useEffect(() => {
 		if (currentExercise?.type === "fill-in-the-blank") {
-			setFillBlankOptions(buildFillBlankOptions(currentExercise, selectedLanguageId));
+			setFillBlankOptions(
+				buildFillBlankOptions({
+					exercise: currentExercise,
+					languageId: selectedLanguageId,
+					lessons: activeLessons,
+					difficultyBand: currentExercise.difficultyBand,
+				})
+			);
 			return;
 		}
 
 		setFillBlankOptions([]);
-	}, [currentExercise, selectedLanguageId]);
+	}, [activeLessons, currentExercise, selectedLanguageId]);
 
 	// Listen & Type speak initially
 	useEffect(() => {
@@ -1683,7 +1593,7 @@ export default function ExerciseSessionScreen({
 																	typedAnswer ? "text-neutral-primary" : "text-neutral-secondary"
 																}`}
 															>
-																{selectedBlankOption?.label ?? (typedAnswer || "Drop or tap answer")}
+																{selectedBlankOption?.label ?? (typedAnswer || "Select answer")}
 															</Text>
 															{pronunciation ? (
 																<Text className="font-poppins-semibold text-[11px] text-neutral-secondary mt-0.5 text-center">
@@ -1715,7 +1625,7 @@ export default function ExerciseSessionScreen({
 
 								<View className="border-t border-neutral-border pt-4">
 									<Text className="font-poppins-bold text-[12px] text-neutral-secondary uppercase tracking-[0.5px] mb-3 text-center">
-										Tap or drag the missing part
+										Choose the missing part
 									</Text>
 									<View className="flex-row flex-wrap justify-center gap-3">
 										{fillBlankOptions

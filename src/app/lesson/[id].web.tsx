@@ -5,6 +5,7 @@ import {
 	Platform,
 	ActivityIndicator,
 	GestureResponderEvent,
+	type ImageStyle,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -54,7 +55,10 @@ const getLocalizedPhrases = (langId: string): string[] => {
 	}
 };
 
-
+const mascotCenterStyle: ImageStyle = {
+	top: "50%",
+	transform: [{ translateY: -185 }],
+};
 
 export default function AudioLessonScreen() {
 	const router = useRouter();
@@ -339,7 +343,7 @@ export default function AudioLessonScreen() {
 						<Image
 							source={images.mascotWelcome}
 							className="absolute w-[370px] h-[370px] self-center"
-							style={styles.mascot}
+							style={mascotCenterStyle}
 							contentFit="contain"
 						/>
 
@@ -650,9 +654,5 @@ const styles = StyleSheet.create({
 		padding: 24,
 		paddingBottom: Platform.OS === "ios" ? 36 : 24,
 		maxHeight: "85%",
-	},
-	mascot: {
-		top: "50%",
-		transform: [{ translateY: -185 }],
 	},
 });

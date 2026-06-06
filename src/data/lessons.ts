@@ -1,4 +1,86 @@
-import { Lesson, VocabularyItem, PhraseItem } from "../types/learning";
+import { Lesson, VocabularyItem, PhraseItem, WordBankOption } from "../types/learning";
+
+const esGreetingWordBank: WordBankOption[] = [
+  { value: "Por", label: "Por", pronunciation: "por", translation: "for / part of 'please'" },
+  { value: "nada", label: "nada", pronunciation: "NAH-dah", translation: "nothing / welcome phrase" },
+  { value: "Hola", label: "Hola", pronunciation: "OH-lah", translation: "Hello" },
+  { value: "Adiós", label: "Adiós", pronunciation: "ah-DYOHS", translation: "Goodbye" },
+  { value: "Gracias", label: "Gracias", pronunciation: "GRAH-syahs", translation: "Thank you" },
+  { value: "favor", label: "favor", pronunciation: "fah-VOR", translation: "favor" },
+];
+
+const esIntroWordBank: WordBankOption[] = [
+  { value: "Me", label: "Me", pronunciation: "meh", translation: "me / myself" },
+  { value: "soy", label: "soy", pronunciation: "soy", translation: "I am" },
+  { value: "llamo", label: "llamo", pronunciation: "YAH-moh", translation: "I call" },
+  { value: "Mucho gusto", label: "Mucho gusto", pronunciation: "MOO-choh GOOS-toh", translation: "Nice to meet you" },
+  { value: "estás", label: "estás", pronunciation: "es-TAHS", translation: "you are" },
+  { value: "Hola", label: "Hola", pronunciation: "OH-lah", translation: "Hello" },
+];
+
+const esConversationWordBank: WordBankOption[] = [
+  { value: "estás", label: "estás", pronunciation: "es-TAHS", translation: "you are" },
+  { value: "luego", label: "luego", pronunciation: "LWEH-goh", translation: "later" },
+  { value: "Bien", label: "Bien", pronunciation: "byen", translation: "Good / well" },
+  { value: "gracias", label: "gracias", pronunciation: "GRAH-syahs", translation: "thank you" },
+  { value: "Hola", label: "Hola", pronunciation: "OH-lah", translation: "Hello" },
+  { value: "Adiós", label: "Adiós", pronunciation: "ah-DYOHS", translation: "Goodbye" },
+];
+
+const esCafeWordBank: WordBankOption[] = [
+  { value: "café", label: "café", pronunciation: "kah-FEH", translation: "coffee" },
+  { value: "leche", label: "leche", pronunciation: "LEH-cheh", translation: "milk" },
+  { value: "agua", label: "agua", pronunciation: "AH-gwah", translation: "water" },
+  { value: "menú", label: "menú", pronunciation: "meh-NOO", translation: "menu" },
+  { value: "cuenta", label: "cuenta", pronunciation: "KWEN-tah", translation: "bill" },
+  { value: "favor", label: "favor", pronunciation: "fah-VOR", translation: "favor / please phrase" },
+];
+
+const esCafeChatWordBank: WordBankOption[] = [
+  { value: "croissant", label: "croissant", pronunciation: "kwah-SAHN", translation: "croissant" },
+  { value: "verde", label: "verde", pronunciation: "BEHR-deh", translation: "green" },
+  { value: "café", label: "café", pronunciation: "kah-FEH", translation: "coffee" },
+  { value: "leche", label: "leche", pronunciation: "LEH-cheh", translation: "milk" },
+  { value: "té", label: "té", pronunciation: "teh", translation: "tea" },
+  { value: "Barista", label: "Barista", pronunciation: "bah-REES-tah", translation: "barista" },
+];
+
+const esDiningWordBank: WordBankOption[] = [
+  { value: "menú", label: "menú", pronunciation: "meh-NOO", translation: "menu" },
+  { value: "mesa", label: "mesa", pronunciation: "MEH-sah", translation: "table" },
+  { value: "cuenta", label: "cuenta", pronunciation: "KWEN-tah", translation: "bill" },
+  { value: "comida", label: "comida", pronunciation: "koh-MEE-dah", translation: "food" },
+  { value: "agua", label: "agua", pronunciation: "AH-gwah", translation: "water" },
+  { value: "favor", label: "favor", pronunciation: "fah-VOR", translation: "favor / please phrase" },
+];
+
+const esRestaurantWordBank: WordBankOption[] = [
+  { value: "comida", label: "comida", pronunciation: "koh-MEE-dah", translation: "food" },
+  { value: "favor", label: "favor", pronunciation: "fah-VOR", translation: "favor / please phrase" },
+  { value: "cuenta", label: "cuenta", pronunciation: "KWEN-tah", translation: "bill" },
+  { value: "menú", label: "menú", pronunciation: "meh-NOO", translation: "menu" },
+  { value: "agua", label: "agua", pronunciation: "AH-gwah", translation: "water" },
+  { value: "ordenar", label: "ordenar", pronunciation: "or-deh-NAR", translation: "to order" },
+];
+
+const frPoliteWordBank: WordBankOption[] = [
+  { value: "beaucoup", label: "beaucoup", pronunciation: "boh-KOO", translation: "very much" },
+  { value: "rien", label: "rien", pronunciation: "ryehn", translation: "nothing / welcome phrase" },
+  { value: "Bonjour", label: "Bonjour", pronunciation: "bohn-ZHOOR", translation: "Hello" },
+  { value: "Merci", label: "Merci", pronunciation: "mair-SEE", translation: "Thank you" },
+  { value: "Au revoir", label: "Au revoir", pronunciation: "oh ruh-VWAHR", translation: "Goodbye" },
+  { value: "Excusez-moi", label: "Excusez-moi", pronunciation: "ex-koo-zay MWAH", translation: "Excuse me" },
+];
+
+const frIntroWordBank: WordBankOption[] = [
+  { value: "m'", label: "m'", pronunciation: "m", translation: "me before a vowel" },
+  { value: "appelle", label: "appelle", pronunciation: "ah-PELL", translation: "called" },
+  { value: "Je", label: "Je", pronunciation: "zhuh", translation: "I" },
+  { value: "Enchanté", label: "Enchanté", pronunciation: "ahn-shahn-TAY", translation: "Nice to meet you" },
+  { value: "Bonjour", label: "Bonjour", pronunciation: "bohn-ZHOOR", translation: "Hello" },
+  { value: "Oui", label: "Oui", pronunciation: "wee", translation: "Yes" },
+  { value: "Non", label: "Non", pronunciation: "nohn", translation: "No" },
+];
 
 export const lessons: Lesson[] = [
   // ==========================================
@@ -55,7 +137,8 @@ export const lessons: Lesson[] = [
         type: "fill-in-the-blank",
         question: "Translate 'Please' into Spanish",
         sentence: "___ favor",
-        correctAnswer: "Por"
+        correctAnswer: "Por",
+        wordBank: esGreetingWordBank
       },
       {
         id: "es_u1_l1_e3",
@@ -95,7 +178,8 @@ export const lessons: Lesson[] = [
         type: "fill-in-the-blank",
         question: "Translate 'You're welcome' into Spanish",
         sentence: "De ___",
-        correctAnswer: "nada"
+        correctAnswer: "nada",
+        wordBank: esGreetingWordBank
       },
       {
         id: "es_u1_l1_e8",
@@ -148,7 +232,8 @@ export const lessons: Lesson[] = [
         type: "fill-in-the-blank",
         question: "Fill in the blank to say 'My name is...'",
         sentence: "___ llamo...",
-        correctAnswer: "Me"
+        correctAnswer: "Me",
+        wordBank: esIntroWordBank
       },
       {
         id: "es_u1_l2_e3",
@@ -188,7 +273,8 @@ export const lessons: Lesson[] = [
         type: "fill-in-the-blank",
         question: "Fill in the blank to say 'I am María'",
         sentence: "Yo ___ María",
-        correctAnswer: "soy"
+        correctAnswer: "soy",
+        wordBank: esIntroWordBank
       },
       {
         id: "es_u1_l2_e8",
@@ -232,7 +318,9 @@ export const lessons: Lesson[] = [
         type: "fill-in-the-blank",
         question: "Fill in the blank for 'Hello, how are you?'",
         sentence: "Hola, ¿cómo ___?",
-        correctAnswer: "estás"
+        correctAnswer: "estás",
+        acceptedAnswers: ["estas"],
+        wordBank: esConversationWordBank
       },
       {
         id: "es_u1_l3_e3",
@@ -272,7 +360,8 @@ export const lessons: Lesson[] = [
         type: "fill-in-the-blank",
         question: "Fill in the blank to say 'See you later'",
         sentence: "Hasta ___",
-        correctAnswer: "luego"
+        correctAnswer: "luego",
+        wordBank: esConversationWordBank
       },
       {
         id: "es_u1_l3_e8",
@@ -326,7 +415,9 @@ export const lessons: Lesson[] = [
         type: "fill-in-the-blank",
         question: "Fill in the blank for 'A coffee, please'",
         sentence: "Un ___, por favor",
-        correctAnswer: "café"
+        correctAnswer: "café",
+        acceptedAnswers: ["cafe"],
+        wordBank: esCafeWordBank
       },
       {
         id: "es_u2_l1_e3",
@@ -366,7 +457,8 @@ export const lessons: Lesson[] = [
         type: "fill-in-the-blank",
         question: "Fill in the blank for 'With milk'",
         sentence: "Con ___",
-        correctAnswer: "leche"
+        correctAnswer: "leche",
+        wordBank: esCafeWordBank
       },
       {
         id: "es_u2_l1_e8",
@@ -411,7 +503,8 @@ export const lessons: Lesson[] = [
         type: "fill-in-the-blank",
         question: "Fill in the blank to say 'I want a croissant'",
         sentence: "Quiero un ___",
-        correctAnswer: "croissant"
+        correctAnswer: "croissant",
+        wordBank: esCafeChatWordBank
       },
       {
         id: "es_u2_l2_e3",
@@ -451,7 +544,8 @@ export const lessons: Lesson[] = [
         type: "fill-in-the-blank",
         question: "Fill in the blank for 'Green tea'",
         sentence: "Té ___",
-        correctAnswer: "verde"
+        correctAnswer: "verde",
+        wordBank: esCafeChatWordBank
       },
       {
         id: "es_u2_l2_e8",
@@ -509,7 +603,8 @@ export const lessons: Lesson[] = [
         type: "fill-in-the-blank",
         question: "Translate 'Thank you very much' into French",
         sentence: "Merci ___",
-        correctAnswer: "beaucoup"
+        correctAnswer: "beaucoup",
+        wordBank: frPoliteWordBank
       },
       {
         id: "fr_u1_l1_e3",
@@ -549,7 +644,8 @@ export const lessons: Lesson[] = [
         type: "fill-in-the-blank",
         question: "Translate 'You're welcome' into French",
         sentence: "De ___",
-        correctAnswer: "rien"
+        correctAnswer: "rien",
+        wordBank: frPoliteWordBank
       },
       {
         id: "fr_u1_l1_e8",
@@ -594,7 +690,8 @@ export const lessons: Lesson[] = [
         type: "fill-in-the-blank",
         question: "Fill in the blank for 'My name is Pierre'",
         sentence: "Je ___ appelle Pierre",
-        correctAnswer: "m'"
+        correctAnswer: "m'",
+        wordBank: frIntroWordBank
       },
       {
         id: "fr_u1_l2_e3",
@@ -634,7 +731,8 @@ export const lessons: Lesson[] = [
         type: "fill-in-the-blank",
         question: "Fill in the blank to say 'My name is...'",
         sentence: "Je m'___...",
-        correctAnswer: "appelle"
+        correctAnswer: "appelle",
+        wordBank: frIntroWordBank
       },
       {
         id: "fr_u1_l2_e8",
@@ -909,7 +1007,8 @@ export const lessons: Lesson[] = [
         question: "Complete: 'The menu, please'",
         sentence: "El ___, por favor",
         correctAnswer: "menú",
-        acceptedAnswers: ["menu"]
+        acceptedAnswers: ["menu"],
+        wordBank: esDiningWordBank
       },
       {
         id: "es_u3_l1_e4",
@@ -942,7 +1041,8 @@ export const lessons: Lesson[] = [
         type: "fill-in-the-blank",
         question: "Complete: 'The bill is on the table'",
         sentence: "La cuenta está en la ___",
-        correctAnswer: "mesa"
+        correctAnswer: "mesa",
+        wordBank: esDiningWordBank
       },
       {
         id: "es_u3_l1_e8",
@@ -1001,7 +1101,8 @@ export const lessons: Lesson[] = [
         type: "fill-in-the-blank",
         question: "Complete: 'I would like to order food'",
         sentence: "Quisiera ordenar ___",
-        correctAnswer: "comida"
+        correctAnswer: "comida",
+        wordBank: esRestaurantWordBank
       },
       {
         id: "es_u3_l2_e4",
@@ -1034,7 +1135,8 @@ export const lessons: Lesson[] = [
         type: "fill-in-the-blank",
         question: "Complete the polite request",
         sentence: "La cuenta, por ___",
-        correctAnswer: "favor"
+        correctAnswer: "favor",
+        wordBank: esRestaurantWordBank
       },
       {
         id: "es_u3_l2_e8",

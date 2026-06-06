@@ -68,6 +68,7 @@ const CORE_WORD_BANKS: Record<string, CorePhrase[]> = {
 		{ value: "\u3055\u3088\u3046\u306A\u3089", pronunciation: "sayounara", translation: "Goodbye" },
 		{ value: "\u306F\u3058\u3081\u307E\u3057\u3066", pronunciation: "hajimemashite", translation: "Nice to meet you" },
 		{ value: "\u3067\u3059", pronunciation: "desu", translation: "I am / is" },
+		{ value: "\u304A\u306D\u304C\u3044\u3057\u307E\u3059", pronunciation: "onegai shimasu", translation: "Please" },
 		{ value: "\u3088\u308D\u3057\u304F\u304A\u306D\u304C\u3044\u3057\u307E\u3059", pronunciation: "yoroshiku onegai shimasu", translation: "Goodwill close" },
 		{ value: "\u304A\u540D\u524D\u306F", pronunciation: "o-namae wa", translation: "Your name?" },
 		{ value: "\u304A\u5143\u6C17\u3067\u3059\u304B", pronunciation: "o-genki desu ka", translation: "How are you?" },

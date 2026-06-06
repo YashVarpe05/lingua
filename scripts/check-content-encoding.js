@@ -156,6 +156,34 @@ const assertUniqueIds = (issues, file, label, items) => {
 const isGeneratedFallbackLessonId = (lessonId, languageId) =>
 	new RegExp(`^${languageId}_u1_l[1-6]$`).test(lessonId);
 
+const SCRIPT_HEAVY_LANGUAGE_IDS = new Set(["ar", "hi", "ja", "ko", "ru", "th", "uk", "zh"]);
+const FALLBACK_PHRASE_KEYS = [
+	"hello",
+	"goodbye",
+	"thanks",
+	"please",
+	"yes",
+	"no",
+	"intro",
+	"water",
+	"menu",
+	"bill",
+];
+const GENERIC_ENGLISH_FALLBACK_VALUES = new Set([
+	"Hello",
+	"Goodbye",
+	"Thank you",
+	"Please",
+	"Yes",
+	"No",
+	"My name is",
+	"Water",
+	"Menu",
+	"The bill",
+]);
+
+const hasNonAscii = (value) => /[^\x00-\x7F]/.test(value);
+
 const getLessonPlanConceptIds = (plan) => [
 	...(plan?.primaryConceptIds ?? []),
 	...(plan?.supportConceptIds ?? []),
@@ -254,6 +282,12 @@ const validateExercise = (issues, file, exercise, context) => {
 			addIssue(issues, file, "fill-in sentence missing blank marker", label);
 		}
 		if (
+			context.requireExplicitWordBank &&
+			(!Array.isArray(exercise.wordBank) || exercise.wordBank.length === 0)
+		) {
+			addIssue(issues, file, "fill-in exercise needs explicit wordBank", label);
+		}
+		if (
 			Array.isArray(exercise.wordBank) &&
 			exercise.wordBank.length > 0 &&
 			!exercise.wordBank.some((option) => option?.value === exercise.correctAnswer)
@@ -348,6 +382,7 @@ const validateDataGraph = (issues) => {
 	const {
 		curriculumConcepts,
 		curriculumLessonPlans,
+		getCurriculumFallbackLessonTemplate,
 	} = loadTsExports(DATA_FILES.curriculum);
 
 	if (!assertArray(issues, DATA_FILES.languages, "languages", languages)) return;
@@ -383,6 +418,32 @@ const validateDataGraph = (issues) => {
 				addIssue(issues, DATA_FILES.languages, "language missing field", `${label}.${field}`);
 			}
 		});
+
+		if (typeof getCurriculumFallbackLessonTemplate === "function") {
+			const template = getCurriculumFallbackLessonTemplate(language.id, language.name, 1);
+			let genericFallbackMatches = 0;
+			for (const key of FALLBACK_PHRASE_KEYS) {
+				const phrase = template?.phrases?.[key];
+				if (!isNonEmptyString(phrase)) {
+					addIssue(issues, DATA_FILES.curriculum, "fallback phrase missing", `${label}:${key}`);
+					continue;
+				}
+				if (
+					language.id !== "en" &&
+					GENERIC_ENGLISH_FALLBACK_VALUES.has(phrase)
+				) {
+					genericFallbackMatches += 1;
+				}
+				if (SCRIPT_HEAVY_LANGUAGE_IDS.has(language.id) && !hasNonAscii(phrase)) {
+					addIssue(issues, DATA_FILES.curriculum, "fallback phrase should use target script", `${label}:${key}:${phrase}`);
+				}
+			}
+			if (language.id !== "en" && genericFallbackMatches >= 8) {
+				addIssue(issues, DATA_FILES.curriculum, "fallback phrase bank uses generic English", label);
+			}
+		} else {
+			addIssue(issues, DATA_FILES.curriculum, "missing fallback template helper", "getCurriculumFallbackLessonTemplate");
+		}
 	}
 
 	for (const unit of units) {
@@ -501,6 +562,7 @@ const validateDataGraph = (issues) => {
 				lessonId: lesson.id,
 				unitId: lesson.unitId,
 				languageId: unit?.languageId,
+				requireExplicitWordBank: !lesson.isCheckpoint,
 				toString: () => label,
 			});
 			validateSelectableFillBlankBank(

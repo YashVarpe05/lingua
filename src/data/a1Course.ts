@@ -7,7 +7,7 @@ import type {
 	WordBankOption,
 } from "@/types/learning";
 
-export const CORE_A1_LANGUAGE_IDS = ["es", "fr", "ja", "de", "ar"] as const;
+export const CORE_A1_LANGUAGE_IDS = ["en", "es", "fr", "ja", "de", "ar"] as const;
 
 type CoreA1LanguageId = (typeof CORE_A1_LANGUAGE_IDS)[number];
 
@@ -135,6 +135,42 @@ const PHRASE_TRANSLATIONS: Record<PhraseKey, string> = {
 };
 
 const PHRASES: Record<CoreA1LanguageId, Record<PhraseKey, Phrase>> = {
+	en: {
+		hello: { value: "Hello", pronunciation: "heh-LOH" },
+		goodbye: { value: "Goodbye", pronunciation: "good-BYE" },
+		thanks: { value: "Thank you", pronunciation: "thank yoo" },
+		youAreWelcome: { value: "You're welcome", pronunciation: "yoor WEL-kuhm" },
+		please: { value: "Please", pronunciation: "pleez" },
+		excuseMe: { value: "Excuse me", pronunciation: "ik-SKYOOZ mee" },
+		yes: { value: "Yes", pronunciation: "yes" },
+		no: { value: "No", pronunciation: "noh" },
+		myNameIs: { value: "My name is", pronunciation: "my naym iz" },
+		whatIsYourName: { value: "What is your name?", pronunciation: "wuht iz yoor naym" },
+		niceToMeetYou: { value: "Nice to meet you", pronunciation: "nys tuh meet yoo" },
+		howAreYou: { value: "How are you?", pronunciation: "how ar yoo" },
+		imGood: { value: "I'm good", pronunciation: "ym good" },
+		andYou: { value: "And you?", pronunciation: "and yoo" },
+		seeYouLater: { value: "See you later", pronunciation: "see yoo LAY-ter" },
+		iAm: { value: "I am", pronunciation: "eye am" },
+		coffee: { value: "Coffee", pronunciation: "KAW-fee" },
+		water: { value: "Water", pronunciation: "WAW-ter" },
+		tea: { value: "Tea", pronunciation: "tee" },
+		milk: { value: "Milk", pronunciation: "milk" },
+		menu: { value: "Menu", pronunciation: "MEN-yoo" },
+		bill: { value: "The bill", pronunciation: "thuh bil" },
+		iWantCoffee: { value: "I want coffee", pronunciation: "eye wahnt KAW-fee" },
+		withMilk: { value: "With milk", pronunciation: "with milk" },
+		table: { value: "Table", pronunciation: "TAY-buhl" },
+		food: { value: "Food", pronunciation: "food" },
+		iWouldLikeFood: { value: "I would like food", pronunciation: "eye wood lyk food" },
+		canWeHaveMenu: { value: "Can we have the menu?", pronunciation: "kan wee hav thuh MEN-yoo" },
+		whereIs: { value: "Where is...?", pronunciation: "wair iz" },
+		restroom: { value: "Restroom", pronunciation: "REST-room" },
+		iNeedHelp: { value: "I need help", pronunciation: "eye need help" },
+		iDontUnderstand: { value: "I don't understand", pronunciation: "eye dohnt un-der-STAND" },
+		station: { value: "Station", pronunciation: "STAY-shuhn" },
+		hospital: { value: "Hospital", pronunciation: "HAH-spih-tuhl" },
+	},
 	es: {
 		hello: { value: "Hola", pronunciation: "OH-lah" },
 		goodbye: { value: "Adiós", pronunciation: "ah-DYOHS" },
@@ -318,6 +354,7 @@ const PHRASES: Record<CoreA1LanguageId, Record<PhraseKey, Phrase>> = {
 };
 
 const LANGUAGE_NAMES: Record<CoreA1LanguageId, string> = {
+	en: "English",
 	es: "Spanish",
 	fr: "French",
 	ja: "Japanese",
@@ -1089,6 +1126,7 @@ const buildLessonExercises = (
 	unitPhraseKeys: PhraseKey[]
 ): Exercise[] => {
 	const [first, second, third, fourth, fifth, sixth] = lessonTemplate.phraseKeys;
+	const usesScriptListeningTiles = languageId === "ja" || languageId === "ar";
 	const lessonConceptIds = getConceptIds(languageId, unitTemplate, [
 		...lessonTemplate.primaryConceptKeys,
 		...(lessonTemplate.supportConceptKeys ?? []),
@@ -1162,9 +1200,12 @@ const buildLessonExercises = (
 		build({
 			id: `${lessonId}_e6`,
 			type: "listen-type",
-			question: "Listen and type what you hear",
+			question: usesScriptListeningTiles
+				? "Listen and choose what you hear"
+				: "Listen and type what you hear",
 			correctAnswer: getPhraseValue(languageId, fifth),
 			audioText: getPhraseValue(languageId, fifth),
+			wordBank,
 			conceptIds: lessonConceptIds,
 			difficulty: "practice",
 			estimatedSeconds: 22,

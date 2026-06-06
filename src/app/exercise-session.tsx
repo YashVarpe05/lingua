@@ -24,7 +24,12 @@ import { useProgressStore, type LearningSessionResult } from "@/store/useProgres
 import { useLanguageStore } from "@/store/useLanguageStore";
 import { getLanguageUnitsAndLessons } from "@/utils/learning";
 import { generateSessionPlan, getRepairExerciseCandidate } from "@/utils/sessionGenerator";
-import { getCurriculumExplanationContext } from "@/data/curriculum";
+import {
+	getCurriculumConceptById,
+	getCurriculumConceptTitle,
+	getCurriculumExplanationContext,
+	getCurriculumReviewLabel,
+} from "@/data/curriculum";
 import { getLessonById } from "@/data/lessons";
 import { units as allUnits } from "@/data/units";
 import { Exercise, SessionIntent } from "@/types/learning";
@@ -33,16 +38,18 @@ import {
 	getFillBlankPronunciation,
 	type FillBlankOption,
 } from "@/utils/wordBank";
+import { parseFocusConceptIds } from "@/utils/practiceQueue";
 import type { CurriculumExplanationConcept } from "@/data/curriculum";
 import { authFetch } from "@/lib/apiClient";
 import { usePostHog } from "posthog-react-native";
 import { useAuth, useUser } from "@clerk/expo";
-import * as Speech from "expo-speech";
 import * as Haptics from "expo-haptics";
 import Button3D from "@/components/Button3D";
 import FeedbackDrawer from "@/components/FeedbackDrawer";
+import { speakLearningText } from "@/utils/speech";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
+const SCRIPT_HEAVY_LISTENING_LANGUAGE_IDS = new Set(["ar", "ja"]);
 
 interface ExerciseSessionScreenProps {
 	forceReview?: boolean;
@@ -53,6 +60,17 @@ type AnswerExplanation = {
 	tip: string;
 	example?: string;
 	retryPrompt?: string;
+};
+
+type ResultConceptInsight = {
+	id: string;
+	title: string;
+	description?: string;
+	example?: string;
+	correctCount: number;
+	incorrectCount: number;
+	recallScore?: number;
+	status: "strong" | "review";
 };
 
 const buildFallbackExplanation = (
@@ -188,12 +206,20 @@ export default function ExerciseSessionScreen({
 	const posthog = usePostHog();
 	const { getToken } = useAuth();
 	const { user } = useUser();
-	const { lessonId, isDailyChallenge, mode, isCheckpoint, unitId } = useLocalSearchParams<{
+	const {
+		lessonId,
+		isDailyChallenge,
+		mode,
+		isCheckpoint,
+		unitId,
+		focusConceptIds: focusConceptIdsParam,
+	} = useLocalSearchParams<{
 		lessonId?: string;
 		isDailyChallenge?: string;
 		mode?: "mistakes" | "vocabulary" | "listening" | "review" | "checkpoint";
 		isCheckpoint?: string;
 		unitId?: string;
+		focusConceptIds?: string;
 	}>();
 	const isReviewSession = forceReview || mode === "review";
 	const isCheckpointMode = mode === "checkpoint";
@@ -206,6 +232,8 @@ export default function ExerciseSessionScreen({
 	const recordExerciseAttempt = useProgressStore((state) => state.recordExerciseAttempt);
 	const getForgettingScore = useProgressStore((state) => state.getForgettingScore);
 	const getMostUrgentLessons = useProgressStore((state) => state.getMostUrgentLessons);
+	const recentAttempts = useProgressStore((state) => state.recentAttempts);
+	const conceptMemory = useProgressStore((state) => state.conceptMemory);
 
 	const routeLesson = useMemo(() => getLessonById(lessonId), [lessonId]);
 	const routeLessonUnit = useMemo(
@@ -246,6 +274,10 @@ export default function ExerciseSessionScreen({
 		if (isDailyChallenge === "true") return "daily-challenge";
 		return "lesson";
 	}, [isAssessmentSession, isDailyChallenge, isReviewSession, mode]);
+	const routeFocusConceptIds = useMemo(
+		() => parseFocusConceptIds(focusConceptIdsParam),
+		[focusConceptIdsParam]
+	);
 
 	// Session State
 	const [exercises, setExercises] = useState<Exercise[]>([]);
@@ -271,6 +303,7 @@ export default function ExerciseSessionScreen({
 			recentMistakes: mode === "mistakes" ? progressState.recentMistakes : [],
 			recentAttempts: isReviewSession ? progressState.recentAttempts : [],
 			conceptMemory: isReviewSession ? progressState.conceptMemory : {},
+			focusConceptIds: isReviewSession ? routeFocusConceptIds : [],
 			exerciseDifficultyMemory: progressState.exerciseDifficultyMemory,
 			conceptDifficultyMemory: progressState.conceptDifficultyMemory,
 			getForgettingScore,
@@ -300,11 +333,13 @@ export default function ExerciseSessionScreen({
 		isReviewSession,
 		lesson,
 		mode,
+		routeFocusConceptIds,
 		sessionIntent,
 	]);
 	const [selectedOption, setSelectedOption] = useState<string | null>(null);
 	const [typedAnswer, setTypedAnswer] = useState("");
 	const [fillBlankOptions, setFillBlankOptions] = useState<FillBlankOption[]>([]);
+	const [listeningWordBankVisible, setListeningWordBankVisible] = useState(false);
 	const blankSlotRef = useRef<React.ElementRef<typeof NativeView>>(null);
 	
 	// Matching Pairs specific state
@@ -332,6 +367,7 @@ export default function ExerciseSessionScreen({
 	const [feedbackExplanation, setFeedbackExplanation] = useState("");
 	const [feedbackExplanationExample, setFeedbackExplanationExample] = useState("");
 	const [feedbackExplanationLoading, setFeedbackExplanationLoading] = useState(false);
+	const [hintExpanded, setHintExpanded] = useState(false);
 	const [showHeartModal, setShowHeartModal] = useState(false);
 	const [animatingLostHeart, setAnimatingLostHeart] = useState<number | null>(null);
 	const [isFinished, setIsFinished] = useState(false);
@@ -371,6 +407,98 @@ export default function ExerciseSessionScreen({
 	const currentExerciseIsPlanned = currentExercise
 		? plannedExerciseIdSet.has(currentExercise.id)
 		: false;
+	const isScriptHeavyListeningLanguage =
+		SCRIPT_HEAVY_LISTENING_LANGUAGE_IDS.has(activeLanguageId);
+	const shouldUseListeningWordBank =
+		currentExercise?.type === "listen-type" &&
+		isScriptHeavyListeningLanguage &&
+		fillBlankOptions.length > 0;
+	const canRevealListeningWordBank =
+		currentExercise?.type === "listen-type" &&
+		!isScriptHeavyListeningLanguage &&
+		currentExercise.difficultyBand !== "challenge" &&
+		fillBlankOptions.length > 0;
+	const showListeningWordBank =
+		shouldUseListeningWordBank ||
+		(canRevealListeningWordBank && listeningWordBankVisible);
+	const selectedListeningOption = fillBlankOptions.find(
+		(option) => option.value === typedAnswer
+	);
+	const sessionAttempts = useMemo(
+		() =>
+			recentAttempts.filter(
+				(attempt) => attempt.sessionId === sessionIdRef.current
+			),
+		[recentAttempts]
+	);
+	const resultConceptInsights = useMemo<ResultConceptInsight[]>(() => {
+		const conceptStats = new Map<
+			string,
+			{ correctCount: number; incorrectCount: number }
+		>();
+
+		sessionAttempts.forEach((attempt) => {
+			attempt.conceptIds.forEach((conceptId) => {
+				const existing = conceptStats.get(conceptId) ?? {
+					correctCount: 0,
+					incorrectCount: 0,
+				};
+
+				if (attempt.correct) {
+					existing.correctCount += 1;
+				} else {
+					existing.incorrectCount += 1;
+				}
+
+				conceptStats.set(conceptId, existing);
+			});
+		});
+
+		return Array.from(conceptStats.entries())
+			.map(([conceptId, stats]) => {
+				const concept = getCurriculumConceptById(conceptId);
+				const recallScore = conceptMemory[conceptId]?.latestRecallScore;
+				const shouldReview =
+					stats.incorrectCount > 0 ||
+					(typeof recallScore === "number" && recallScore < 0.65);
+				const status: ResultConceptInsight["status"] = shouldReview
+					? "review"
+					: "strong";
+
+				return {
+					id: conceptId,
+					title:
+						getCurriculumConceptTitle(conceptId) ??
+						conceptId.replace(/[_:-]+/g, " "),
+					description: concept?.reviewPrompt ?? concept?.description,
+					example: concept?.examples?.[0],
+					correctCount: stats.correctCount,
+					incorrectCount: stats.incorrectCount,
+					recallScore,
+					status,
+				};
+			})
+			.sort((a, b) => {
+				if (a.status !== b.status) return a.status === "review" ? -1 : 1;
+				if (a.incorrectCount !== b.incorrectCount) {
+					return b.incorrectCount - a.incorrectCount;
+				}
+
+				return (a.recallScore ?? 1) - (b.recallScore ?? 1);
+			})
+			.slice(0, 4);
+	}, [conceptMemory, sessionAttempts]);
+	const resultReviewConceptInsights = useMemo(
+		() =>
+			resultConceptInsights
+				.filter((insight) => insight.status === "review")
+				.slice(0, 2),
+		[resultConceptInsights]
+	);
+	const resultFocusLabel = useMemo(
+		() => getCurriculumReviewLabel(resultReviewConceptInsights.map((insight) => insight.id)),
+		[resultReviewConceptInsights]
+	);
 	const repairCandidate = useMemo(() => {
 		if (
 			!currentExercise ||
@@ -428,11 +556,53 @@ export default function ExerciseSessionScreen({
 			: currentExercise?.difficultyBand === "challenge"
 			? "text-[#FF9600]"
 			: "text-[#1CB0F6]";
+	const currentConceptKey = currentExercise?.conceptIds?.join("|") ?? "";
+	const exerciseHintConcepts = useMemo(
+		() =>
+			getCurriculumExplanationContext(
+				currentConceptKey ? currentConceptKey.split("|") : []
+			),
+		[currentConceptKey]
+	);
+	const exerciseHint = useMemo(() => {
+		const concept = exerciseHintConcepts[0];
+		if (!concept) return null;
+
+		return {
+			title: concept.title,
+			tip:
+				concept.description ??
+				concept.reviewPrompt ??
+				"Focus on the phrase pattern before choosing your answer.",
+			example: concept.examples?.[0],
+		};
+	}, [exerciseHintConcepts]);
+	const canShowExerciseHint = Boolean(
+		currentExercise &&
+			exerciseHint &&
+			!isAssessmentSession &&
+			!currentExercise.isRepair &&
+			currentExercise.difficultyBand !== "challenge"
+	);
 
 	useEffect(() => {
 		exerciseStartedAtRef.current = Date.now();
 		repairInsertInFlightRef.current = false;
-	}, [currentExercise?.id]);
+		setHintExpanded(
+			Boolean(
+				currentExercise &&
+					currentExercise.difficultyBand === "warmup" &&
+					!isAssessmentSession &&
+					!currentExercise.isRepair
+			)
+		);
+	}, [
+		currentExercise,
+		currentExercise?.difficultyBand,
+		currentExercise?.id,
+		currentExercise?.isRepair,
+		isAssessmentSession,
+	]);
 
 	const recordCurrentExerciseAttempt = useCallback(
 		(correct: boolean, selectedAnswer?: string) => {
@@ -579,16 +749,7 @@ export default function ExerciseSessionScreen({
 
 	const playAudio = useCallback(() => {
 		if (!currentExercise?.audioText) return;
-		let locale = "en-US";
-		if (activeLanguageId === "es") locale = "es-ES";
-		if (activeLanguageId === "fr") locale = "fr-FR";
-		if (activeLanguageId === "ja") locale = "ja-JP";
-
-		Speech.speak(currentExercise.audioText, {
-			language: locale,
-			rate: 0.85,
-			pitch: 1.0,
-		});
+		speakLearningText(currentExercise.audioText, activeLanguageId);
 	}, [activeLanguageId, currentExercise?.audioText]);
 
 	// Randomize matching pairs options on exercise change
@@ -608,7 +769,10 @@ export default function ExerciseSessionScreen({
 	}, [currentIndex, currentExercise]);
 
 	useEffect(() => {
-		if (currentExercise?.type === "fill-in-the-blank") {
+		if (
+			currentExercise?.type === "fill-in-the-blank" ||
+			currentExercise?.type === "listen-type"
+		) {
 			setFillBlankOptions(
 				buildFillBlankOptions({
 					exercise: currentExercise,
@@ -991,6 +1155,7 @@ export default function ExerciseSessionScreen({
 	const resetCurrentExerciseState = () => {
 		setSelectedOption(null);
 		setTypedAnswer("");
+		setListeningWordBankVisible(false);
 		setIsAnswered(false);
 		setIsCorrect(false);
 		setSelectedLeft(null);
@@ -1197,6 +1362,117 @@ export default function ExerciseSessionScreen({
 			resultExerciseCount > 0 ? Math.round((resultCorrectCount / resultExerciseCount) * 100) : 0
 		);
 		const passed = resultsData?.passed ?? scorePercent >= 70;
+		const hasReviewFocus = resultReviewConceptInsights.length > 0;
+		const resultTitle = isAssessmentSession
+			? "Checkpoint Completed!"
+			: isReviewSession
+				? hasReviewFocus
+					? "Review Saved"
+					: "Review Complete!"
+				: passed
+					? "Terrific Job!"
+					: "Session Complete!";
+		const resultSubtitle = isAssessmentSession
+			? "You've successfully proven your skills for this unit! Keep up the great work! \u26A1"
+			: isReviewSession
+				? hasReviewFocus
+					? `${resultFocusLabel || "This focus area"} still needs one more pass.`
+					: reviewFocusLabel
+						? `${reviewFocusLabel} is stronger now.`
+						: "Your memory is stronger now."
+				: passed
+					? "Awesome job! You're a natural language learner! \u{1F973}"
+					: "Keep practicing! Consistency is key to learning a new language. \u26A1";
+		const renderResultInsights = () => (
+			<View className="w-full max-w-[360px] mb-6 gap-3">
+				<View className="bg-[#F4FBFF] border border-[#DDF4FF] rounded-2xl p-4">
+					<View className="flex-row items-center mb-3">
+						<View className="w-9 h-9 rounded-full bg-[#DDF4FF] items-center justify-center mr-3">
+							<Feather name="target" size={18} color="#1CB0F6" />
+						</View>
+						<View className="flex-1">
+							<Text className="font-poppins-bold text-[15px] text-neutral-primary">
+								Learning Insights
+							</Text>
+							<Text className="font-poppins text-[12px] text-neutral-secondary">
+								What this session strengthened
+							</Text>
+						</View>
+					</View>
+
+					{resultConceptInsights.length > 0 ? (
+						resultConceptInsights.slice(0, 3).map((insight, index) => (
+							<View
+								key={insight.id}
+								className={`flex-row items-start ${
+									index > 0 ? "border-t border-[#DCEAF7] mt-3 pt-3" : ""
+								}`}
+							>
+								<View
+									className={`w-8 h-8 rounded-full items-center justify-center mr-3 ${
+										insight.status === "review"
+											? "bg-[#FFF3CC]"
+											: "bg-[#E6FFD6]"
+									}`}
+								>
+									<Feather
+										name={insight.status === "review" ? "refresh-cw" : "check"}
+										size={15}
+										color={insight.status === "review" ? "#FF9600" : "#58CC02"}
+									/>
+								</View>
+								<View className="flex-1">
+									<Text className="font-poppins-bold text-[13px] text-neutral-primary">
+										{insight.title}
+									</Text>
+									<Text className="font-poppins text-[12px] text-neutral-secondary mt-0.5 leading-[18px]">
+										{insight.incorrectCount > 0
+											? `${insight.incorrectCount} miss${insight.incorrectCount === 1 ? "" : "es"} to repair`
+											: `${insight.correctCount} correct practice${insight.correctCount === 1 ? "" : "s"}`}
+									</Text>
+								</View>
+							</View>
+						))
+					) : (
+						<Text className="font-poppins text-[12px] text-neutral-secondary leading-[18px]">
+							Your XP, streak, and lesson memory were saved for this session.
+						</Text>
+					)}
+				</View>
+
+				<View
+					className={`border rounded-2xl p-4 ${
+						hasReviewFocus
+							? "bg-[#FFF8E6] border-[#FFE8B3]"
+							: "bg-[#F0FFE8] border-[#D7FFB8]"
+					}`}
+				>
+					<View className="flex-row items-center">
+						<View
+							className={`w-9 h-9 rounded-full items-center justify-center mr-3 ${
+								hasReviewFocus ? "bg-[#FFE8B3]" : "bg-[#D7FFB8]"
+							}`}
+						>
+							<Feather
+								name={hasReviewFocus ? "clock" : "trending-up"}
+								size={18}
+								color={hasReviewFocus ? "#FF9600" : "#58CC02"}
+							/>
+						</View>
+						<View className="flex-1">
+							<Text className="font-poppins-bold text-[14px] text-neutral-primary">
+								{hasReviewFocus ? "Best next step" : "Ready to continue"}
+							</Text>
+							<Text className="font-poppins text-[12px] text-neutral-secondary mt-0.5 leading-[18px]">
+								{hasReviewFocus
+									? `Review ${resultFocusLabel || "the missed concept"} while it is fresh.`
+									: "No weak concept stood out, so the next lesson is a good move."}
+							</Text>
+						</View>
+					</View>
+				</View>
+			</View>
+		);
 
 		if (!resultsData) {
 			return (
@@ -1215,7 +1491,11 @@ export default function ExerciseSessionScreen({
 
 			return (
 				<SafeAreaView style={styles.safeArea}>
-					<View className="flex-1 justify-center items-center px-6 bg-white w-full">
+					<ScrollView
+						style={styles.resultScrollView}
+						contentContainerStyle={styles.resultScrollContent}
+						showsVerticalScrollIndicator={false}
+					>
 						<Animated.View
 							style={[
 								styles.checkpointResultIcon,
@@ -1255,6 +1535,8 @@ export default function ExerciseSessionScreen({
 							</Text>
 						</View>
 
+						{renderResultInsights()}
+
 						{leaderboardSyncFailed ? (
 							<View className="bg-[#FFF8E6] border border-[#FFE8B3] rounded-xl px-4 py-3 mb-5 max-w-[320px]">
 								<Text className="font-poppins-semibold text-[12px] text-[#A25700] text-center">
@@ -1279,14 +1561,18 @@ export default function ExerciseSessionScreen({
 								title="Continue"
 							/>
 						</View>
-					</View>
+					</ScrollView>
 				</SafeAreaView>
 			);
 		}
 
 		return (
 			<SafeAreaView style={styles.safeArea}>
-				<View className="flex-1 justify-center items-center px-6 bg-white w-full">
+				<ScrollView
+					style={styles.resultScrollView}
+					contentContainerStyle={styles.resultScrollContent}
+					showsVerticalScrollIndicator={false}
+				>
 					{/* Checkpoint Completed Banner */}
 					{isAssessmentSession && (
 						<View className="w-full max-w-[320px] bg-[#FFFBE6] border-2 border-[#FFC800] rounded-2xl p-4 mb-6 items-center">
@@ -1319,11 +1605,7 @@ export default function ExerciseSessionScreen({
 					/>
 
 					<Text className="font-poppins-bold text-[28px] text-neutral-primary text-center leading-[36px]">
-						{isAssessmentSession
-							? "Checkpoint Completed!" 
-							: passed 
-							? "Terrific Job!" 
-							: "Session Complete!"}
+						{resultTitle}
 					</Text>
 
 					<Text className="font-poppins text-[15px] text-neutral-secondary text-center mt-2 leading-[22px] max-w-[280px]">
@@ -1333,6 +1615,12 @@ export default function ExerciseSessionScreen({
 							? "Awesome job! You're a natural language learner! 🥳"
 							: "Keep practicing! Consistency is key to learning a new language. ⚡"}
 					</Text>
+
+					{isReviewSession ? (
+						<Text className="font-poppins-semibold text-[13px] text-[#6C4EF5] text-center mt-2 leading-[20px] max-w-[300px]">
+							{resultSubtitle}
+						</Text>
+					) : null}
 
 					{/* XP Score Badge & Streak and Total XP Grid */}
 					<View className="flex-row gap-2 mt-8 mb-6 px-2 w-full max-w-[360px]">
@@ -1382,6 +1670,8 @@ export default function ExerciseSessionScreen({
 						</Text>
 					</View>
 
+					{renderResultInsights()}
+
 					{leaderboardSyncFailed ? (
 						<View className="bg-[#FFF8E6] border border-[#FFE8B3] rounded-xl px-4 py-3 mb-5 max-w-[320px]">
 							<Text className="font-poppins-semibold text-[12px] text-[#A25700] text-center">
@@ -1391,15 +1681,33 @@ export default function ExerciseSessionScreen({
 					) : null}
 
 					{/* Confirm exit */}
-					<Button3D
-						onPress={() => router.replace("/")}
-						variant="primary"
-						size="lg"
-						style={{ maxWidth: 320 }}
-					>
-						Continue
-					</Button3D>
-				</View>
+					<View className="gap-3 w-full max-w-[320px]">
+						{hasReviewFocus && !isReviewSession ? (
+							<Button3D
+								onPress={() =>
+									router.replace({
+										pathname: "/practice-hub",
+										params: {
+											focusConceptIds: resultReviewConceptInsights
+												.map((insight) => insight.id)
+												.join(","),
+											source: "result",
+										},
+									})
+								}
+								variant="secondary"
+								size="lg"
+								title="Review Now"
+							/>
+						) : null}
+						<Button3D
+							onPress={() => router.replace("/")}
+							variant="primary"
+							size="lg"
+							title={hasReviewFocus ? "Continue Path" : "Continue"}
+						/>
+					</View>
+				</ScrollView>
 			</SafeAreaView>
 		);
 	}
@@ -1519,6 +1827,42 @@ export default function ExerciseSessionScreen({
 								</Text>
 							) : null}
 						</View>
+
+						{canShowExerciseHint && exerciseHint ? (
+							<TouchableOpacity
+								onPress={() => setHintExpanded((prev) => !prev)}
+								activeOpacity={0.85}
+								className="mb-4 rounded-2xl border border-[#DDF4FF] bg-[#F4FBFF] p-3.5"
+							>
+								<View className="flex-row items-center gap-2">
+									<View className="w-7 h-7 rounded-full bg-[#DDF4FF] items-center justify-center">
+										<Feather name="info" size={14} color="#1CB0F6" />
+									</View>
+									<View className="flex-1">
+										<Text className="font-poppins-bold text-[12px] text-[#0D90D0]">
+											Hint: {exerciseHint.title}
+										</Text>
+									</View>
+									<Feather
+										name={hintExpanded ? "chevron-up" : "chevron-down"}
+										size={18}
+										color="#1CB0F6"
+									/>
+								</View>
+								{hintExpanded ? (
+									<View className="pt-2.5">
+										<Text className="font-poppins text-[12px] text-neutral-secondary leading-[18px]">
+											{exerciseHint.tip}
+										</Text>
+										{exerciseHint.example ? (
+											<Text className="font-poppins-semibold text-[12px] text-neutral-primary leading-[18px] mt-1.5">
+												Example: {exerciseHint.example}
+											</Text>
+										) : null}
+									</View>
+								) : null}
+							</TouchableOpacity>
+						) : null}
 
 						<Text className="font-poppins-bold text-[20px] text-neutral-primary leading-[26px] mb-5">
 							{currentExercise.question}
@@ -1794,15 +2138,97 @@ export default function ExerciseSessionScreen({
 									Tap to hear phrase
 								</Text>
 
-								<TextInput
-									style={styles.textInput}
-									placeholder="Type what you hear..."
-									placeholderTextColor="#9CA3AF"
-									value={typedAnswer}
-									onChangeText={setTypedAnswer}
-									editable={!isAnswered}
-									autoCorrect={false}
-								/>
+								{shouldUseListeningWordBank ? (
+									<NativeView
+										ref={blankSlotRef}
+										style={[
+											styles.listeningAnswerSlot,
+											typedAnswer ? styles.fillBlankSlotActive : null,
+											isAnswered
+												? isCorrect
+													? styles.fillBlankSlotCorrect
+													: styles.fillBlankSlotIncorrect
+												: null,
+										]}
+									>
+										<NativeTouchableOpacity
+											disabled={isAnswered || !typedAnswer}
+											onPress={() => setTypedAnswer("")}
+											activeOpacity={0.75}
+											style={styles.fillBlankSlotPressable}
+										>
+											<Text
+												className={`font-poppins-bold text-[19px] text-center ${
+													typedAnswer ? "text-neutral-primary" : "text-neutral-secondary"
+												}`}
+											>
+												{selectedListeningOption?.label ?? (typedAnswer || "Tap what you heard")}
+											</Text>
+											{selectedListeningOption?.pronunciation ? (
+												<Text className="font-poppins-semibold text-[11px] text-neutral-secondary mt-0.5 text-center">
+													{selectedListeningOption.pronunciation}
+												</Text>
+											) : null}
+											{selectedListeningOption?.translation ? (
+												<Text className="font-poppins text-[10px] text-neutral-secondary mt-0.5 text-center">
+													{selectedListeningOption.translation}
+												</Text>
+											) : null}
+										</NativeTouchableOpacity>
+									</NativeView>
+								) : (
+									<>
+										<TextInput
+											style={styles.textInput}
+											placeholder="Type what you hear..."
+											placeholderTextColor="#9CA3AF"
+											value={typedAnswer}
+											onChangeText={setTypedAnswer}
+											editable={!isAnswered}
+											autoCorrect={false}
+										/>
+
+										{canRevealListeningWordBank ? (
+											<TouchableOpacity
+												onPress={() => setListeningWordBankVisible((prev) => !prev)}
+												disabled={isAnswered}
+												activeOpacity={0.8}
+												className="mt-4 rounded-full border border-[#DDF4FF] bg-[#F4FBFF] px-4 py-2"
+											>
+												<Text className="font-poppins-bold text-[12px] text-[#1CB0F6]">
+													{listeningWordBankVisible ? "Hide word bank" : "I need help"}
+												</Text>
+											</TouchableOpacity>
+										) : null}
+									</>
+								)}
+
+								{showListeningWordBank ? (
+									<View className="border-t border-neutral-border pt-4 mt-5 w-full">
+										<Text className="font-poppins-bold text-[12px] text-neutral-secondary uppercase tracking-[0.5px] mb-3 text-center">
+											{shouldUseListeningWordBank
+												? "Choose what you heard"
+												: "Tap a tile to fill the answer"}
+										</Text>
+										<View className="flex-row flex-wrap justify-center gap-3">
+											{fillBlankOptions
+												.filter((option) => option.value !== typedAnswer)
+												.map((option) => (
+													<FillBlankTile
+														key={option.value}
+														option={option}
+														disabled={isAnswered}
+														onSelect={handleSelectFillBlankOption}
+														onDrop={
+															shouldUseListeningWordBank
+																? handleFillBlankTileDrop
+																: handleSelectFillBlankOption
+														}
+													/>
+												))}
+										</View>
+									</View>
+								) : null}
 							</View>
 						)}
 					</Animated.View>
@@ -1947,6 +2373,18 @@ const styles = StyleSheet.create({
 		padding: 20,
 		paddingBottom: 40,
 	},
+	resultScrollView: {
+		flex: 1,
+		backgroundColor: "#FFFFFF",
+	},
+	resultScrollContent: {
+		flexGrow: 1,
+		alignItems: "center",
+		justifyContent: "center",
+		paddingHorizontal: 24,
+		paddingVertical: 32,
+		backgroundColor: "#FFFFFF",
+	},
 	mcqCard: {
 		flexDirection: "row",
 		alignItems: "center",
@@ -1993,6 +2431,16 @@ const styles = StyleSheet.create({
 	fillBlankSlotIncorrect: {
 		borderColor: "#FF4B4B",
 		backgroundColor: "#FFDFE0",
+	},
+	listeningAnswerSlot: {
+		width: "100%",
+		minHeight: 74,
+		borderWidth: 2,
+		borderColor: "#E5E5E5",
+		borderRadius: 18,
+		backgroundColor: "#FFFFFF",
+		alignItems: "center",
+		justifyContent: "center",
 	},
 	fillBlankSlotPressable: {
 		width: "100%",

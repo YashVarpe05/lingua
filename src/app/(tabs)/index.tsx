@@ -799,7 +799,7 @@ export default function HomeScreen() {
 						</Text>
 					</View>
 					<Button3D
-						onPress={() => router.push("/review-session" as Href)}
+						onPress={() => router.push("/practice-hub" as Href)}
 						variant="secondary"
 						size="sm"
 						title="Review"

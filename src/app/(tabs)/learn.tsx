@@ -18,6 +18,7 @@ import { getLanguageUnitsAndLessons } from "@/utils/learning";
 import { blurActiveElement } from "@/utils/dom";
 import Button3D from "@/components/Button3D";
 import LessonNode from "@/components/LessonNode";
+import LessonTeachingPreview from "@/components/LessonTeachingPreview";
 import UnitBanner from "@/components/UnitBanner";
 import PathConnector from "@/components/PathConnector";
 
@@ -96,6 +97,9 @@ export default function LearnScreen() {
 	
 	// Dynamic current unit resolution based on checkpoints completed
 	const currentUnit = activeUnits.find((u) => !completedCheckpoints.includes(u.id)) || activeUnits[activeUnits.length - 1];
+	const selectedLessonUnit = selectedLesson
+		? activeUnits.find((unit) => unit.id === selectedLesson.unitId)
+		: undefined;
 
 	// Set initial sticky unit
 	useEffect(() => {
@@ -144,6 +148,33 @@ export default function LearnScreen() {
 		});
 		setSelectedLesson(lesson);
 		setModalVisible(true);
+	};
+
+	const handleStartPractice = (lesson: Lesson) => {
+		posthog.capture("lesson_practice_started", {
+			lesson_id: lesson.id,
+			lesson_title: lesson.title,
+			lesson_type: lesson.type,
+			language_id: selectedLanguageId,
+		});
+		setModalVisible(false);
+		setSelectedLesson(null);
+		router.push({
+			pathname: "/exercise-session",
+			params: { lessonId: lesson.id },
+		});
+	};
+
+	const handleStartAiTeacher = (lesson: Lesson) => {
+		posthog.capture("lesson_started", {
+			lesson_id: lesson.id,
+			lesson_title: lesson.title,
+			lesson_type: lesson.type,
+			language_id: selectedLanguageId,
+		});
+		setModalVisible(false);
+		setSelectedLesson(null);
+		router.push(`/lesson/${lesson.id}` as any);
 	};
 
 	const handleCompleteMockLesson = async () => {
@@ -576,6 +607,11 @@ export default function LearnScreen() {
 							<Feather name="x" size={18} color="#6B7280" />
 						</TouchableOpacity>
 
+						<ScrollView
+							showsVerticalScrollIndicator={false}
+							keyboardShouldPersistTaps="handled"
+							contentContainerStyle={{ paddingBottom: 4 }}
+						>
 						{selectedLesson && (
 							<View className="pt-2">
 								{/* Type indicator */}
@@ -629,44 +665,27 @@ export default function LearnScreen() {
 									</View>
 								</View>
 
-								{/* Goals */}
-								{selectedLesson.goals && selectedLesson.goals.length > 0 && (
-									<View className="mb-6">
-										<Text className="font-poppins-bold text-[13px] text-neutral-primary uppercase tracking-wider mb-2.5">
-											Learning Goals
-										</Text>
-										{selectedLesson.goals.map((goal, idx) => (
-											<View key={idx} className="flex-row items-start mb-2">
-												<Feather
-													name="check-circle"
-													size={14}
-													color="#21C16B"
-													style={{ marginTop: 2.5 }}
-												/>
-												<Text className="font-poppins text-[12px] text-neutral-primary ml-2.5 flex-1 leading-[18px]">
-													{goal}
-												</Text>
-											</View>
-										))}
-									</View>
-								)}
+								<View className="mb-6">
+									<LessonTeachingPreview
+										lesson={selectedLesson}
+										unit={selectedLessonUnit}
+									/>
+								</View>
 
 								{/* CTA Actions */}
 								<View className="gap-2.5 mt-2">
 									<Button3D
-										onPress={() => {
-											posthog.capture("lesson_started", {
-												lesson_id: selectedLesson.id,
-												lesson_title: selectedLesson.title,
-												lesson_type: selectedLesson.type,
-												language_id: selectedLanguageId,
-											});
-											setModalVisible(false);
-											router.push(`/lesson/${selectedLesson.id}` as any);
-										}}
-										variant="accent"
+										onPress={() => handleStartPractice(selectedLesson)}
+										variant="primary"
 									>
-										Start Lesson
+										Start Practice
+									</Button3D>
+
+									<Button3D
+										onPress={() => handleStartAiTeacher(selectedLesson)}
+										variant="ghost"
+									>
+										AI Teacher
 									</Button3D>
 
 									<Button3D
@@ -793,6 +812,7 @@ export default function LearnScreen() {
 								</View>
 							</View>
 						)}
+						</ScrollView>
 					</Pressable>
 				</Pressable>
 			</Modal>

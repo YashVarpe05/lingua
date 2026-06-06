@@ -66,7 +66,7 @@ const REQUIRED_LESSON_EXERCISE_TYPES = new Set([
 	"listen-type",
 ]);
 
-const CORE_A1_LANGUAGE_IDS = new Set(["es", "fr", "ja", "de", "ar"]);
+const CORE_A1_LANGUAGE_IDS = new Set(["en", "es", "fr", "ja", "de", "ar"]);
 const CORE_A1_SCRIPT_HEAVY_LANGUAGE_IDS = new Set(["ja", "ar"]);
 const CORE_A1_UNIT_COUNT = 4;
 const CORE_A1_LESSONS_PER_UNIT = 4;
@@ -741,6 +741,12 @@ const validateDataGraph = (issues) => {
 				}
 				if (!["intro", "practice", "challenge"].includes(exercise?.difficulty)) {
 					addIssue(issues, DATA_FILES.lessons, "core A1 exercise needs strong difficulty", `${label}:${exercise.id}`);
+				}
+				if (
+					exercise?.type === "listen-type" &&
+					(!Array.isArray(exercise.wordBank) || exercise.wordBank.length < 2)
+				) {
+					addIssue(issues, DATA_FILES.lessons, "core listening exercise missing wordBank", `${label}:${exercise.id}`);
 				}
 				validateCoreScriptExercise(
 					issues,

@@ -31,6 +31,7 @@ interface GenerateSessionPlanInput {
 	recentMistakes?: string[];
 	recentAttempts?: ExerciseAttempt[];
 	conceptMemory?: Record<string, ConceptMemoryEntry>;
+	focusConceptIds?: string[];
 	exerciseDifficultyMemory?: Record<string, DifficultyMemoryEntry>;
 	conceptDifficultyMemory?: Record<string, DifficultyMemoryEntry>;
 	getForgettingScore?: (lessonId: string) => number;
@@ -434,8 +435,21 @@ const buildReviewItems = (input: GenerateSessionPlanInput): ReviewBuildResult =>
 	const recentMistakeConceptIds = languageAttempts
 		.filter((attempt) => !attempt.correct)
 		.flatMap((attempt) => attempt.conceptIds);
+	const requestedFocusConceptIds = [
+		...new Set(input.focusConceptIds ?? []),
+	].filter((conceptId) => {
+		const concept = getCurriculumConceptById(conceptId);
+		return (
+			concept?.languageId === input.selectedLanguageId ||
+			languageConceptIds.has(conceptId)
+		);
+	});
 	const focusConceptIds = [
-		...new Set([...weakConceptIds, ...recentMistakeConceptIds]),
+		...new Set([
+			...requestedFocusConceptIds,
+			...weakConceptIds,
+			...recentMistakeConceptIds,
+		]),
 	].slice(0, 3);
 
 	languageAttempts.forEach((attempt, index) => {
@@ -672,7 +686,7 @@ export const generateSessionPlan = (input: GenerateSessionPlanInput): SessionPla
 		}));
 	}
 
-	const finalItems = orderItemsByDifficulty(
+	let finalItems = orderItemsByDifficulty(
 		finalizeItems(items, input, intent, limit),
 		intent
 	);
@@ -683,6 +697,25 @@ export const generateSessionPlan = (input: GenerateSessionPlanInput): SessionPla
 					finalItems.flatMap((item) => item.exercise.conceptIds ?? [])
 				),
 			].slice(0, 3);
+	if (intent === "review" && finalFocusConceptIds.length > 0) {
+		const priorityFocusExerciseId = items.find((item) =>
+			item.exercise.conceptIds?.some((conceptId) =>
+				finalFocusConceptIds.includes(conceptId)
+			)
+		)?.exercise.id;
+		const firstFocusIndex = finalItems.findIndex((item) =>
+			priorityFocusExerciseId
+				? item.exercise.id === priorityFocusExerciseId
+				: item.exercise.conceptIds?.some((conceptId) =>
+						finalFocusConceptIds.includes(conceptId)
+					)
+		);
+
+		if (firstFocusIndex > 0) {
+			const [focusItem] = finalItems.splice(firstFocusIndex, 1);
+			finalItems = [focusItem, ...finalItems];
+		}
+	}
 
 	return {
 		intent,

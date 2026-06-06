@@ -15,8 +15,9 @@ import { images } from "@/constants/images";
 import { useLanguageStore } from "@/store/useLanguageStore";
 import { useProgressStore } from "@/store/useProgressStore";
 import { getLanguageUnitsAndLessons } from "@/utils/learning";
+import { authFetch } from "@/lib/apiClient";
 import { usePostHog } from "posthog-react-native";
-import { useUser } from "@clerk/expo";
+import { useAuth, useUser } from "@clerk/expo";
 
 // Dynamically require Stream Video SDK to prevent crash in Expo Go / Web
 let StreamCall: any = null;
@@ -94,6 +95,7 @@ const getLocalizedPhrases = (langId: string): string[] => {
 export default function AudioLessonScreen() {
 	const router = useRouter();
 	const posthog = usePostHog();
+	const { getToken } = useAuth();
 	const { user } = useUser();
 	const { id } = useLocalSearchParams<{ id: string }>();
 
@@ -236,13 +238,12 @@ export default function AudioLessonScreen() {
 				if (!user || !lesson) return;
 
 				// Fetch client token and call config from backend route
-				const response = await fetch("/api/stream", {
+				const response = await authFetch(getToken, "/api/stream", {
 					method: "POST",
 					headers: {
 						"Content-Type": "application/json",
 					},
 					body: JSON.stringify({
-						userId: user.id,
 						userName: user.fullName || user.username || user.id,
 						userImage: user.imageUrl || "",
 						lessonId: lesson.id,
@@ -316,7 +317,7 @@ export default function AudioLessonScreen() {
 			}, 50);
 		};
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [user?.id, id, selectedLanguageId, lesson?.id]);
+	}, [getToken, user?.id, id, selectedLanguageId, lesson?.id]);
 
 	if (!lesson) {
 		return (
@@ -493,12 +494,14 @@ export default function AudioLessonScreen() {
 
 // Wrapper for AudioLessonContent when using active Stream SDK Call Context
 function AudioLessonContentWrapper(props: any) {
+	const { getToken } = useAuth();
 	const { useCallCallingState, useMicrophoneState, useParticipants, useCallClosedCaptions } = useCallStateHooks();
 	const callingState = useCallCallingState();
 	const { microphone, isMute } = useMicrophoneState();
 	const participants = useParticipants();
 	const closedCaptions = useCallClosedCaptions();
 	const call = props.call;
+	const lessonId = props.lesson?.id;
 
 	const [agentStatus, setAgentStatus] = useState<"idle" | "connecting" | "connected" | "failed">("idle");
 	const [activeCaption, setActiveCaption] = useState<{ speakerName: string; text: string } | null>(null);
@@ -539,16 +542,20 @@ function AudioLessonContentWrapper(props: any) {
 
 		async function startAgent() {
 			try {
+				if (!lessonId) {
+					throw new Error("Missing lesson id for agent session");
+				}
 				if (agentStatus !== "connecting") {
 					setAgentStatus("connecting");
 				}
-				const response = await fetch("/api/agent/start", {
+				const response = await authFetch(getToken, "/api/agent/start", {
 					method: "POST",
 					headers: {
 						"Content-Type": "application/json",
 					},
 					body: JSON.stringify({
 						callId: call.id,
+						lessonId,
 					}),
 				});
 
@@ -575,22 +582,27 @@ function AudioLessonContentWrapper(props: any) {
 		return () => {
 			active = false;
 			if (spawnedSessionId) {
-				fetch("/api/agent/stop", {
-					method: "POST",
-					headers: {
-						"Content-Type": "application/json",
-					},
-					body: JSON.stringify({
-						callId: call.id,
-						sessionId: spawnedSessionId,
-					}),
-				}).catch((err) => {
+				void (async () => {
+					if (!lessonId) return;
+
+					await authFetch(getToken, "/api/agent/stop", {
+						method: "POST",
+						headers: {
+							"Content-Type": "application/json",
+						},
+						body: JSON.stringify({
+							callId: call.id,
+							lessonId,
+							sessionId: spawnedSessionId,
+						}),
+					});
+				})().catch((err) => {
 					console.warn("Failed to stop agent session on unmount:", err);
 				});
 			}
 		};
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [callingState, call.id]);
+	}, [callingState, call.id, getToken, lessonId]);
 
 	useEffect(() => {
 		if (callingState !== CallingState.JOINED) {
@@ -1160,6 +1172,6 @@ const styles = StyleSheet.create({
 	},
 	mascot: {
 		top: "50%",
-		marginTop: -185,
+		transform: [{ translateY: -185 }],
 	},
 });

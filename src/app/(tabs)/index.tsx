@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
 	StyleSheet,
 	Modal,
@@ -12,12 +12,17 @@ import { Feather } from "@expo/vector-icons";
 import { Text, View, Pressable, ScrollView, TouchableOpacity } from "@/tw";
 import { Image } from "@/tw/image";
 import { images } from "@/constants/images";
+import {
+	getCurriculumConceptById,
+	getCurriculumReviewLabel,
+} from "@/data/curriculum";
 import { languages } from "@/data/languages";
 import { getAllLessonsFromData, getFirstLesson, getLessonById } from "@/data/lessons";
 import { units } from "@/data/units";
 import { useLanguageStore } from "@/store/useLanguageStore";
 import { useProgressStore } from "@/store/useProgressStore";
-import { Lesson } from "@/types/learning";
+import { ConceptMemoryEntry, ExerciseAttempt, Lesson } from "@/types/learning";
+import { authFetch } from "@/lib/apiClient";
 import { usePostHog } from "posthog-react-native";
 import { getLanguageUnitsAndLessons } from "@/utils/learning";
 import Button3D from "@/components/Button3D";
@@ -62,7 +67,141 @@ const getLanguageNameForLesson = (lesson: Lesson | null, fallbackName: string) =
 	return language?.name ?? fallbackName;
 };
 
-const getDailyChallengeBadge = (isNewLesson: boolean, forgettingScore: number) => {
+type DailyChallengeReason = "mistake" | "weak-concept" | "lesson-memory";
+
+const DUE_CONCEPT_RECALL_THRESHOLD = 0.65;
+
+type LeaderboardRankRow = {
+	clerkUserId: string;
+	rank: number;
+};
+
+type LeaderboardFetchResponse = {
+	rows?: LeaderboardRankRow[];
+	userRow?: LeaderboardRankRow | null;
+	error?: string;
+};
+
+const lessonBelongsToLanguage = (lesson: Lesson, languageId: string) => {
+	const unit = units.find((item) => item.id === lesson.unitId);
+	return unit?.languageId === languageId;
+};
+
+const getLessonFromExerciseId = (
+	exerciseId: string | undefined,
+	activeLessons: Lesson[],
+	languageId: string,
+) => {
+	if (!exerciseId) return null;
+
+	const activeLesson = activeLessons.find((lesson) =>
+		lesson.exercises?.some((exercise) => exercise.id === exerciseId)
+	);
+	if (activeLesson) return activeLesson;
+
+	const lesson = getAllLessonsFromData().find((item) =>
+		item.exercises?.some((exercise) => exercise.id === exerciseId)
+	);
+
+	return lesson && lessonBelongsToLanguage(lesson, languageId) ? lesson : null;
+};
+
+const getLessonFromAttempt = (
+	attempt: ExerciseAttempt | undefined,
+	activeLessons: Lesson[],
+	languageId: string,
+) => {
+	if (!attempt) return null;
+
+	if (attempt.lessonId) {
+		const activeLesson = activeLessons.find((lesson) => lesson.id === attempt.lessonId);
+		if (activeLesson) return activeLesson;
+
+		const lesson = getLessonById(attempt.lessonId);
+		if (lesson && lessonBelongsToLanguage(lesson, languageId)) return lesson;
+	}
+
+	return getLessonFromExerciseId(attempt.exerciseId, activeLessons, languageId);
+};
+
+const getLessonFromConcept = (
+	conceptId: string | undefined,
+	recentAttempts: ExerciseAttempt[],
+	activeLessons: Lesson[],
+	languageId: string,
+) => {
+	if (!conceptId) return null;
+
+	const relatedAttempt = recentAttempts.find((attempt) =>
+		attempt.languageId === languageId && attempt.conceptIds.includes(conceptId)
+	);
+
+	return getLessonFromAttempt(relatedAttempt, activeLessons, languageId);
+};
+
+const getAttemptCurriculumConcept = (
+	attempt: ExerciseAttempt | undefined,
+	languageId: string,
+) =>
+	attempt?.conceptIds
+		.map(getCurriculumConceptById)
+		.find((concept) => concept?.languageId === languageId);
+
+const getDueConceptCountForLanguage = (
+	conceptMemory: Record<string, ConceptMemoryEntry>,
+	recentAttempts: ExerciseAttempt[],
+	languageId: string,
+	getConceptRecallScore: (conceptId: string) => number,
+) => {
+	const languageConceptIds = new Set(
+		recentAttempts
+			.filter((attempt) => attempt.languageId === languageId)
+			.flatMap((attempt) => attempt.conceptIds)
+	);
+
+	return [...languageConceptIds].filter((conceptId) => {
+		const entry = conceptMemory[conceptId];
+		if (!entry) return false;
+
+		return (
+			getConceptRecallScore(conceptId) < DUE_CONCEPT_RECALL_THRESHOLD ||
+			entry.incorrectCount > entry.correctCount
+		);
+	}).length;
+};
+
+const hasConceptMemoryForLanguage = (
+	conceptMemory: Record<string, ConceptMemoryEntry>,
+	recentAttempts: ExerciseAttempt[],
+	languageId: string,
+) =>
+	recentAttempts.some(
+		(attempt) =>
+			attempt.languageId === languageId &&
+			attempt.conceptIds.some((conceptId) => Boolean(conceptMemory[conceptId]))
+	);
+
+const getDailyChallengeBadge = (
+	reason: DailyChallengeReason,
+	isNewLesson: boolean,
+	forgettingScore: number,
+) => {
+	if (reason === "mistake") {
+		return {
+			label: "\u{1F501} Fix a mistake",
+			containerClassName: "bg-[#FFF8E6] border-[#FFE8B3]",
+			textClassName: "text-[#FF8A00]",
+		};
+	}
+
+	if (reason === "weak-concept") {
+		return {
+			label: "\u{1F9E0} Strengthen memory",
+			containerClassName: "bg-[#F0EDFF] border-[#E1D9FF]",
+			textClassName: "text-[#6C4EF5]",
+		};
+	}
+
 	if (isNewLesson) {
 		return {
 			label: "\u{1F195} New lesson",
@@ -97,8 +236,9 @@ const getDailyChallengeBadge = (isNewLesson: boolean, forgettingScore: number) =
 export default function HomeScreen() {
 	const router = useRouter();
 	const posthog = usePostHog();
-	const { signOut } = useAuth();
+	const { signOut, getToken } = useAuth();
 	const { user } = useUser();
+	const getTokenRef = useRef(getToken);
 	const selectedLanguageId = useLanguageStore((state) => state.selectedLanguageId);
 	const clearStorage = useLanguageStore((state) => state.clearStorage);
 
@@ -114,6 +254,11 @@ export default function HomeScreen() {
 	const lessonMemory = useProgressStore((state) => state.lessonMemory);
 	const getForgettingScore = useProgressStore((state) => state.getForgettingScore);
 	const getMostUrgentLessons = useProgressStore((state) => state.getMostUrgentLessons);
+	const recentAttempts = useProgressStore((state) => state.recentAttempts) || [];
+	const conceptMemory = useProgressStore((state) => state.conceptMemory) || {};
+	const getConceptRecallScore = useProgressStore((state) => state.getConceptRecallScore);
+	const getWeakConcepts = useProgressStore((state) => state.getWeakConcepts);
+	const completedCheckpoints = useProgressStore((state) => state.completedCheckpoints) || [];
 
 	// Active lesson modal state
 	const [selectedLesson, setSelectedLesson] = useState<Lesson | null>(null);
@@ -121,31 +266,62 @@ export default function HomeScreen() {
 
 	const [userWeeklyRank, setUserWeeklyRank] = useState<number | null>(null);
 	const [hasEntry, setHasEntry] = useState<boolean>(false);
+	const [rankLoadFailed, setRankLoadFailed] = useState(false);
 
 	useEffect(() => {
-		if (user?.id) {
-			fetch(`/api/leaderboard/fetch?type=weekly&clerkUserId=${user.id}`)
-				.then((res) => res.json())
-				.then((data) => {
-					if (data.userRow) {
-						setUserWeeklyRank(data.userRow.rank);
-						setHasEntry(true);
-					} else {
-						// Check if user is in the fetched rows list
-						const found = data.rows?.find((r: any) => r.clerkUserId === user.id);
-						if (found) {
-							setUserWeeklyRank(found.rank);
-							setHasEntry(true);
-						} else {
-							setUserWeeklyRank(null);
-							setHasEntry(false);
-						}
-					}
-				})
-				.catch((err) => {
-					console.error("Failed to fetch user weekly rank:", err);
-				});
-		}
+		getTokenRef.current = getToken;
+	}, [getToken]);
+
+	useEffect(() => {
+		let cancelled = false;
+
+		const fetchWeeklyRank = async () => {
+			if (!user?.id) {
+				setUserWeeklyRank(null);
+				setHasEntry(false);
+				setRankLoadFailed(false);
+				return;
+			}
+
+			try {
+				setRankLoadFailed(false);
+				const response = await authFetch(getTokenRef.current, "/api/leaderboard/fetch?type=weekly");
+				const data = (await response.json()) as LeaderboardFetchResponse;
+
+				if (!response.ok || data.error) {
+					throw new Error(data.error || "Leaderboard request failed");
+				}
+
+				if (cancelled) return;
+
+				if (data.userRow) {
+					setUserWeeklyRank(data.userRow.rank);
+					setHasEntry(true);
+					return;
+				}
+
+				const found = data.rows?.find((row) => row.clerkUserId === user.id);
+				if (found) {
+					setUserWeeklyRank(found.rank);
+					setHasEntry(true);
+				} else {
+					setUserWeeklyRank(null);
+					setHasEntry(false);
+				}
+			} catch {
+				if (!cancelled) {
+					setUserWeeklyRank(null);
+					setHasEntry(false);
+					setRankLoadFailed(true);
+				}
+			}
+		};
+
+		fetchWeeklyRank();
+
+		return () => {
+			cancelled = true;
+		};
 	}, [user?.id]);
 
 	// Get active language details
@@ -174,10 +350,10 @@ export default function HomeScreen() {
 
 	// Fetch units and lessons for the current selected language
 	const { units: activeUnits, lessons: activeLessons } = getLanguageUnitsAndLessons(selectedLanguage.id);
-	const currentUnit = activeUnits[0]; // Display Unit 1 as active by default
+	const currentUnit = activeUnits.find((unit) => !completedCheckpoints.includes(unit.id)) || activeUnits[activeUnits.length - 1];
 
 	// Calculate unit progress details
-	const unitLessons = activeLessons.filter((l) => l.unitId === currentUnit.id);
+	const unitLessons = activeLessons.filter((l) => l.unitId === currentUnit.id && !l.isCheckpoint);
 	
 	// Daily goal calculations (20 XP standard goal, sum of completed lesson XP rewards)
 	const dailyGoalXp = 20;
@@ -188,16 +364,116 @@ export default function HomeScreen() {
 
 	// Find the next uncompleted lesson to recommend
 	const nextLesson = unitLessons.find((l) => !completedLessons.includes(l.id)) || null;
-	const urgentLessonId = getMostUrgentLessons(1)[0];
-	const dailyChallengeLesson = getLessonById(urgentLessonId) ?? getFirstLesson() ?? activeLessons[0] ?? null;
+	const recentMistakeAttempt = recentAttempts.find(
+		(attempt) => !attempt.correct && attempt.languageId === selectedLanguage.id,
+	);
+	const recentMistakeLesson = getLessonFromAttempt(
+		recentMistakeAttempt,
+		activeLessons,
+		selectedLanguage.id,
+	);
+	const weakConcepts = getWeakConcepts(20);
+	const weakConceptLesson =
+		weakConcepts
+			.map((concept) =>
+				getLessonFromConcept(
+					concept.conceptId,
+					recentAttempts,
+					activeLessons,
+					selectedLanguage.id,
+				)
+			)
+			.find((candidate): candidate is Lesson => Boolean(candidate)) ?? null;
+	const weakConceptForLanguage = weakConcepts.find((concept) =>
+		recentAttempts.some(
+			(attempt) =>
+				attempt.languageId === selectedLanguage.id &&
+				attempt.conceptIds.includes(concept.conceptId),
+		)
+	);
+	const weakConceptMetadata = getCurriculumConceptById(weakConceptForLanguage?.conceptId);
+	const urgentLessonId = getMostUrgentLessons(12).find((lessonId) => {
+		const activeLesson = activeLessons.find((lesson) => lesson.id === lessonId);
+		if (activeLesson) return true;
+
+		const lesson = getLessonById(lessonId);
+		return lesson ? lessonBelongsToLanguage(lesson, selectedLanguage.id) : false;
+	});
+	const urgentLesson = urgentLessonId ? getLessonById(urgentLessonId) : null;
+	const activeUrgentLesson =
+		urgentLesson && lessonBelongsToLanguage(urgentLesson, selectedLanguage.id)
+			? urgentLesson
+			: activeLessons.find((lesson) => lesson.id === urgentLessonId) ?? null;
+	const dailyChallengeLesson =
+		recentMistakeLesson ??
+		weakConceptLesson ??
+		activeUrgentLesson ??
+		activeLessons[0] ??
+		getFirstLesson() ??
+		null;
+	const dailyChallengeReason: DailyChallengeReason = recentMistakeLesson
+		? "mistake"
+		: weakConceptLesson
+			? "weak-concept"
+			: "lesson-memory";
 	const dailyChallengeLessonId = dailyChallengeLesson?.id ?? urgentLessonId;
 	const forgettingScore = dailyChallengeLessonId ? getForgettingScore(dailyChallengeLessonId) : 0;
 	const isNewDailyLesson = dailyChallengeLessonId ? !lessonMemory[dailyChallengeLessonId] : true;
-	const dailyChallengeBadge = getDailyChallengeBadge(isNewDailyLesson, forgettingScore);
+	const dailyChallengeBadge = getDailyChallengeBadge(
+		dailyChallengeReason,
+		isNewDailyLesson,
+		forgettingScore,
+	);
 	const dailyChallengeLanguageName = getLanguageNameForLesson(dailyChallengeLesson, selectedLanguage.name);
-	const dueReviewCount = getAllLessonsFromData().filter(
+	const hasLanguageConceptMemory = hasConceptMemoryForLanguage(
+		conceptMemory,
+		recentAttempts,
+		selectedLanguage.id,
+	);
+	const dueConceptCount = getDueConceptCountForLanguage(
+		conceptMemory,
+		recentAttempts,
+		selectedLanguage.id,
+		getConceptRecallScore,
+	);
+	const dueLessonCount = activeLessons.filter(
+		(lesson) => !lesson.isCheckpoint
+	).filter(
 		(item) => getForgettingScore(item.id) > 1,
 	).length;
+	const dueReviewCount = hasLanguageConceptMemory ? dueConceptCount : dueLessonCount;
+	const dueReviewLabel = hasLanguageConceptMemory
+		? `${dueReviewCount} ${dueReviewCount === 1 ? "concept" : "concepts"} due for review`
+		: `${dueReviewCount} ${dueReviewCount === 1 ? "lesson" : "lessons"} due for review`;
+	const recentMistakeConcept = getAttemptCurriculumConcept(
+		recentMistakeAttempt,
+		selectedLanguage.id,
+	);
+	const reviewFocusConceptIds = [
+		recentMistakeConcept?.id,
+		...weakConcepts
+			.filter((concept) =>
+				recentAttempts.some(
+					(attempt) =>
+						attempt.languageId === selectedLanguage.id &&
+						attempt.conceptIds.includes(concept.conceptId),
+				)
+			)
+			.map((concept) => concept.conceptId),
+	]
+		.filter((conceptId): conceptId is string => Boolean(conceptId))
+		.slice(0, 3);
+	const reviewFocusLabel = getCurriculumReviewLabel(reviewFocusConceptIds);
+	const dueReviewReason = recentMistakeConcept
+		? `Why: recent miss in ${recentMistakeConcept.title}`
+		: weakConceptMetadata?.reviewPrompt
+			? `Why: ${weakConceptMetadata.reviewPrompt}`
+			: dueReviewCount > 0
+				? "Why: spaced review keeps older practice from fading"
+				: "Why: no urgent review right now";
+	const dueReviewFocusText = reviewFocusLabel
+		? `Focus: ${reviewFocusLabel}`
+		: dueReviewReason;
 
 	const handleOpenLesson = (lesson: Lesson) => {
 		posthog.capture("lesson_opened", {
@@ -218,6 +494,7 @@ export default function HomeScreen() {
 			lesson_id: dailyChallengeLesson.id,
 			language_id: selectedLanguageId,
 			forgetting_score: forgettingScore,
+			source: dailyChallengeReason,
 		});
 		router.push({
 			pathname: "/exercise-session",
@@ -452,6 +729,15 @@ export default function HomeScreen() {
 						return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
 					})();
 					const isDailyCompletedToday = dailyChallengeCompletedDate === todayStr;
+					const dailyChallengeSubtitle = isDailyCompletedToday
+						? "You completed today's daily challenge! Come back tomorrow for more. \u{1F31F}"
+						: dailyChallengeReason === "mistake"
+							? `${dailyChallengeLanguageName} - fixing a recent mistake`
+							: dailyChallengeReason === "weak-concept"
+								? `${dailyChallengeLanguageName} - strengthening weak memory`
+								: forgettingScore > 1
+									? `${dailyChallengeLanguageName} - review is due`
+									: `${dailyChallengeLanguageName} - memory-smart practice`;
 
 					return (
 						<TouchableOpacity
@@ -481,9 +767,7 @@ export default function HomeScreen() {
 									{dailyChallengeLesson?.title ?? "Practice Exercises"}
 								</Text>
 								<Text className="font-poppins text-[12px] text-neutral-secondary mt-1">
-									{isDailyCompletedToday
-										? "You completed today's daily challenge! Come back tomorrow for more. \u{1F31F}"
-										: `${dailyChallengeLanguageName} - memory-smart practice`}
+									{dailyChallengeSubtitle}
 								</Text>
 							</View>
 							<View className={`w-12 h-12 rounded-full items-center justify-center ${
@@ -507,8 +791,11 @@ export default function HomeScreen() {
 						</Text>
 						<Text className="font-poppins text-[13px] text-neutral-secondary mt-1">
 							{dueReviewCount > 0
-								? `${dueReviewCount} lessons due for review`
+								? dueReviewLabel
 								: "All caught up! \u{2728}"}
+						</Text>
+						<Text className="font-poppins text-[11px] text-[#A97800] mt-0.5">
+							{dueReviewFocusText}
 						</Text>
 					</View>
 					<Button3D
@@ -535,7 +822,9 @@ export default function HomeScreen() {
 							Weekly Leaderboard
 						</Text>
 						<Text className="font-poppins text-[12px] text-neutral-secondary mt-1">
-							{hasEntry && userWeeklyRank !== null
+							{rankLoadFailed
+								? "Leaderboard is syncing. Tap to retry."
+								: hasEntry && userWeeklyRank !== null
 								? `You are #${userWeeklyRank} this week!`
 								: "Complete a lesson to join the league"}
 						</Text>

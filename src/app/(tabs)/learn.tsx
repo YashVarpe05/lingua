@@ -32,22 +32,36 @@ const getXOffset = (position: string, nodeSize: number) => {
 
 const getNodeState = (
 	lesson: Lesson,
+	unit: Unit,
 	allLessons: Lesson[],
+	allUnits: Unit[],
 	completedIds: string[],
 	completedCheckpoints: string[]
 ) => {
 	if (completedCheckpoints.includes(lesson.unitId)) {
 		return "completed";
 	}
+	if (!lesson.isCheckpoint && completedIds.includes(lesson.id)) return "completed";
+
+	const unitIndex = allUnits.findIndex((item) => item.id === unit.id);
+	const previousUnitsComplete = allUnits
+		.slice(0, Math.max(unitIndex, 0))
+		.every((item) => completedCheckpoints.includes(item.id));
+
+	if (!previousUnitsComplete) return "locked";
+
 	if (lesson.isCheckpoint) {
 		const unitLessons = allLessons.filter(
 			(l) => l.unitId === lesson.unitId && !l.isCheckpoint
 		);
-		const allDone = unitLessons.every((l) => completedIds.includes(l.id));
+		const allDone = unitLessons.length > 0 && unitLessons.every((l) => completedIds.includes(l.id));
 		return allDone ? "checkpoint" : "locked";
 	}
-	if (completedIds.includes(lesson.id)) return "completed";
-	const firstUncompleted = allLessons.find(
+
+	const unitLessons = allLessons
+		.filter((l) => l.unitId === lesson.unitId && !l.isCheckpoint)
+		.sort((a, b) => a.order - b.order);
+	const firstUncompleted = unitLessons.find(
 		(l) => !completedIds.includes(l.id) && !l.isCheckpoint
 	);
 	if (firstUncompleted?.id === lesson.id) return "active";
@@ -60,10 +74,8 @@ export default function LearnScreen() {
 
 	const selectedLanguageId = useLanguageStore((state) => state.selectedLanguageId);
 	const completedLessonIds = useProgressStore((state) => state.completedLessonIds) || [];
-	const completeLesson = useProgressStore((state) => state.completeLesson);
+	const completeLearningSession = useProgressStore((state) => state.completeLearningSession);
 	const completedCheckpoints = useProgressStore((state) => state.completedCheckpoints) || [];
-	const completeCheckpoint = useProgressStore((state) => state.completeCheckpoint);
-	const addXp = useProgressStore((state) => state.addXp);
 	const recentMistakes = useProgressStore((state) => state.recentMistakes) || [];
 
 	const [activeTab, setActiveTab] = useState<"lessons" | "practice">("lessons");
@@ -93,7 +105,7 @@ export default function LearnScreen() {
 	}, [currentUnit]);
 
 	const getUnitProgressFraction = (unit: Unit) => {
-		const unitLessons = activeLessons.filter((l) => l.unitId === unit.id);
+		const unitLessons = activeLessons.filter((l) => l.unitId === unit.id && !l.isCheckpoint);
 		const completedCount = unitLessons.filter((l) => completedLessonIds.includes(l.id)).length;
 		return `${completedCount}/${unitLessons.length}`;
 	};
@@ -137,7 +149,16 @@ export default function LearnScreen() {
 	const handleCompleteMockLesson = async () => {
 		if (selectedLesson) {
 			try {
-				await completeLesson(selectedLesson.id, selectedLesson.xpReward);
+				await completeLearningSession({
+					sessionType: "mock-lesson",
+					xpEarned: selectedLesson.xpReward,
+					score: 100,
+					plannedCorrectCount: 1,
+					plannedExerciseCount: 1,
+					practicedLessonIds: [selectedLesson.id],
+					completedLessonId: selectedLesson.id,
+					passed: true,
+				});
 				posthog.capture("lesson_completed", {
 					lesson_id: selectedLesson.id,
 					lesson_title: selectedLesson.title,
@@ -160,8 +181,19 @@ export default function LearnScreen() {
 		if (!checkpointUnit) return;
 
 		try {
-			await completeCheckpoint(checkpointUnit.id);
-			await addXp(50);
+			const checkpointLessonIds = activeLessons
+				.filter((lesson) => lesson.unitId === checkpointUnit.id && !lesson.isCheckpoint)
+				.map((lesson) => lesson.id);
+			await completeLearningSession({
+				sessionType: "mock-checkpoint",
+				xpEarned: 50,
+				score: 100,
+				plannedCorrectCount: 5,
+				plannedExerciseCount: 5,
+				practicedLessonIds: checkpointLessonIds,
+				checkpointUnitId: checkpointUnit.id,
+				passed: true,
+			});
 			posthog.capture("checkpoint_completed", {
 				unit_id: checkpointUnit.id,
 				language_id: selectedLanguageId,
@@ -282,7 +314,9 @@ export default function LearnScreen() {
 					contentContainerStyle={{ paddingTop: activeUnitInHeader ? 50 : 0, paddingBottom: 80 }}
 				>
 					{activeUnits.map((unit, unitIdx) => {
-						const unitLessons = activeLessons.filter((l) => l.unitId === unit.id);
+						const unitLessons = activeLessons
+							.filter((l) => l.unitId === unit.id)
+							.sort((a, b) => a.order - b.order);
 						const totalNodes = unitLessons.length;
 						const containerHeight = totalNodes * 96 + 20;
 
@@ -308,7 +342,9 @@ export default function LearnScreen() {
 
 										const nodeState = getNodeState(
 											lesson,
+											unit,
 											activeLessons,
+											activeUnits,
 											completedLessonIds,
 											completedCheckpoints
 										);
@@ -353,6 +389,7 @@ export default function LearnScreen() {
 														state={nodeState}
 														unitColor={unit.unitColor || "#58CC02"}
 														onPress={() => {
+															if (nodeState === "locked") return;
 															if (lesson.isCheckpoint) {
 																handleOpenCheckpoint(unit);
 															} else {

@@ -1,0 +1,760 @@
+
+> lingua@1.0.0 web
+> expo start --web --port 8081 --localhost
+
+env: load .env
+env: export DATABASE_URL EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY EXPO_PUBLIC_SUPABASE_ANON_KEY EXPO_PUBLIC_SUPABASE_URL POSTHOG_HOST POSTHOG_PROJECT_TOKEN STREAM_API_KEY STREAM_API_SECRET SUPABASE_SERVICE_ROLE_KEY
+✅ Clerk iOS plugin loaded
+✅ Clerk Android plugin loaded
+Starting project at C:\Project\lingua
+✅ Clerk iOS plugin loaded
+✅ Clerk Android plugin loaded
+✅ Clerk iOS plugin loaded
+✅ Clerk Android plugin loaded
+✅ Clerk iOS plugin loaded
+✅ Clerk Android plugin loaded
+✅ Clerk iOS plugin loaded
+✅ Clerk Android plugin loaded
+Using src/app as the root directory for Expo Router.
+React Compiler enabled
+Starting Metro Bundler
+
+✅ Clerk iOS plugin loaded
+✅ Clerk Android plugin loaded
+✅ Clerk iOS plugin loaded
+✅ Clerk Android plugin loaded
+✅ Clerk iOS plugin loaded
+✅ Clerk Android plugin loaded
+✅ Clerk iOS plugin loaded
+✅ Clerk Android plugin loaded
+✅ Clerk iOS plugin loaded
+✅ Clerk Android plugin loaded
+Waiting on http://localhost:8081
+Logs for your project will appear below.
+✅ Clerk iOS plugin loaded
+✅ Clerk Android plugin loaded
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+✅ Clerk iOS plugin loaded
+✅ Clerk Android plugin loaded
+Web node_modules\expo-router\entry.js ▓▓░░░░░░░░░░░░░░ 14.2% (107/284)
+λ node_modules\@expo\router-server\node\render.js ▓▓▓░░░░░░░░░░░░░ 22.6% ( 87/183)
+Web node_modules\expo-router\entry.js ▓▓▓▓▓▓▓░░░░░░░░░ 49.3% (699/996)
+λ node_modules\@expo\router-server\node\render.js ▓▓▓▓▓▓▓░░░░░░░░░ 46.5% ( 874/1399)
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ node_modules\@expo\router-server\node\render.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web node_modules\expo-router\entry.js ▓▓▓▓▓▓▓▓▓░░░░░░░ 61.9% (1346/1787)
+λ node_modules\@expo\router-server\node\render.js ▓▓▓▓▓▓▓▓▓▓░░░░░░ 63.3% (1466/1843)
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ node_modules\@expo\router-server\node\render.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 10737ms node_modules\@expo\router-server\node\render.js (2430 modules)
+λ Bundled 9909ms node_modules\@expo\router-server\node\render.js (1 module)
+Web node_modules\expo-router\entry.js ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░ 99.9% (2510/2510)
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+✅ Clerk iOS plugin loaded
+✅ Clerk Android plugin loaded
+λ Bundled 85ms node_modules\@expo\router-server\node\render.js (1 module)
+PostHog config: { apiKey: 'SET', host: 'https://us.i.posthog.com', isConfigured: true }
+λ  LOG  Stream Video SDK native modules not found. Falling back to simulated calling.
+Web node_modules\expo-router\entry.js ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░ 99.9% (2510/2510)
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+PostHog config: { apiKey: 'SET', host: 'https://us.i.posthog.com', isConfigured: true }
+λ  LOG  Stream Video SDK native modules not found. Falling back to simulated calling.
+PostHog config: { apiKey: 'SET', host: 'https://us.i.posthog.com', isConfigured: true }
+λ  LOG  Stream Video SDK native modules not found. Falling back to simulated calling.
+Web Bundled 18044ms node_modules\expo-router\entry.js (2510 modules)
+Web Bundled 17204ms node_modules\expo-router\entry.js (1 module)
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web Bundled 6167ms node_modules\expo-router\entry.js (1 module)
+Web Bundled 2827ms node_modules\expo-router\entry.js (2511 modules)
+ LOG  [web] Logs will appear in the browser console
+λ Bundled 165ms src\app\api\leaderboard\fetch+api.ts (40 modules)
+✅ Clerk iOS plugin loaded
+✅ Clerk Android plugin loaded
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 99ms node_modules\@expo\router-server\node\render.js (1 module)
+PostHog config: { apiKey: 'SET', host: 'https://us.i.posthog.com', isConfigured: true }
+λ  LOG  Stream Video SDK native modules not found. Falling back to simulated calling.
+Web Bundled 1156ms node_modules\expo-router\entry.js (1 module)
+Web Bundled 82ms node_modules\expo-router\entry.js (1 module)
+ LOG  [web] Logs will appear in the browser console
+✅ Clerk iOS plugin loaded
+✅ Clerk Android plugin loaded
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 264ms node_modules\@expo\router-server\node\render.js (1 module)
+PostHog config: { apiKey: 'SET', host: 'https://us.i.posthog.com', isConfigured: true }
+λ  LOG  Stream Video SDK native modules not found. Falling back to simulated calling.
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web Bundled 1489ms node_modules\expo-router\entry.js (1 module)
+Web Bundled 92ms node_modules\expo-router\entry.js (1 module)
+ LOG  [web] Logs will appear in the browser console
+λ Bundled 2ms src\app\api\leaderboard\fetch+api.ts (1 module)
+✅ Clerk iOS plugin loaded
+✅ Clerk Android plugin loaded
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 66ms node_modules\@expo\router-server\node\render.js (1 module)
+PostHog config: { apiKey: 'SET', host: 'https://us.i.posthog.com', isConfigured: true }
+λ  LOG  Stream Video SDK native modules not found. Falling back to simulated calling.
+Web Bundled 944ms node_modules\expo-router\entry.js (1 module)
+Web Bundled 93ms node_modules\expo-router\entry.js (1 module)
+ LOG  [web] Logs will appear in the browser console
+✅ Clerk iOS plugin loaded
+✅ Clerk Android plugin loaded
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 70ms node_modules\@expo\router-server\node\render.js (1 module)
+PostHog config: { apiKey: 'SET', host: 'https://us.i.posthog.com', isConfigured: true }
+λ  LOG  Stream Video SDK native modules not found. Falling back to simulated calling.
+Web Bundled 918ms node_modules\expo-router\entry.js (1 module)
+Web Bundled 82ms node_modules\expo-router\entry.js (1 module)
+ LOG  [web] Logs will appear in the browser console
+✅ Clerk iOS plugin loaded
+✅ Clerk Android plugin loaded
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 345ms node_modules\@expo\router-server\node\render.js (1 module)
+PostHog config: { apiKey: 'SET', host: 'https://us.i.posthog.com', isConfigured: true }
+λ  LOG  Stream Video SDK native modules not found. Falling back to simulated calling.
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web Bundled 2853ms node_modules\expo-router\entry.js (1 module)
+✅ Clerk iOS plugin loaded
+✅ Clerk Android plugin loaded
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 35ms node_modules\@expo\router-server\node\render.js (1 module)
+PostHog config: { apiKey: 'SET', host: 'https://us.i.posthog.com', isConfigured: true }
+λ  LOG  Stream Video SDK native modules not found. Falling back to simulated calling.
+Web Bundled 952ms node_modules\expo-router\entry.js (1 module)
+Web Bundled 79ms node_modules\expo-router\entry.js (1 module)
+ LOG  [web] Logs will appear in the browser console
+λ src\app\api\leaderboard\fetch+api.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 3ms src\app\api\leaderboard\fetch+api.ts (1 module)
+✅ Clerk iOS plugin loaded
+✅ Clerk Android plugin loaded
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 60ms node_modules\@expo\router-server\node\render.js (1 module)
+PostHog config: { apiKey: 'SET', host: 'https://us.i.posthog.com', isConfigured: true }
+λ  LOG  Stream Video SDK native modules not found. Falling back to simulated calling.
+Web Bundled 905ms node_modules\expo-router\entry.js (1 module)
+✅ Clerk iOS plugin loaded
+✅ Clerk Android plugin loaded
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 63ms node_modules\@expo\router-server\node\render.js (1 module)
+PostHog config: { apiKey: 'SET', host: 'https://us.i.posthog.com', isConfigured: true }
+λ  LOG  Stream Video SDK native modules not found. Falling back to simulated calling.
+Web Bundled 804ms node_modules\expo-router\entry.js (1 module)
+Web Bundled 109ms node_modules\expo-router\entry.js (1 module)
+ LOG  [web] Logs will appear in the browser console
+✅ Clerk iOS plugin loaded
+✅ Clerk Android plugin loaded
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 63ms node_modules\@expo\router-server\node\render.js (1 module)
+PostHog config: { apiKey: 'SET', host: 'https://us.i.posthog.com', isConfigured: true }
+λ  LOG  Stream Video SDK native modules not found. Falling back to simulated calling.
+Web Bundled 1015ms node_modules\expo-router\entry.js (1 module)
+Web Bundled 89ms node_modules\expo-router\entry.js (1 module)
+ LOG  [web] Logs will appear in the browser console
+λ src\app\api\leaderboard\fetch+api.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 3ms src\app\api\leaderboard\fetch+api.ts (1 module)
+✅ Clerk iOS plugin loaded
+✅ Clerk Android plugin loaded
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web Bundled 888ms node_modules\expo-router\entry.js (1 module)
+λ Bundled 953ms node_modules\@expo\router-server\node\render.js (1 module)
+PostHog config: { apiKey: 'SET', host: 'https://us.i.posthog.com', isConfigured: true }
+λ  LOG  Stream Video SDK native modules not found. Falling back to simulated calling.
+Web Bundled 85ms node_modules\expo-router\entry.js (1 module)
+ LOG  [web] Logs will appear in the browser console
+✅ Clerk iOS plugin loaded
+✅ Clerk Android plugin loaded
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 91ms node_modules\@expo\router-server\node\render.js (1 module)
+PostHog config: { apiKey: 'SET', host: 'https://us.i.posthog.com', isConfigured: true }
+λ  LOG  Stream Video SDK native modules not found. Falling back to simulated calling.
+Web Bundled 871ms node_modules\expo-router\entry.js (1 module)
+Web Bundled 79ms node_modules\expo-router\entry.js (1 module)
+ LOG  [web] Logs will appear in the browser console
+✅ Clerk iOS plugin loaded
+✅ Clerk Android plugin loaded
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 93ms node_modules\@expo\router-server\node\render.js (1 module)
+PostHog config: { apiKey: 'SET', host: 'https://us.i.posthog.com', isConfigured: true }
+λ  LOG  Stream Video SDK native modules not found. Falling back to simulated calling.
+Web Bundled 924ms node_modules\expo-router\entry.js (1 module)
+Web Bundled 95ms node_modules\expo-router\entry.js (1 module)
+ LOG  [web] Logs will appear in the browser console
+✅ Clerk iOS plugin loaded
+✅ Clerk Android plugin loaded
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web Bundled 967ms node_modules\expo-router\entry.js (1 module)
+λ Bundled 1026ms node_modules\@expo\router-server\node\render.js (1 module)
+PostHog config: { apiKey: 'SET', host: 'https://us.i.posthog.com', isConfigured: true }
+λ  LOG  Stream Video SDK native modules not found. Falling back to simulated calling.
+Web Bundled 77ms node_modules\expo-router\entry.js (1 module)
+ LOG  [web] Logs will appear in the browser console
+✅ Clerk iOS plugin loaded
+✅ Clerk Android plugin loaded
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web Bundled 1093ms node_modules\expo-router\entry.js (1 module)
+λ Bundled 1234ms node_modules\@expo\router-server\node\render.js (1 module)
+PostHog config: { apiKey: 'SET', host: 'https://us.i.posthog.com', isConfigured: true }
+λ  LOG  Stream Video SDK native modules not found. Falling back to simulated calling.
+Web Bundled 110ms node_modules\expo-router\entry.js (1 module)
+ LOG  [web] Logs will appear in the browser console
+✅ Clerk iOS plugin loaded
+✅ Clerk Android plugin loaded
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 90ms node_modules\@expo\router-server\node\render.js (1 module)
+PostHog config: { apiKey: 'SET', host: 'https://us.i.posthog.com', isConfigured: true }
+λ  LOG  Stream Video SDK native modules not found. Falling back to simulated calling.
+Web Bundled 3392ms node_modules\expo-router\entry.js (1 module)
+Web Bundled 93ms node_modules\expo-router\entry.js (1 module)
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+ LOG  [web] Logs will appear in the browser console
+✅ Clerk iOS plugin loaded
+✅ Clerk Android plugin loaded
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 3220ms node_modules\@expo\router-server\node\render.js (1 module)
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+PostHog config: { apiKey: 'SET', host: 'https://us.i.posthog.com', isConfigured: true }
+λ  LOG  Stream Video SDK native modules not found. Falling back to simulated calling.
+Web Bundled 4272ms node_modules\expo-router\entry.js (1 module)
+Web Bundled 75ms node_modules\expo-router\entry.js (1 module)
+ LOG  [web] Logs will appear in the browser console
+✅ Clerk iOS plugin loaded
+✅ Clerk Android plugin loaded
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 57ms node_modules\@expo\router-server\node\render.js (1 module)
+PostHog config: { apiKey: 'SET', host: 'https://us.i.posthog.com', isConfigured: true }
+λ  LOG  Stream Video SDK native modules not found. Falling back to simulated calling.
+Web Bundled 973ms node_modules\expo-router\entry.js (1 module)
+Web Bundled 111ms node_modules\expo-router\entry.js (1 module)
+ LOG  [web] Logs will appear in the browser console
+λ src\app\api\leaderboard\fetch+api.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 69ms src\app\api\leaderboard\fetch+api.ts (1 module)
+✅ Clerk iOS plugin loaded
+✅ Clerk Android plugin loaded
+λ Bundled 58ms node_modules\@expo\router-server\node\render.js (1 module)
+PostHog config: { apiKey: 'SET', host: 'https://us.i.posthog.com', isConfigured: true }
+λ  LOG  Stream Video SDK native modules not found. Falling back to simulated calling.
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web Bundled 848ms node_modules\expo-router\entry.js (1 module)
+Web Bundled 80ms node_modules\expo-router\entry.js (1 module)
+ LOG  [web] Logs will appear in the browser console
+✅ Clerk iOS plugin loaded
+✅ Clerk Android plugin loaded
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 84ms node_modules\@expo\router-server\node\render.js (1 module)
+PostHog config: { apiKey: 'SET', host: 'https://us.i.posthog.com', isConfigured: true }
+λ  LOG  Stream Video SDK native modules not found. Falling back to simulated calling.
+Web Bundled 1220ms node_modules\expo-router\entry.js (1 module)
+Web Bundled 94ms node_modules\expo-router\entry.js (1 module)
+ LOG  [web] Logs will appear in the browser console
+λ src\app\api\leaderboard\fetch+api.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 2ms src\app\api\leaderboard\fetch+api.ts (1 module)
+λ Bundled 62ms src\app\api\leaderboard\fetch+api.ts (1 module)
+λ src\app\api\leaderboard\fetch+api.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 4ms src\app\api\leaderboard\fetch+api.ts (1 module)
+λ src\app\api\leaderboard\fetch+api.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 2ms src\app\api\leaderboard\fetch+api.ts (1 module)
+λ src\app\api\leaderboard\fetch+api.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 54ms src\app\api\leaderboard\fetch+api.ts (1 module)
+✅ Clerk iOS plugin loaded
+✅ Clerk Android plugin loaded
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ node_modules\@expo\router-server\node\render.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 5110ms node_modules\@expo\router-server\node\render.js (1 module)
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+PostHog config: { apiKey: 'SET', host: 'https://us.i.posthog.com', isConfigured: true }
+λ  LOG  Stream Video SDK native modules not found. Falling back to simulated calling.
+Web Bundled 12160ms node_modules\expo-router\entry.js (1 module)
+Web Bundled 85ms node_modules\expo-router\entry.js (1 module)
+ LOG  [web] Logs will appear in the browser console
+λ Bundled 144ms src\app\api\leaderboard\fetch+api.ts (1 module)
+Unable to resolve "@/data/curriculum" from "src\utils\sessionGenerator.ts"
+[0m[31m[1m>[22m[39m[90m 1 |[39m [36mimport[39m { getCurriculumMetadataForExercise } [36mfrom[39m [32m"@/data/curriculum"[39m[33m;[39m
+ [90m   |[39m                                                   [31m[1m^[22m[39m
+ [90m 2 |[39m [36mimport[39m { getLessonById } [36mfrom[39m [32m"@/data/lessons"[39m[33m;[39m
+ [90m 3 |[39m [36mimport[39m type {
+ [90m 4 |[39m 	[33mExercise[39m[33m,[39m[0m
+
+Import stack:
+
+ src\utils\sessionGenerator.ts
+ | import "@/data/curriculum"
+
+ src\app\exercise-session.tsx
+ | import "@/utils/sessionGenerator"
+
+ src\app\review-session.tsx
+ | import "./exercise-session"
+
+ src\app (require.context)
+
+Unable to resolve "@/data/curriculum" from "src\utils\sessionGenerator.ts"
+[0m[31m[1m>[22m[39m[90m 1 |[39m [36mimport[39m { getCurriculumMetadataForExercise } [36mfrom[39m [32m"@/data/curriculum"[39m[33m;[39m
+ [90m   |[39m                                                   [31m[1m^[22m[39m
+ [90m 2 |[39m [36mimport[39m { getLessonById } [36mfrom[39m [32m"@/data/lessons"[39m[33m;[39m
+ [90m 3 |[39m [36mimport[39m type {
+ [90m 4 |[39m 	[33mExercise[39m[33m,[39m[0m
+
+Import stack:
+
+ src\utils\sessionGenerator.ts
+ | import "@/data/curriculum"
+
+ src\app\exercise-session.tsx
+ | import "@/utils/sessionGenerator"
+
+ src\app\review-session.tsx
+ | import "./exercise-session"
+
+ src\app (require.context)
+
+λ src\app\api\leaderboard\fetch+api.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 3ms src\app\api\leaderboard\fetch+api.ts (1 module)
+λ src\app\api\leaderboard\fetch+api.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 3ms src\app\api\leaderboard\fetch+api.ts (1 module)
+Unable to resolve "@/utils/learning" from "src\app\(tabs)\index.tsx"
+[0m [90m 21 |[39m [36mimport[39m { [33mConceptMemoryEntry[39m[33m,[39m [33mExerciseAttempt[39m[33m,[39m [33mLesson[39m } [36mfrom[39m [32m"@/types/learning"[39m[33m;[39m
+ [90m 22 |[39m [36mimport[39m { usePostHog } [36mfrom[39m [32m"posthog-react-native"[39m[33m;[39m
+[31m[1m>[22m[39m[90m 23 |[39m [36mimport[39m { getLanguageUnitsAndLessons } [36mfrom[39m [32m"@/utils/learning"[39m[33m;[39m
+ [90m    |[39m                                             [31m[1m^[22m[39m
+ [90m 24 |[39m [36mimport[39m [33mButton3D[39m [36mfrom[39m [32m"@/components/Button3D"[39m[33m;[39m
+ [90m 25 |[39m
+ [90m 26 |[39m [90m// Helper function to return dynamic greeting based on selected language[39m[0m
+
+Import stack:
+
+ src\app\(tabs)\index.tsx
+ | import "@/utils/learning"
+
+ src\app (require.context)
+
+λ src\app\api\leaderboard\fetch+api.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 3ms src\app\api\leaderboard\fetch+api.ts (1 module)
+λ src\app\api\leaderboard\fetch+api.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 2ms src\app\api\leaderboard\fetch+api.ts (1 module)
+λ src\app\api\leaderboard\fetch+api.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 2ms src\app\api\leaderboard\fetch+api.ts (1 module)
+λ src\app\api\leaderboard\fetch+api.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 2ms src\app\api\leaderboard\fetch+api.ts (1 module)
+✅ Clerk iOS plugin loaded
+✅ Clerk Android plugin loaded
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ node_modules\@expo\router-server\node\render.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web Bundled 5661ms node_modules\expo-router\entry.js (1 module)
+λ node_modules\@expo\router-server\node\render.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 5990ms node_modules\@expo\router-server\node\render.js (1 module)
+PostHog config: { apiKey: 'SET', host: 'https://us.i.posthog.com', isConfigured: true }
+λ  LOG  Stream Video SDK native modules not found. Falling back to simulated calling.
+Web Bundled 83ms node_modules\expo-router\entry.js (1 module)
+ LOG  [web] Logs will appear in the browser console
+λ Bundled 65ms src\app\api\leaderboard\fetch+api.ts (1 module)
+λ src\app\api\leaderboard\fetch+api.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 3ms src\app\api\leaderboard\fetch+api.ts (1 module)
+✅ Clerk iOS plugin loaded
+✅ Clerk Android plugin loaded
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 466ms node_modules\@expo\router-server\node\render.js (1 module)
+PostHog config: { apiKey: 'SET', host: 'https://us.i.posthog.com', isConfigured: true }
+λ  LOG  Stream Video SDK native modules not found. Falling back to simulated calling.
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web Bundled 2306ms node_modules\expo-router\entry.js (1 module)
+Web Bundled 120ms node_modules\expo-router\entry.js (1 module)
+ LOG  [web] Logs will appear in the browser console
+✅ Clerk iOS plugin loaded
+✅ Clerk Android plugin loaded
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 63ms node_modules\@expo\router-server\node\render.js (1 module)
+PostHog config: { apiKey: 'SET', host: 'https://us.i.posthog.com', isConfigured: true }
+λ  LOG  Stream Video SDK native modules not found. Falling back to simulated calling.
+Web Bundled 809ms node_modules\expo-router\entry.js (1 module)
+Web Bundled 100ms node_modules\expo-router\entry.js (1 module)
+ LOG  [web] Logs will appear in the browser console
+✅ Clerk iOS plugin loaded
+✅ Clerk Android plugin loaded
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 61ms node_modules\@expo\router-server\node\render.js (1 module)
+PostHog config: { apiKey: 'SET', host: 'https://us.i.posthog.com', isConfigured: true }
+λ  LOG  Stream Video SDK native modules not found. Falling back to simulated calling.
+Web Bundled 1005ms node_modules\expo-router\entry.js (1 module)
+Web Bundled 86ms node_modules\expo-router\entry.js (1 module)
+ LOG  [web] Logs will appear in the browser console
+λ src\app\api\leaderboard\fetch+api.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 2ms src\app\api\leaderboard\fetch+api.ts (1 module)
+✅ Clerk iOS plugin loaded
+✅ Clerk Android plugin loaded
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 181ms node_modules\@expo\router-server\node\render.js (1 module)
+PostHog config: { apiKey: 'SET', host: 'https://us.i.posthog.com', isConfigured: true }
+λ  LOG  Stream Video SDK native modules not found. Falling back to simulated calling.
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web Bundled 1317ms node_modules\expo-router\entry.js (1 module)
+Web Bundled 110ms node_modules\expo-router\entry.js (1 module)
+ LOG  [web] Logs will appear in the browser console
+✅ Clerk iOS plugin loaded
+✅ Clerk Android plugin loaded
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 56ms node_modules\@expo\router-server\node\render.js (1 module)
+PostHog config: { apiKey: 'SET', host: 'https://us.i.posthog.com', isConfigured: true }
+λ  LOG  Stream Video SDK native modules not found. Falling back to simulated calling.
+Web Bundled 813ms node_modules\expo-router\entry.js (1 module)
+Web Bundled 138ms node_modules\expo-router\entry.js (1 module)
+ LOG  [web] Logs will appear in the browser console
+✅ Clerk iOS plugin loaded
+✅ Clerk Android plugin loaded
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 53ms node_modules\@expo\router-server\node\render.js (1 module)
+PostHog config: { apiKey: 'SET', host: 'https://us.i.posthog.com', isConfigured: true }
+λ  LOG  Stream Video SDK native modules not found. Falling back to simulated calling.
+Web Bundled 774ms node_modules\expo-router\entry.js (1 module)
+Web Bundled 107ms node_modules\expo-router\entry.js (1 module)
+ LOG  [web] Logs will appear in the browser console
+λ src\app\api\leaderboard\fetch+api.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 5ms src\app\api\leaderboard\fetch+api.ts (1 module)
+λ Bundled 140ms src\app\api\leaderboard\fetch+api.ts (1 module)
+λ src\app\api\leaderboard\fetch+api.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 6ms src\app\api\leaderboard\fetch+api.ts (1 module)
+λ src\app\api\leaderboard\fetch+api.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 6ms src\app\api\leaderboard\fetch+api.ts (1 module)
+λ src\app\api\leaderboard\fetch+api.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 7ms src\app\api\leaderboard\fetch+api.ts (1 module)
+λ src\app\api\leaderboard\fetch+api.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 7ms src\app\api\leaderboard\fetch+api.ts (1 module)
+λ src\app\api\leaderboard\fetch+api.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 6ms src\app\api\leaderboard\fetch+api.ts (1 module)
+✅ Clerk iOS plugin loaded
+✅ Clerk Android plugin loaded
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ node_modules\@expo\router-server\node\render.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 8649ms node_modules\@expo\router-server\node\render.js (1 module)
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web Bundled 15640ms node_modules\expo-router\entry.js (1 module)
+PostHog config: { apiKey: 'SET', host: 'https://us.i.posthog.com', isConfigured: true }
+λ  LOG  Stream Video SDK native modules not found. Falling back to simulated calling.
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web Bundled 722ms node_modules\expo-router\entry.js (1 module)
+ LOG  [web] Logs will appear in the browser console
+✅ Clerk iOS plugin loaded
+✅ Clerk Android plugin loaded
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ node_modules\@expo\router-server\node\render.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 7166ms node_modules\@expo\router-server\node\render.js (1 module)
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+PostHog config: { apiKey: 'SET', host: 'https://us.i.posthog.com', isConfigured: true }
+λ  LOG  Stream Video SDK native modules not found. Falling back to simulated calling.
+Web Bundled 8955ms node_modules\expo-router\entry.js (1 module)
+Web Bundled 147ms node_modules\expo-router\entry.js (1 module)
+ LOG  [web] Logs will appear in the browser console
+✅ Clerk iOS plugin loaded
+✅ Clerk Android plugin loaded
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 102ms node_modules\@expo\router-server\node\render.js (1 module)
+PostHog config: { apiKey: 'SET', host: 'https://us.i.posthog.com', isConfigured: true }
+λ  LOG  Stream Video SDK native modules not found. Falling back to simulated calling.
+Web Bundled 1363ms node_modules\expo-router\entry.js (1 module)
+Web Bundled 150ms node_modules\expo-router\entry.js (1 module)
+ LOG  [web] Logs will appear in the browser console
+λ Bundled 105ms src\app\api\leaderboard\fetch+api.ts (1 module)
+✅ Clerk iOS plugin loaded
+✅ Clerk Android plugin loaded
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ node_modules\@expo\router-server\node\render.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 6270ms node_modules\@expo\router-server\node\render.js (1 module)
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web Bundled 11190ms node_modules\expo-router\entry.js (1 module)
+PostHog config: { apiKey: 'SET', host: 'https://us.i.posthog.com', isConfigured: true }
+λ  LOG  Stream Video SDK native modules not found. Falling back to simulated calling.
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web Bundled 3742ms node_modules\expo-router\entry.js (1 module)
+ LOG  [web] Logs will appear in the browser console
+λ src\app\api\explain-answer+api.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 62ms src\app\api\explain-answer+api.ts (1 module)
+✅ Clerk iOS plugin loaded
+✅ Clerk Android plugin loaded
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 3435ms node_modules\@expo\router-server\node\render.js (1 module)
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ node_modules\@expo\router-server\node\render.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+PostHog config: { apiKey: 'SET', host: 'https://us.i.posthog.com', isConfigured: true }
+λ  LOG  Stream Video SDK native modules not found. Falling back to simulated calling.
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web Bundled 4232ms node_modules\expo-router\entry.js (1 module)
+Web Bundled 88ms node_modules\expo-router\entry.js (1 module)
+ LOG  [web] Logs will appear in the browser console
+λ Bundled 84ms src\app\api\leaderboard\fetch+api.ts (1 module)
+✅ Clerk iOS plugin loaded
+✅ Clerk Android plugin loaded
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web Bundled 695ms node_modules\expo-router\entry.js (1 module)
+λ Bundled 818ms node_modules\@expo\router-server\node\render.js (1 module)
+PostHog config: { apiKey: 'SET', host: 'https://us.i.posthog.com', isConfigured: true }
+λ  LOG  Stream Video SDK native modules not found. Falling back to simulated calling.
+Web Bundled 104ms node_modules\expo-router\entry.js (1 module)
+ LOG  [web] Logs will appear in the browser console
+✅ Clerk iOS plugin loaded
+✅ Clerk Android plugin loaded
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 431ms node_modules\@expo\router-server\node\render.js (1 module)
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web Bundled 4587ms node_modules\expo-router\entry.js (1 module)
+PostHog config: { apiKey: 'SET', host: 'https://us.i.posthog.com', isConfigured: true }
+λ  LOG  Stream Video SDK native modules not found. Falling back to simulated calling.
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web Bundled 5495ms node_modules\expo-router\entry.js (1 module)
+ LOG  [web] Logs will appear in the browser console
+✅ Clerk iOS plugin loaded
+✅ Clerk Android plugin loaded
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ node_modules\@expo\router-server\node\render.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 5741ms node_modules\@expo\router-server\node\render.js (1 module)
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+PostHog config: { apiKey: 'SET', host: 'https://us.i.posthog.com', isConfigured: true }
+λ  LOG  Stream Video SDK native modules not found. Falling back to simulated calling.
+Web Bundled 6583ms node_modules\expo-router\entry.js (1 module)
+Web Bundled 82ms node_modules\expo-router\entry.js (1 module)
+ LOG  [web] Logs will appear in the browser console
+λ src\app\api\leaderboard\fetch+api.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 225ms src\app\api\leaderboard\fetch+api.ts (1 module)
+λ src\app\api\leaderboard\fetch+api.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 66ms src\app\api\leaderboard\fetch+api.ts (1 module)
+✅ Clerk iOS plugin loaded
+✅ Clerk Android plugin loaded
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 65ms node_modules\@expo\router-server\node\render.js (1 module)
+PostHog config: { apiKey: 'SET', host: 'https://us.i.posthog.com', isConfigured: true }
+λ  LOG  Stream Video SDK native modules not found. Falling back to simulated calling.
+Web Bundled 1416ms node_modules\expo-router\entry.js (1 module)
+Web Bundled 87ms node_modules\expo-router\entry.js (1 module)
+ LOG  [web] Logs will appear in the browser console
+λ src\app\api\explain-answer+api.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 4ms src\app\api\explain-answer+api.ts (1 module)
+✅ Clerk iOS plugin loaded
+✅ Clerk Android plugin loaded
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ node_modules\@expo\router-server\node\render.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 4265ms node_modules\@expo\router-server\node\render.js (1 module)
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web Bundled 5911ms node_modules\expo-router\entry.js (1 module)
+PostHog config: { apiKey: 'SET', host: 'https://us.i.posthog.com', isConfigured: true }
+λ  LOG  Stream Video SDK native modules not found. Falling back to simulated calling.
+Web Bundled 96ms node_modules\expo-router\entry.js (1 module)
+ LOG  [web] Logs will appear in the browser console
+λ src\app\api\explain-answer+api.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 6ms src\app\api\explain-answer+api.ts (1 module)
+✅ Clerk iOS plugin loaded
+✅ Clerk Android plugin loaded
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 232ms node_modules\@expo\router-server\node\render.js (1 module)
+PostHog config: { apiKey: 'SET', host: 'https://us.i.posthog.com', isConfigured: true }
+λ  LOG  Stream Video SDK native modules not found. Falling back to simulated calling.
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web Bundled 1607ms node_modules\expo-router\entry.js (1 module)
+Web Bundled 76ms node_modules\expo-router\entry.js (1 module)
+ LOG  [web] Logs will appear in the browser console
+✅ Clerk iOS plugin loaded
+✅ Clerk Android plugin loaded
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 88ms node_modules\@expo\router-server\node\render.js (1 module)
+PostHog config: { apiKey: 'SET', host: 'https://us.i.posthog.com', isConfigured: true }
+λ  LOG  Stream Video SDK native modules not found. Falling back to simulated calling.
+Web Bundled 1418ms node_modules\expo-router\entry.js (1 module)
+Web Bundled 95ms node_modules\expo-router\entry.js (1 module)
+ LOG  [web] Logs will appear in the browser console
+✅ Clerk iOS plugin loaded
+✅ Clerk Android plugin loaded
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web Bundled 563ms node_modules\expo-router\entry.js (1 module)
+λ Bundled 677ms node_modules\@expo\router-server\node\render.js (1 module)
+PostHog config: { apiKey: 'SET', host: 'https://us.i.posthog.com', isConfigured: true }
+λ  LOG  Stream Video SDK native modules not found. Falling back to simulated calling.
+Web Bundled 92ms node_modules\expo-router\entry.js (1 module)
+ LOG  [web] Logs will appear in the browser console
+✅ Clerk iOS plugin loaded
+✅ Clerk Android plugin loaded
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web Bundled 517ms node_modules\expo-router\entry.js (1 module)
+λ Bundled 621ms node_modules\@expo\router-server\node\render.js (1 module)
+PostHog config: { apiKey: 'SET', host: 'https://us.i.posthog.com', isConfigured: true }
+λ  LOG  Stream Video SDK native modules not found. Falling back to simulated calling.
+Web Bundled 79ms node_modules\expo-router\entry.js (1 module)
+ LOG  [web] Logs will appear in the browser console
+λ src\app\api\explain-answer+api.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 2ms src\app\api\explain-answer+api.ts (1 module)
+✅ Clerk iOS plugin loaded
+✅ Clerk Android plugin loaded
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 189ms node_modules\@expo\router-server\node\render.js (1 module)
+PostHog config: { apiKey: 'SET', host: 'https://us.i.posthog.com', isConfigured: true }
+λ  LOG  Stream Video SDK native modules not found. Falling back to simulated calling.
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web Bundled 1401ms node_modules\expo-router\entry.js (1 module)
+Web Bundled 74ms node_modules\expo-router\entry.js (1 module)
+ LOG  [web] Logs will appear in the browser console
+λ src\app\api\explain-answer+api.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 2ms src\app\api\explain-answer+api.ts (1 module)
+✅ Clerk iOS plugin loaded
+✅ Clerk Android plugin loaded
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 209ms node_modules\@expo\router-server\node\render.js (1 module)
+PostHog config: { apiKey: 'SET', host: 'https://us.i.posthog.com', isConfigured: true }
+λ  LOG  Stream Video SDK native modules not found. Falling back to simulated calling.
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web Bundled 1608ms node_modules\expo-router\entry.js (1 module)
+Web Bundled 95ms node_modules\expo-router\entry.js (1 module)
+ LOG  [web] Logs will appear in the browser console
+λ src\app\api\explain-answer+api.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 2ms src\app\api\explain-answer+api.ts (1 module)
+✅ Clerk iOS plugin loaded
+✅ Clerk Android plugin loaded
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 200ms node_modules\@expo\router-server\node\render.js (1 module)
+PostHog config: { apiKey: 'SET', host: 'https://us.i.posthog.com', isConfigured: true }
+λ  LOG  Stream Video SDK native modules not found. Falling back to simulated calling.
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web Bundled 1245ms node_modules\expo-router\entry.js (1 module)
+Web Bundled 224ms node_modules\expo-router\entry.js (1 module)
+ LOG  [web] Logs will appear in the browser console
+λ src\app\api\explain-answer+api.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 3ms src\app\api\explain-answer+api.ts (1 module)
+✅ Clerk iOS plugin loaded
+✅ Clerk Android plugin loaded
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web Bundled 616ms node_modules\expo-router\entry.js (1 module)
+λ Bundled 773ms node_modules\@expo\router-server\node\render.js (1 module)
+PostHog config: { apiKey: 'SET', host: 'https://us.i.posthog.com', isConfigured: true }
+λ  LOG  Stream Video SDK native modules not found. Falling back to simulated calling.
+Web Bundled 68ms node_modules\expo-router\entry.js (1 module)
+ LOG  [web] Logs will appear in the browser console
+✅ Clerk iOS plugin loaded
+✅ Clerk Android plugin loaded
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 197ms node_modules\@expo\router-server\node\render.js (1 module)
+PostHog config: { apiKey: 'SET', host: 'https://us.i.posthog.com', isConfigured: true }
+λ  LOG  Stream Video SDK native modules not found. Falling back to simulated calling.
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web Bundled 1765ms node_modules\expo-router\entry.js (1 module)
+Web Bundled 78ms node_modules\expo-router\entry.js (1 module)
+ LOG  [web] Logs will appear in the browser console
+✅ Clerk iOS plugin loaded
+✅ Clerk Android plugin loaded
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 69ms node_modules\@expo\router-server\node\render.js (1 module)
+PostHog config: { apiKey: 'SET', host: 'https://us.i.posthog.com', isConfigured: true }
+λ  LOG  Stream Video SDK native modules not found. Falling back to simulated calling.
+Web Bundled 812ms node_modules\expo-router\entry.js (1 module)
+Web Bundled 83ms node_modules\expo-router\entry.js (1 module)
+ LOG  [web] Logs will appear in the browser console
+✅ Clerk iOS plugin loaded
+✅ Clerk Android plugin loaded
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 67ms node_modules\@expo\router-server\node\render.js (1 module)
+PostHog config: { apiKey: 'SET', host: 'https://us.i.posthog.com', isConfigured: true }
+λ  LOG  Stream Video SDK native modules not found. Falling back to simulated calling.
+Web Bundled 999ms node_modules\expo-router\entry.js (1 module)
+Web Bundled 102ms node_modules\expo-router\entry.js (1 module)
+ LOG  [web] Logs will appear in the browser console
+λ src\app\api\explain-answer+api.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 1ms src\app\api\explain-answer+api.ts (1 module)
+✅ Clerk iOS plugin loaded
+✅ Clerk Android plugin loaded
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web Bundled 498ms node_modules\expo-router\entry.js (1 module)
+λ Bundled 610ms node_modules\@expo\router-server\node\render.js (1 module)
+PostHog config: { apiKey: 'SET', host: 'https://us.i.posthog.com', isConfigured: true }
+λ  LOG  Stream Video SDK native modules not found. Falling back to simulated calling.
+Web Bundled 227ms node_modules\expo-router\entry.js (1 module)
+ LOG  [web] Logs will appear in the browser console
+λ src\app\api\explain-answer+api.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 2ms src\app\api\explain-answer+api.ts (1 module)
+✅ Clerk iOS plugin loaded
+✅ Clerk Android plugin loaded
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 53ms node_modules\@expo\router-server\node\render.js (1 module)
+PostHog config: { apiKey: 'SET', host: 'https://us.i.posthog.com', isConfigured: true }
+λ  LOG  Stream Video SDK native modules not found. Falling back to simulated calling.
+Web Bundled 1285ms node_modules\expo-router\entry.js (1 module)
+Web Bundled 64ms node_modules\expo-router\entry.js (1 module)
+ LOG  [web] Logs will appear in the browser console
+λ src\app\api\leaderboard\fetch+api.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 63ms src\app\api\leaderboard\fetch+api.ts (1 module)
+λ src\app\api\leaderboard\fetch+api.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 44ms src\app\api\leaderboard\fetch+api.ts (1 module)
+λ src\app\api\leaderboard\fetch+api.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 43ms src\app\api\leaderboard\fetch+api.ts (1 module)
+λ src\app\api\leaderboard\fetch+api.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 2ms src\app\api\leaderboard\fetch+api.ts (1 module)
+λ src\app\api\leaderboard\fetch+api.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 2ms src\app\api\leaderboard\fetch+api.ts (1 module)
+λ src\app\api\leaderboard\fetch+api.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 2ms src\app\api\leaderboard\fetch+api.ts (1 module)
+λ src\app\api\leaderboard\fetch+api.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 2ms src\app\api\leaderboard\fetch+api.ts (1 module)
+λ src\app\api\leaderboard\fetch+api.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 2ms src\app\api\leaderboard\fetch+api.ts (1 module)
+λ src\app\api\leaderboard\fetch+api.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 37ms src\app\api\leaderboard\fetch+api.ts (1 module)
+λ src\app\api\leaderboard\fetch+api.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 4ms src\app\api\leaderboard\fetch+api.ts (1 module)
+✅ Clerk iOS plugin loaded
+✅ Clerk Android plugin loaded
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ node_modules\@expo\router-server\node\render.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 5079ms node_modules\@expo\router-server\node\render.js (1 module)
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+PostHog config: { apiKey: 'SET', host: 'https://us.i.posthog.com', isConfigured: true }
+λ  LOG  Stream Video SDK native modules not found. Falling back to simulated calling.
+Web Bundled 11499ms node_modules\expo-router\entry.js (1 module)
+Web Bundled 105ms node_modules\expo-router\entry.js (1 module)
+ LOG  [web] Logs will appear in the browser console
+λ src\app\api\leaderboard\fetch+api.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 55ms src\app\api\leaderboard\fetch+api.ts (1 module)
+λ src\app\api\leaderboard\fetch+api.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 19ms src\app\api\leaderboard\fetch+api.ts (1 module)
+λ src\app\api\leaderboard\fetch+api.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 72ms src\app\api\leaderboard\fetch+api.ts (1 module)
+λ src\app\api\leaderboard\fetch+api.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 69ms src\app\api\leaderboard\fetch+api.ts (1 module)
+λ src\app\api\leaderboard\fetch+api.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 799ms src\app\api\leaderboard\fetch+api.ts (1 module)
+✅ Clerk iOS plugin loaded
+✅ Clerk Android plugin loaded
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ node_modules\@expo\router-server\node\render.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web Bundled 11225ms node_modules\expo-router\entry.js (1 module)
+λ node_modules\@expo\router-server\node\render.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 11553ms node_modules\@expo\router-server\node\render.js (1 module)
+PostHog config: { apiKey: 'SET', host: 'https://us.i.posthog.com', isConfigured: true }
+λ  LOG  Stream Video SDK native modules not found. Falling back to simulated calling.
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web Bundled 448ms node_modules\expo-router\entry.js (1 module)
+ LOG  [web] Logs will appear in the browser console
+λ Bundled 76ms src\app\api\leaderboard\fetch+api.ts (1 module)
+✅ Clerk iOS plugin loaded
+✅ Clerk Android plugin loaded
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ node_modules\@expo\router-server\node\render.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 5728ms node_modules\@expo\router-server\node\render.js (1 module)
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+PostHog config: { apiKey: 'SET', host: 'https://us.i.posthog.com', isConfigured: true }
+λ  LOG  Stream Video SDK native modules not found. Falling back to simulated calling.
+Web Bundled 7432ms node_modules\expo-router\entry.js (1 module)
+Web Bundled 90ms node_modules\expo-router\entry.js (1 module)
+ LOG  [web] Logs will appear in the browser console
+✅ Clerk iOS plugin loaded
+✅ Clerk Android plugin loaded
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 115ms node_modules\@expo\router-server\node\render.js (1 module)
+PostHog config: { apiKey: 'SET', host: 'https://us.i.posthog.com', isConfigured: true }
+λ  LOG  Stream Video SDK native modules not found. Falling back to simulated calling.
+Web Bundled 1102ms node_modules\expo-router\entry.js (1 module)
+Web Bundled 892ms node_modules\expo-router\entry.js (1 module)
+ LOG  [web] Logs will appear in the browser console

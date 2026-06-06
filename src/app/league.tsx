@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
 	StyleSheet,
 	ActivityIndicator,
@@ -11,7 +11,8 @@ import { useRouter } from "expo-router";
 import { Feather } from "@expo/vector-icons";
 import { Text, View, TouchableOpacity } from "@/tw";
 import { Image } from "@/tw/image";
-import { useUser } from "@clerk/expo";
+import { useAuth, useUser } from "@clerk/expo";
+import { authFetch } from "@/lib/apiClient";
 import { blurActiveElement } from "@/utils/dom";
 
 interface LeaderboardRow {
@@ -22,20 +23,43 @@ interface LeaderboardRow {
 	xp: number;
 }
 
+type LeaderboardFetchResponse = {
+	rows?: LeaderboardRow[];
+	userRow?: LeaderboardRow | null;
+	error?: string;
+};
+
 export default function LeagueScreen() {
 	const router = useRouter();
+	const { getToken } = useAuth();
 	const { user } = useUser();
+	const getTokenRef = useRef(getToken);
 	const [activeTab, setActiveTab] = useState<"weekly" | "alltime" | "friends">("weekly");
 	const [loading, setLoading] = useState<boolean>(true);
 	const [leaderboardRows, setLeaderboardRows] = useState<LeaderboardRow[]>([]);
 	const [currentUserRow, setCurrentUserRow] = useState<LeaderboardRow | null>(null);
+	const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+	useEffect(() => {
+		getTokenRef.current = getToken;
+	}, [getToken]);
 
 	const fetchLeaderboard = useCallback(async () => {
 		setLoading(true);
+		setErrorMessage(null);
 		try {
-			const clerkParam = user?.id ? `&clerkUserId=${user.id}` : "";
-			const res = await fetch(`/api/leaderboard/fetch?type=${activeTab}${clerkParam}`);
-			const data = await res.json();
+			if (activeTab === "friends") {
+				setLeaderboardRows([]);
+				setCurrentUserRow(null);
+				return;
+			}
+
+			const res = await authFetch(getTokenRef.current, `/api/leaderboard/fetch?type=${activeTab}`);
+			const data = (await res.json()) as LeaderboardFetchResponse;
+
+			if (!res.ok || data.error) {
+				throw new Error(data.error || "Leaderboard request failed");
+			}
 			
 			if (data.rows) {
 				setLeaderboardRows(data.rows);
@@ -46,11 +70,17 @@ export default function LeagueScreen() {
 				setCurrentUserRow(null);
 			}
 		} catch (err) {
-			console.error("Failed to fetch leaderboard standings:", err);
+			setLeaderboardRows([]);
+			setCurrentUserRow(null);
+			setErrorMessage(
+				err instanceof Error
+					? err.message
+					: "Leaderboard is unavailable right now."
+			);
 		} finally {
 			setLoading(false);
 		}
-	}, [activeTab, user?.id]);
+	}, [activeTab]);
 
 	useEffect(() => {
 		if (activeTab !== "friends") {
@@ -244,6 +274,25 @@ export default function LeagueScreen() {
 					{loading ? (
 						<View className="flex-1 justify-center items-center">
 							<ActivityIndicator size="large" color="#6C4EF5" />
+						</View>
+					) : errorMessage ? (
+						<View className="flex-1 justify-center items-center p-6">
+							<Feather name="wifi-off" size={40} color="#FF8A00" />
+							<Text className="font-poppins-bold text-[16px] text-neutral-primary mt-3">
+								Leaderboard could not load
+							</Text>
+							<Text className="font-poppins text-[13px] text-neutral-secondary mt-1 text-center leading-[18px] max-w-[260px]">
+								{errorMessage}
+							</Text>
+							<TouchableOpacity
+								onPress={fetchLeaderboard}
+								className="bg-lingua-purple px-5 py-2.5 rounded-full mt-5"
+								activeOpacity={0.8}
+							>
+								<Text className="font-poppins-bold text-white text-[13px]">
+									Try Again
+								</Text>
+							</TouchableOpacity>
 						</View>
 					) : leaderboardRows.length === 0 ? (
 						<View className="flex-1 justify-center items-center p-6">

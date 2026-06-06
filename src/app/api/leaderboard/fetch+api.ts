@@ -1,4 +1,5 @@
-import { getSupabaseAdmin } from "../../../config/supabase";
+import { requireApiAuth } from "../../../lib/serverAuth";
+import { getSupabaseAdmin } from "../../../lib/supabaseAdmin";
 
 const getCurrentMondayStr = (): string => {
 	const now = new Date();
@@ -11,9 +12,18 @@ const getCurrentMondayStr = (): string => {
 
 export async function GET(request: Request) {
 	try {
+		const auth = await requireApiAuth(request);
+
+		if (auth instanceof Response) {
+			return auth;
+		}
+
 		const url = new URL(request.url);
 		const type = url.searchParams.get("type") || "weekly";
-		const clerkUserId = url.searchParams.get("clerkUserId");
+
+		if (type !== "weekly" && type !== "alltime") {
+			return Response.json({ error: "Invalid leaderboard type" }, { status: 400 });
+		}
 
 		const isWeekly = type === "weekly";
 		const currentMonday = getCurrentMondayStr();
@@ -26,7 +36,7 @@ export async function GET(request: Request) {
 				console.warn("Supabase Admin client not initialized (keys are placeholders or missing).");
 				return Response.json({ rows: [], userRow: null });
 			}
-		} catch (envErr: any) {
+		} catch (envErr) {
 			console.error("Supabase Admin client initialization failed (likely missing env vars):", envErr);
 			return Response.json({ rows: [], userRow: null });
 		}
@@ -61,56 +71,53 @@ export async function GET(request: Request) {
 
 		let userRow = null;
 
-		if (clerkUserId) {
-			try {
-				// Fetch the current user record to check if they are in the database
-				const { data: userRecord, error: userRecErr } = await supabaseAdmin
+		try {
+			const { data: userRecord, error: userRecErr } = await supabaseAdmin
+				.from("leaderboard")
+				.select("clerk_user_id, display_name, avatar_url, weekly_xp, total_xp, week_start")
+				.eq("clerk_user_id", auth.userId)
+				.maybeSingle();
+
+			if (userRecErr) {
+				console.error("Leaderboard fetch user record error:", userRecErr);
+			} else if (userRecord) {
+				const userXp = isWeekly
+					? (userRecord.week_start === currentMonday ? userRecord.weekly_xp : 0)
+					: userRecord.total_xp;
+
+				// Count how many users have strictly higher XP
+				let countQuery = supabaseAdmin
 					.from("leaderboard")
-					.select("clerk_user_id, display_name, avatar_url, weekly_xp, total_xp, week_start")
-					.eq("clerk_user_id", clerkUserId)
-					.maybeSingle();
+					.select("id", { count: "exact", head: true });
 
-				if (userRecErr) {
-					console.error("Leaderboard fetch user record error:", userRecErr);
-				} else if (userRecord) {
-					const userXp = isWeekly
-						? (userRecord.week_start === currentMonday ? userRecord.weekly_xp : 0)
-						: userRecord.total_xp;
-
-					// Count how many users have strictly higher XP
-					let countQuery = supabaseAdmin
-						.from("leaderboard")
-						.select("id", { count: "exact", head: true });
-
-					if (isWeekly) {
-						countQuery = countQuery
-							.eq("week_start", currentMonday)
-							.gt("weekly_xp", userXp);
-					} else {
-						countQuery = countQuery.gt("total_xp", userXp);
-					}
-
-					const { count, error: countErr } = await countQuery;
-					if (countErr) {
-						console.error("Leaderboard count query error:", countErr);
-					}
-					const userRank = (count || 0) + 1;
-
-					userRow = {
-						rank: userRank,
-						clerkUserId: userRecord.clerk_user_id,
-						displayName: userRecord.display_name,
-						avatarUrl: userRecord.avatar_url,
-						xp: userXp,
-					};
+				if (isWeekly) {
+					countQuery = countQuery
+						.eq("week_start", currentMonday)
+						.gt("weekly_xp", userXp);
+				} else {
+					countQuery = countQuery.gt("total_xp", userXp);
 				}
-			} catch (userErr: any) {
-				console.error("Failed to query user weekly rank details:", userErr);
+
+				const { count, error: countErr } = await countQuery;
+				if (countErr) {
+					console.error("Leaderboard count query error:", countErr);
+				}
+				const userRank = (count || 0) + 1;
+
+				userRow = {
+					rank: userRank,
+					clerkUserId: userRecord.clerk_user_id,
+					displayName: userRecord.display_name,
+					avatarUrl: userRecord.avatar_url,
+					xp: userXp,
+				};
 			}
+		} catch (userErr) {
+			console.error("Failed to query user weekly rank details:", userErr);
 		}
 
 		return Response.json({ rows, userRow });
-	} catch (error: any) {
+	} catch (error) {
 		console.error("Fetch API Route error:", error);
 		return Response.json({ rows: [], userRow: null });
 	}

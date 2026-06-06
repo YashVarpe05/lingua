@@ -1,4 +1,5 @@
-import { getSupabaseAdmin } from "../../../config/supabase";
+import { requireApiAuth } from "../../../lib/serverAuth";
+import { getSupabaseAdmin } from "../../../lib/supabaseAdmin";
 
 const getCurrentMondayStr = (): string => {
 	const now = new Date();
@@ -11,12 +12,18 @@ const getCurrentMondayStr = (): string => {
 
 export async function POST(request: Request) {
 	try {
-		const { clerkUserId, displayName, avatarUrl, sessionXP } = await request.json();
+		const auth = await requireApiAuth(request);
 
-		if (!clerkUserId) {
-			return Response.json({ error: "Missing clerkUserId" }, { status: 400 });
+		if (auth instanceof Response) {
+			return auth;
 		}
-		if (typeof sessionXP !== "number" || sessionXP < 0) {
+
+		const body = (await request.json()) as Record<string, unknown>;
+		const displayName = typeof body.displayName === "string" ? body.displayName : "Anonymous";
+		const avatarUrl = typeof body.avatarUrl === "string" ? body.avatarUrl : null;
+		const sessionXP = typeof body.sessionXP === "number" ? body.sessionXP : Number.NaN;
+
+		if (!Number.isInteger(sessionXP) || sessionXP < 1 || sessionXP > 100) {
 			return Response.json({ error: "Invalid sessionXP" }, { status: 400 });
 		}
 
@@ -27,16 +34,15 @@ export async function POST(request: Request) {
 		}
 		const currentMonday = getCurrentMondayStr();
 
-		// Fetch existing row for clerkUserId
 		const { data: existing, error: fetchError } = await supabaseAdmin
 			.from("leaderboard")
 			.select("id, weekly_xp, total_xp, week_start")
-			.eq("clerk_user_id", clerkUserId)
+			.eq("clerk_user_id", auth.userId)
 			.maybeSingle();
 
 		if (fetchError) {
 			console.error("Fetch existing leaderboard row error:", fetchError);
-			return Response.json({ error: fetchError.message }, { status: 500 });
+			return Response.json({ error: "Failed to update leaderboard" }, { status: 500 });
 		}
 
 		if (existing) {
@@ -62,20 +68,19 @@ export async function POST(request: Request) {
 					week_start: updatedWeekStart,
 					updated_at: new Date().toISOString(),
 				})
-				.eq("clerk_user_id", clerkUserId);
+				.eq("clerk_user_id", auth.userId);
 
 			if (updateError) {
 				console.error("Update leaderboard row error:", updateError);
-				return Response.json({ error: updateError.message }, { status: 500 });
+				return Response.json({ error: "Failed to update leaderboard" }, { status: 500 });
 			}
 
 			return Response.json({ success: true, action: "update" });
 		} else {
-			// No row exists, insert a new one
 			const { error: insertError } = await supabaseAdmin
 				.from("leaderboard")
 				.insert({
-					clerk_user_id: clerkUserId,
+					clerk_user_id: auth.userId,
 					display_name: displayName || "Anonymous",
 					avatar_url: avatarUrl,
 					weekly_xp: sessionXP,
@@ -86,13 +91,13 @@ export async function POST(request: Request) {
 
 			if (insertError) {
 				console.error("Insert leaderboard row error:", insertError);
-				return Response.json({ error: insertError.message }, { status: 500 });
+				return Response.json({ error: "Failed to update leaderboard" }, { status: 500 });
 			}
 
 			return Response.json({ success: true, action: "insert" });
 		}
-	} catch (error: any) {
+	} catch (error) {
 		console.error("Upsert API Route error:", error);
-		return Response.json({ error: error.message || "Internal server error" }, { status: 500 });
+		return Response.json({ error: "Internal server error" }, { status: 500 });
 	}
 }

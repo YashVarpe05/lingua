@@ -13,11 +13,18 @@ export default function UnitBanner({ unit, unitNumber }: UnitBannerProps) {
 	const unitEmoji = unit.unitEmoji || "👋";
 	const cefr = unit.cefr || "A1";
 	const cleanTitle = unit.title.replace(/^Unit \d+:\s*/i, "");
+	const guidebookDetails = [
+		unit.canDoGoal ? `Goal: ${unit.canDoGoal}` : unit.description,
+		unit.targetVocabulary?.length ? `Vocabulary: ${unit.targetVocabulary.join(", ")}` : null,
+		unit.grammarFocus?.length ? `Focus: ${unit.grammarFocus.join(", ")}` : null,
+	]
+		.filter(Boolean)
+		.join("\n\n");
 
 	const handleOpenGuidebook = () => {
 		Alert.alert(
 			`Unit ${unitNumber} Guidebook`,
-			unit.description,
+			guidebookDetails,
 			[{ text: "OK" }]
 		);
 	};
@@ -52,6 +59,20 @@ export default function UnitBanner({ unit, unitNumber }: UnitBannerProps) {
 			<Text className="font-poppins text-[13px] text-neutral-secondary mt-2 leading-[18px]">
 				{unit.description}
 			</Text>
+
+			{unit.canDoGoal ? (
+				<View className="bg-white/80 border border-white rounded-xl px-3 py-2 mt-3">
+					<Text
+						style={{ color: unitColor }}
+						className="font-poppins-bold text-[11px] uppercase tracking-[0.5px]"
+					>
+						Can-do goal
+					</Text>
+					<Text className="font-poppins-semibold text-[12px] text-neutral-primary mt-1 leading-[17px]">
+						{unit.canDoGoal}
+					</Text>
+				</View>
+			) : null}
 
 			<TouchableOpacity
 				onPress={handleOpenGuidebook}

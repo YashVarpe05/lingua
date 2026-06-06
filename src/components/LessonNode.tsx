@@ -63,6 +63,7 @@ export default function LessonNode({
 }: LessonNodeProps) {
 	const pressAnim = useRef(new Animated.Value(0)).current;
 	const pulseAnim = useRef(new Animated.Value(0)).current;
+	const isLocked = state === "locked";
 
 	useEffect(() => {
 		if (state === "active") {
@@ -87,6 +88,7 @@ export default function LessonNode({
 	}, [state, pulseAnim]);
 
 	const handlePressIn = () => {
+		if (isLocked) return;
 		Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
 		Animated.timing(pressAnim, {
 			toValue: 4,
@@ -96,6 +98,7 @@ export default function LessonNode({
 	};
 
 	const handlePressOut = () => {
+		if (isLocked) return;
 		Animated.timing(pressAnim, {
 			toValue: 0,
 			duration: 80,
@@ -155,6 +158,7 @@ export default function LessonNode({
 				onPressIn={handlePressIn}
 				onPressOut={handlePressOut}
 				onPress={onPress}
+				disabled={isLocked}
 				style={[
 					styles.outerNode,
 					{

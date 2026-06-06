@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import {
 	StyleSheet,
 	Platform,
@@ -10,6 +10,9 @@ import {
 	Modal,
 	Pressable,
 	GestureResponderEvent,
+	PanResponder,
+	View as NativeView,
+	TouchableOpacity as NativeTouchableOpacity,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -17,14 +20,17 @@ import { Feather } from "@expo/vector-icons";
 import { Text, View, TouchableOpacity } from "@/tw";
 import { Image } from "@/tw/image";
 import { images } from "@/constants/images";
-import { useProgressStore } from "@/store/useProgressStore";
+import { useProgressStore, type LearningSessionResult } from "@/store/useProgressStore";
 import { useLanguageStore } from "@/store/useLanguageStore";
 import { getLanguageUnitsAndLessons } from "@/utils/learning";
-import { getLessonById } from "@/data/lessons";
+import { generateSessionPlan, getRepairExerciseCandidate } from "@/utils/sessionGenerator";
+import { getCurriculumExplanationContext } from "@/data/curriculum";
 import { units as allUnits } from "@/data/units";
-import { Exercise } from "@/types/learning";
+import { Exercise, SessionIntent, WordBankOption } from "@/types/learning";
+import type { CurriculumExplanationConcept } from "@/data/curriculum";
+import { authFetch } from "@/lib/apiClient";
 import { usePostHog } from "posthog-react-native";
-import { useUser } from "@clerk/expo";
+import { useAuth, useUser } from "@clerk/expo";
 import * as Speech from "expo-speech";
 import * as Haptics from "expo-haptics";
 import Button3D from "@/components/Button3D";
@@ -32,25 +38,29 @@ import FeedbackDrawer from "@/components/FeedbackDrawer";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
 
-interface FillBlankOption {
-	value: string;
-	pronunciation?: string;
-}
+type FillBlankOption = WordBankOption;
 
 interface ExerciseSessionScreenProps {
 	forceReview?: boolean;
 }
 
+type AnswerExplanation = {
+	title: string;
+	tip: string;
+	example?: string;
+	retryPrompt?: string;
+};
+
 const fillBlankWordBanks: Record<string, FillBlankOption[]> = {
 	ja: [
-		{ value: "\u307E\u305B\u3093", pronunciation: "masen" },
-		{ value: "\u306B\u3061", pronunciation: "nichi" },
-		{ value: "\u3067\u3059", pronunciation: "desu" },
-		{ value: "\u3058\u3081", pronunciation: "jime" },
-		{ value: "\u3053\u3093", pronunciation: "kon" },
-		{ value: "\u307F", pronunciation: "mi" },
-		{ value: "\u3057\u304F", pronunciation: "shiku" },
-		{ value: "\u3042\u308A", pronunciation: "ari" },
+		{ value: "\u3059\u307F\u307E\u305B\u3093", label: "\u3059\u307F\u307E\u305B\u3093", pronunciation: "sumimasen", translation: "Excuse me" },
+		{ value: "\u3053\u3093\u306B\u3061\u306F", label: "\u3053\u3093\u306B\u3061\u306F", pronunciation: "konnichiwa", translation: "Hello" },
+		{ value: "\u3042\u308A\u304C\u3068\u3046", label: "\u3042\u308A\u304C\u3068\u3046", pronunciation: "arigatou", translation: "Thank you" },
+		{ value: "\u3055\u3088\u3046\u306A\u3089", label: "\u3055\u3088\u3046\u306A\u3089", pronunciation: "sayounara", translation: "Goodbye" },
+		{ value: "\u306F\u3058\u3081\u307E\u3057\u3066", label: "\u306F\u3058\u3081\u307E\u3057\u3066", pronunciation: "hajimemashite", translation: "Nice to meet you" },
+		{ value: "\u3067\u3059", label: "\u3067\u3059", pronunciation: "desu", translation: "I am / is" },
+		{ value: "\u3088\u308D\u3057\u304F\u304A\u306D\u304C\u3044\u3057\u307E\u3059", label: "\u3088\u308D\u3057\u304F\u304A\u306D\u304C\u3044\u3057\u307E\u3059", pronunciation: "yoroshiku onegai shimasu", translation: "Goodwill close" },
+		{ value: "\u304A\u540D\u524D\u306F", label: "\u304A\u540D\u524D\u306F", pronunciation: "o-namae wa", translation: "Your name?" },
 	],
 	es: [
 		{ value: "hola", pronunciation: "OH-lah" },
@@ -75,9 +85,32 @@ const knownFillBlankPronunciations: Record<string, string> = {
 	"\u306B\u3061": "nichi",
 	"\u3067\u3059": "desu",
 	"\u3058\u3081": "jime",
+	"\u3059\u307F\u307E\u305B\u3093": "sumimasen",
+	"\u3053\u3093\u306B\u3061\u306F": "konnichiwa",
+	"\u3042\u308A\u304C\u3068\u3046": "arigatou",
+	"\u3055\u3088\u3046\u306A\u3089": "sayounara",
+	"\u306F\u3058\u3081\u307E\u3057\u3066": "hajimemashite",
+	"\u3088\u308D\u3057\u304F\u304A\u306D\u304C\u3044\u3057\u307E\u3059": "yoroshiku onegai shimasu",
+	"\u304A\u540D\u524D\u306F": "o-namae wa",
 };
 
 const shuffleItems = <T,>(items: T[]) => [...items].sort(() => Math.random() - 0.5);
+
+const toFillBlankOption = (option: string | FillBlankOption, languageId?: string | null): FillBlankOption => {
+	if (typeof option !== "string") {
+		return {
+			...option,
+			label: option.label ?? option.value,
+			pronunciation: option.pronunciation ?? getFillBlankPronunciation(option.value, languageId),
+		};
+	}
+
+	return {
+		value: option,
+		label: option,
+		pronunciation: getFillBlankPronunciation(option, languageId),
+	};
+};
 
 const getFillBlankPronunciation = (value: string, languageId?: string | null) => {
 	if (!value) return "";
@@ -88,27 +121,29 @@ const getFillBlankPronunciation = (value: string, languageId?: string | null) =>
 };
 
 const buildFillBlankOptions = (
-	correctAnswer: string,
-	languageId?: string | null,
-	exerciseOptions: string[] = []
+	exercise: Exercise,
+	languageId?: string | null
 ) => {
+	const explicitWordBank = exercise.wordBank ?? [];
+	const providedCorrect = explicitWordBank.find((option) => option.value === exercise.correctAnswer);
 	const correctOption: FillBlankOption = {
-		value: correctAnswer,
-		pronunciation: getFillBlankPronunciation(correctAnswer, languageId),
+		...(providedCorrect ? toFillBlankOption(providedCorrect, languageId) : {}),
+		value: exercise.correctAnswer,
+		label: providedCorrect?.label ?? exercise.correctAnswer,
+		pronunciation: providedCorrect?.pronunciation ?? getFillBlankPronunciation(exercise.correctAnswer, languageId),
+		translation: providedCorrect?.translation,
 	};
 
 	const sourceOptions: FillBlankOption[] = [
-		...exerciseOptions.map((option) => ({
-			value: option,
-			pronunciation: getFillBlankPronunciation(option, languageId),
-		})),
+		...explicitWordBank.map((option) => toFillBlankOption(option, languageId)),
+		...(exercise.options ?? []).map((option) => toFillBlankOption(option, languageId)),
 		...(fillBlankWordBanks[languageId ?? ""] ?? []),
 	];
 
 	const uniqueDistractors = Array.from(
 		new Map(
 			sourceOptions
-				.filter((option) => option.value.trim() !== "" && option.value !== correctAnswer)
+				.filter((option) => option.value.trim() !== "" && option.value !== exercise.correctAnswer)
 				.map((option) => [option.value, option])
 		).values()
 	);
@@ -116,11 +151,138 @@ const buildFillBlankOptions = (
 	return shuffleItems([correctOption, ...shuffleItems(uniqueDistractors).slice(0, 5)]);
 };
 
+const buildFallbackExplanation = (
+	isCorrectAnswer: boolean,
+	correctAnswer: string,
+	concepts: CurriculumExplanationConcept[]
+): AnswerExplanation => {
+	const primaryConcept = concepts[0];
+	const conceptTitle = primaryConcept?.title ?? "This pattern";
+	const conceptDescription =
+		primaryConcept?.description ??
+		primaryConcept?.reviewPrompt ??
+		"Focus on the meaning and the exact phrase used in the lesson.";
+	const example = primaryConcept?.examples?.[0]
+		? `Example: ${primaryConcept.examples[0]}`
+		: undefined;
+
+	return {
+		title: isCorrectAnswer ? "Why this works" : "Remember this pattern",
+		tip: isCorrectAnswer
+			? `${conceptTitle}: ${conceptDescription}`
+			: `${conceptTitle}: the correct answer is "${correctAnswer}" because this lesson is practicing that phrase or pattern.`,
+		example,
+		retryPrompt: primaryConcept?.reviewPrompt,
+	};
+};
+
+const parseExplanationResponse = (value: unknown): AnswerExplanation | null => {
+	if (!value || typeof value !== "object") return null;
+	const record = value as Record<string, unknown>;
+	const title = typeof record.title === "string" ? record.title.trim() : "";
+	const tip = typeof record.tip === "string" ? record.tip.trim() : "";
+
+	if (!title || !tip) return null;
+
+	return {
+		title,
+		tip,
+		example: typeof record.example === "string" ? record.example.trim() : undefined,
+		retryPrompt: typeof record.retryPrompt === "string" ? record.retryPrompt.trim() : undefined,
+	};
+};
+
+interface FillBlankTileProps {
+	option: FillBlankOption;
+	disabled: boolean;
+	onSelect: (option: FillBlankOption) => void;
+	onDrop: (option: FillBlankOption, pageX: number, pageY: number) => void;
+}
+
+function FillBlankTile({ option, disabled, onSelect, onDrop }: FillBlankTileProps) {
+	const drag = useRef(new Animated.ValueXY()).current;
+	const [isDragging, setIsDragging] = useState(false);
+
+	const panResponder = useMemo(
+		() =>
+			PanResponder.create({
+				onStartShouldSetPanResponder: () => !disabled,
+				onStartShouldSetPanResponderCapture: () => !disabled,
+				onMoveShouldSetPanResponder: (_, gestureState) =>
+					!disabled && (Math.abs(gestureState.dx) > 6 || Math.abs(gestureState.dy) > 6),
+				onMoveShouldSetPanResponderCapture: (_, gestureState) =>
+					!disabled && (Math.abs(gestureState.dx) > 6 || Math.abs(gestureState.dy) > 6),
+				onPanResponderGrant: () => {
+					setIsDragging(true);
+					drag.setValue({ x: 0, y: 0 });
+				},
+				onPanResponderMove: Animated.event([null, { dx: drag.x, dy: drag.y }], {
+					useNativeDriver: false,
+				}),
+				onPanResponderRelease: (_, gestureState) => {
+					setIsDragging(false);
+					const didMove = Math.abs(gestureState.dx) > 6 || Math.abs(gestureState.dy) > 6;
+					if (didMove) {
+						const dropX = gestureState.moveX || gestureState.x0 + gestureState.dx;
+						const dropY = gestureState.moveY || gestureState.y0 + gestureState.dy;
+						onDrop(option, dropX, dropY);
+					} else {
+						onSelect(option);
+					}
+					Animated.spring(drag, {
+						toValue: { x: 0, y: 0 },
+						useNativeDriver: false,
+						speed: 20,
+						bounciness: 4,
+					}).start();
+				},
+				onPanResponderTerminate: () => {
+					setIsDragging(false);
+					Animated.spring(drag, {
+						toValue: { x: 0, y: 0 },
+						useNativeDriver: false,
+						speed: 20,
+						bounciness: 4,
+					}).start();
+				},
+			}),
+		[disabled, drag, onDrop, onSelect, option]
+	);
+
+	return (
+		<Animated.View
+			{...panResponder.panHandlers}
+			style={[
+				styles.fillBlankTile,
+				isDragging ? styles.fillBlankTileDragging : null,
+				{ transform: drag.getTranslateTransform() },
+			]}
+		>
+			<NativeView style={styles.fillBlankTilePressable}>
+				<Text className="font-poppins-bold text-[15px] text-neutral-primary text-center">
+					{option.label ?? option.value}
+				</Text>
+				{option.pronunciation ? (
+					<Text className="font-poppins-semibold text-[11px] text-neutral-secondary mt-0.5 text-center">
+						{option.pronunciation}
+					</Text>
+				) : null}
+				{option.translation ? (
+					<Text className="font-poppins text-[10px] text-neutral-secondary mt-0.5 text-center">
+						{option.translation}
+					</Text>
+				) : null}
+			</NativeView>
+		</Animated.View>
+	);
+}
+
 export default function ExerciseSessionScreen({
 	forceReview = false,
 }: ExerciseSessionScreenProps) {
 	const router = useRouter();
 	const posthog = usePostHog();
+	const { getToken } = useAuth();
 	const { user } = useUser();
 	const { lessonId, isDailyChallenge, mode, isCheckpoint, unitId } = useLocalSearchParams<{
 		lessonId?: string;
@@ -131,130 +293,100 @@ export default function ExerciseSessionScreen({
 	}>();
 	const isReviewSession = forceReview || mode === "review";
 	const isCheckpointMode = mode === "checkpoint";
+	const isAssessmentSession = isCheckpointMode || isCheckpoint === "true";
 
 	const selectedLanguageId = useLanguageStore((state) => state.selectedLanguageId);
-	const completeExerciseSession = useProgressStore((state) => state.completeExerciseSession);
+	const completeLearningSession = useProgressStore((state) => state.completeLearningSession);
 	const addMistake = useProgressStore((state) => state.addMistake);
 	const removeMistake = useProgressStore((state) => state.removeMistake);
-	const completeCheckpoint = useProgressStore((state) => state.completeCheckpoint);
-	const markCheckpointComplete = useProgressStore((state) => state.markCheckpointComplete);
-	const addXp = useProgressStore((state) => state.addXp);
-	const recordPractice = useProgressStore((state) => state.recordPractice);
+	const recordExerciseAttempt = useProgressStore((state) => state.recordExerciseAttempt);
+	const getForgettingScore = useProgressStore((state) => state.getForgettingScore);
 	const getMostUrgentLessons = useProgressStore((state) => state.getMostUrgentLessons);
 
 	// Fetch active lessons for selected language
-	const { lessons: activeLessons, units: activeUnits } = getLanguageUnitsAndLessons(selectedLanguageId || "es");
-	const lesson = activeLessons.find((l) => l.id === lessonId) || activeLessons[0];
-	const checkpointUnit = allUnits.find((unit) => unit.id === unitId);
+	const activeLanguageId = selectedLanguageId || "es";
+	const { lessons: activeLessons, units: activeUnits } = useMemo(
+		() => getLanguageUnitsAndLessons(activeLanguageId),
+		[activeLanguageId]
+	);
+	const lesson = useMemo(
+		() => activeLessons.find((l) => l.id === lessonId) || activeLessons[0],
+		[activeLessons, lessonId]
+	);
+	const checkpointUnit = useMemo(
+		() => allUnits.find((unit) => unit.id === unitId),
+		[unitId]
+	);
 	const currentUnit = checkpointUnit || activeUnits.find((u) => u.id === lesson?.unitId) || activeUnits[0];
+	const sessionIntent: SessionIntent = useMemo(() => {
+		if (isAssessmentSession) return "checkpoint";
+		if (isReviewSession) return "review";
+		if (mode === "mistakes") return "mistakes";
+		if (mode === "vocabulary") return "vocabulary";
+		if (mode === "listening") return "listening";
+		if (isDailyChallenge === "true") return "daily-challenge";
+		return "lesson";
+	}, [isAssessmentSession, isDailyChallenge, isReviewSession, mode]);
 
 	// Session State
 	const [exercises, setExercises] = useState<Exercise[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [currentIndex, setCurrentIndex] = useState(0);
 	const [reviewedLessonIds, setReviewedLessonIds] = useState<string[]>([]);
+	const [reviewFocusLabel, setReviewFocusLabel] = useState("");
+	const [plannedExerciseIds, setPlannedExerciseIds] = useState<string[]>([]);
 
 	// Load and filter exercises dynamically on mount
 	useEffect(() => {
-		if (isCheckpointMode) {
-			setExercises(checkpointUnit?.checkpointQuiz?.exercises?.slice(0, 5) ?? []);
-			setLoading(false);
-			return;
-		}
+		setLoading(true);
+		const progressState = useProgressStore.getState();
+		const plan = generateSessionPlan({
+			intent: sessionIntent,
+			selectedLanguageId: activeLanguageId,
+			lessons: activeLessons,
+			units: activeUnits,
+			lesson,
+			mode,
+			isLegacyCheckpoint: false,
+			checkpointUnit,
+			recentMistakes: mode === "mistakes" ? progressState.recentMistakes : [],
+			recentAttempts: isReviewSession ? progressState.recentAttempts : [],
+			conceptMemory: isReviewSession ? progressState.conceptMemory : {},
+			exerciseDifficultyMemory: progressState.exerciseDifficultyMemory,
+			conceptDifficultyMemory: progressState.conceptDifficultyMemory,
+			getForgettingScore,
+			getMostUrgentLessons,
+		});
 
-		if (isReviewSession) {
-			const urgentIds = getMostUrgentLessons(3);
-			const reviewItems = urgentIds
-				.flatMap((id) => {
-					const reviewLesson = getLessonById(id);
-					const lessonExercises = reviewLesson?.exercises ?? [];
-					return [...lessonExercises]
-						.sort(() => Math.random() - 0.5)
-						.slice(0, 2)
-						.map((exercise) => ({ exercise, lessonId: id }));
-				})
-				.slice(0, 5);
-
-			setReviewedLessonIds([...new Set(reviewItems.map((item) => item.lessonId))]);
-			setExercises(reviewItems.map((item) => item.exercise));
-			setLoading(false);
-			return;
-		}
-
-		if (!lesson) {
-			setLoading(false);
-			return;
-		}
-
-		let list: Exercise[] = [];
-
-		if (mode === "mistakes") {
-			const currentMistakes = useProgressStore.getState().recentMistakes || [];
-			const allExercises: Exercise[] = [];
-			activeLessons.forEach((l) => {
-				if (l.exercises) {
-					allExercises.push(...l.exercises);
-				}
-			});
-			list = allExercises.filter((ex) => currentMistakes.includes(ex.id));
-			// Shuffle mistakes
-			list = [...list].sort(() => Math.random() - 0.5);
-		} else if (mode === "vocabulary") {
-			const unitLessons = activeLessons.filter((l) => l.unitId === lesson.unitId);
-			const allUnitExercises: Exercise[] = [];
-			unitLessons.forEach((l) => {
-				if (l.exercises) {
-					allUnitExercises.push(...l.exercises);
-				}
-			});
-			list = allUnitExercises.filter(
-				(ex) => ex.type === "mcq" || ex.type === "matching-pairs" || ex.type === "tap-word"
-			);
-			// Shuffle vocabulary exercises
-			list = [...list].sort(() => Math.random() - 0.5);
-		} else if (mode === "listening") {
-			const unitLessons = activeLessons.filter((l) => l.unitId === lesson.unitId);
-			const allUnitExercises: Exercise[] = [];
-			unitLessons.forEach((l) => {
-				if (l.exercises) {
-					allUnitExercises.push(...l.exercises);
-				}
-			});
-			list = allUnitExercises.filter((ex) => ex.type === "listen-type");
-			// Shuffle listening exercises
-			list = [...list].sort(() => Math.random() - 0.5);
-		} else if (isCheckpoint === "true") {
-			const unitLessons = activeLessons.filter((l) => l.unitId === lesson.unitId);
-			const allUnitExercises: Exercise[] = [];
-			unitLessons.forEach((l) => {
-				if (l.exercises) {
-					allUnitExercises.push(...l.exercises);
-				}
-			});
-			// Shuffle checkpoint exercises
-			list = [...allUnitExercises].sort(() => Math.random() - 0.5);
-		} else {
-			list = lesson.exercises || [];
-		}
-
-		const limit = isCheckpoint === "true" ? 10 : 8;
-		setExercises(list.slice(0, limit));
+		setExercises(plan.exercises);
+		setReviewedLessonIds(plan.reviewedLessonIds);
+		setPlannedExerciseIds(plan.exercises.map((exercise) => exercise.id));
+		setReviewFocusLabel(plan.focusLabel ?? "");
+		setCurrentIndex(0);
+		setLeaderboardSyncFailed(false);
+		plannedExercisesRef.current = plan.exercises;
+		plannedReviewedLessonIdsRef.current = plan.reviewedLessonIds;
+		sessionSavedRef.current = false;
+		queuedRepairExerciseIdsRef.current.clear();
+		queuedRepairForExerciseIdsRef.current.clear();
+		repairInsertInFlightRef.current = false;
 		setLoading(false);
 	}, [
-		lessonId,
-		mode,
-		isCheckpoint,
-		selectedLanguageId,
+		activeLanguageId,
 		activeLessons,
-		lesson,
-		isReviewSession,
-		isCheckpointMode,
+		activeUnits,
 		checkpointUnit,
+		getForgettingScore,
 		getMostUrgentLessons,
+		isReviewSession,
+		lesson,
+		mode,
+		sessionIntent,
 	]);
 	const [selectedOption, setSelectedOption] = useState<string | null>(null);
 	const [typedAnswer, setTypedAnswer] = useState("");
 	const [fillBlankOptions, setFillBlankOptions] = useState<FillBlankOption[]>([]);
+	const blankSlotRef = useRef<React.ElementRef<typeof NativeView>>(null);
 	
 	// Matching Pairs specific state
 	const [leftOptions, setLeftOptions] = useState<string[]>([]);
@@ -265,6 +397,7 @@ export default function ExerciseSessionScreen({
 	const [matchedRights, setMatchedRights] = useState<string[]>([]);
 	const [mismatchedLeft, setMismatchedLeft] = useState<string | null>(null);
 	const [mismatchedRight, setMismatchedRight] = useState<string | null>(null);
+	const [matchingHadMistake, setMatchingHadMistake] = useState(false);
 
 	// Check/Answer Feedback State
 	const [isAnswered, setIsAnswered] = useState(false);
@@ -276,147 +409,253 @@ export default function ExerciseSessionScreen({
 	const [feedbackVisible, setFeedbackVisible] = useState(false);
 	const [lastAnswerCorrect, setLastAnswerCorrect] = useState(false);
 	const [correctAnswerText, setCorrectAnswerText] = useState("");
+	const [feedbackExplanationTitle, setFeedbackExplanationTitle] = useState("");
+	const [feedbackExplanation, setFeedbackExplanation] = useState("");
+	const [feedbackExplanationExample, setFeedbackExplanationExample] = useState("");
+	const [feedbackExplanationLoading, setFeedbackExplanationLoading] = useState(false);
 	const [showHeartModal, setShowHeartModal] = useState(false);
 	const [animatingLostHeart, setAnimatingLostHeart] = useState<number | null>(null);
 	const [isFinished, setIsFinished] = useState(false);
+	const [leaderboardSyncFailed, setLeaderboardSyncFailed] = useState(false);
 
 	// Local results state to render on results screen
-	const [resultsData, setResultsData] = useState<{
-		xpEarned: number;
-		newTotalXp: number;
-		newStreak: number;
-		levelledUp: boolean;
-		newLevel: number;
-	} | null>(null);
+	const [resultsData, setResultsData] = useState<LearningSessionResult | null>(null);
 
 	// Animation
 	const slideAnim = useRef(new Animated.Value(0)).current;
 	const progressAnim = useRef(new Animated.Value(0)).current;
 	const heartScaleAnims = useRef([1, 2, 3].map(() => new Animated.Value(1))).current;
-	const reviewSavedRef = useRef(false);
-	const checkpointSavedRef = useRef(false);
+	const sessionSavedRef = useRef(false);
 	const goldPulseAnim = useRef(new Animated.Value(1)).current;
+	const sessionIdRef = useRef(`session_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`);
+	const exerciseStartedAtRef = useRef(Date.now());
+	const explanationRequestIdRef = useRef(0);
+	const queuedRepairExerciseIdsRef = useRef(new Set<string>());
+	const queuedRepairForExerciseIdsRef = useRef(new Set<string>());
+	const repairInsertInFlightRef = useRef(false);
+	const plannedExercisesRef = useRef<Exercise[]>([]);
+	const plannedReviewedLessonIdsRef = useRef<string[]>([]);
 
 	const currentExercise = exercises[currentIndex];
+	const plannedExerciseIdSet = useMemo(
+		() => new Set(plannedExerciseIds),
+		[plannedExerciseIds]
+	);
+	const plannedExerciseCount = plannedExerciseIds.length;
+	const completedPlannedExerciseCount = useMemo(
+		() =>
+			exercises
+				.slice(0, currentIndex)
+				.filter((exercise) => plannedExerciseIdSet.has(exercise.id)).length,
+		[exercises, currentIndex, plannedExerciseIdSet]
+	);
+	const currentExerciseIsPlanned = currentExercise
+		? plannedExerciseIdSet.has(currentExercise.id)
+		: false;
+	const repairCandidate = useMemo(() => {
+		if (
+			!currentExercise ||
+			!feedbackVisible ||
+			lastAnswerCorrect ||
+			currentExercise.isRepair ||
+			isAssessmentSession ||
+			hearts <= 0 ||
+			queuedRepairForExerciseIdsRef.current.has(currentExercise.id)
+		) {
+			return null;
+		}
+
+		const progressState = useProgressStore.getState();
+		const unavailableExerciseIds = [
+			...exercises.map((exercise) => exercise.id),
+			...Array.from(queuedRepairExerciseIdsRef.current),
+		];
+
+		return getRepairExerciseCandidate({
+			currentExercise,
+			selectedLanguageId: activeLanguageId,
+			lessons: activeLessons,
+			units: activeUnits,
+			sessionIntent,
+			unavailableExerciseIds,
+			exerciseDifficultyMemory: progressState.exerciseDifficultyMemory,
+			conceptDifficultyMemory: progressState.conceptDifficultyMemory,
+		});
+	}, [
+		activeLanguageId,
+		activeLessons,
+		activeUnits,
+		currentExercise,
+		exercises,
+		feedbackVisible,
+		hearts,
+		isAssessmentSession,
+		lastAnswerCorrect,
+		sessionIntent,
+	]);
+	const difficultyBandLabel =
+		currentExercise?.isRepair
+			? "Repair"
+			: currentExercise?.difficultyBand === "warmup"
+			? "Warm-up"
+			: currentExercise?.difficultyBand === "challenge"
+			? "Challenge"
+			: "Practice";
+	const difficultyBandClass =
+		currentExercise?.isRepair
+			? "text-[#1CB0F6]"
+			: currentExercise?.difficultyBand === "warmup"
+			? "text-[#58CC02]"
+			: currentExercise?.difficultyBand === "challenge"
+			? "text-[#FF9600]"
+			: "text-[#1CB0F6]";
+
+	useEffect(() => {
+		exerciseStartedAtRef.current = Date.now();
+		repairInsertInFlightRef.current = false;
+	}, [currentExercise?.id]);
+
+	const recordCurrentExerciseAttempt = useCallback(
+		(correct: boolean, selectedAnswer?: string) => {
+			if (!currentExercise) return;
+			const createdAt = Date.now();
+			const durationMs = Math.max(createdAt - exerciseStartedAtRef.current, 0);
+
+			recordExerciseAttempt({
+				id: `${sessionIdRef.current}_${currentExercise.id}_${createdAt}`,
+				sessionId: sessionIdRef.current,
+				sessionIntent,
+				exerciseId: currentExercise.id,
+				exerciseType: currentExercise.type,
+				correctAnswer: currentExercise.correctAnswer,
+				selectedAnswer,
+				correct,
+				conceptIds: currentExercise.conceptIds ?? [currentExercise.id],
+				lessonId: currentExercise.lessonId ?? lesson?.id,
+				unitId: currentExercise.unitId ?? currentUnit?.id ?? lesson?.unitId,
+				languageId: currentExercise.languageId ?? activeLanguageId,
+				difficulty: currentExercise.difficulty,
+				durationMs,
+				predictedDifficultyScore: currentExercise.predictedDifficultyScore,
+				createdAt,
+			});
+		},
+		[
+			activeLanguageId,
+			currentExercise,
+			currentUnit?.id,
+			lesson?.id,
+			lesson?.unitId,
+			recordExerciseAttempt,
+			sessionIntent,
+		]
+	);
 
 	// Trigger completion when session is finished
 	useEffect(() => {
-		if (isFinished && !resultsData && lesson) {
-			const score = exercises.length > 0
-				? Math.round((correctAnswersCount / exercises.length) * 100)
-				: 0;
+		if (!isFinished || resultsData || !lesson || sessionSavedRef.current) return;
 
-			if (isCheckpointMode) {
-				if (checkpointSavedRef.current) return;
-				checkpointSavedRef.current = true;
+		sessionSavedRef.current = true;
 
-				const passedCheckpoint = score >= 80;
-				const xpEarned = passedCheckpoint ? 50 : 10;
+		const scoredExerciseCount = plannedExerciseCount || exercises.length;
+		const score = scoredExerciseCount > 0
+			? Math.round((correctAnswersCount / scoredExerciseCount) * 100)
+			: 0;
+		const checkpointPassed = score >= 80;
+		const sessionType = isAssessmentSession
+			? "checkpoint"
+			: isReviewSession
+			? "review"
+			: isDailyChallenge === "true"
+			? "daily-challenge"
+			: "lesson";
+		const xpEarned = isAssessmentSession
+			? checkpointPassed
+				? 50
+				: 10
+			: correctAnswersCount * 10;
+		const checkpointUnitId = currentUnit?.id ?? unitId;
+		const checkpointLessonIds = checkpointUnitId
+			? activeLessons
+					.filter((item) => item.unitId === checkpointUnitId && !item.isCheckpoint)
+					.map((item) => item.id)
+			: [];
+		const practicedLessonIds = isAssessmentSession
+			? checkpointLessonIds.length > 0
+				? checkpointLessonIds
+				: [lesson.id]
+			: isReviewSession
+			? reviewedLessonIds.length > 0
+				? reviewedLessonIds
+				: [lesson.id]
+			: [lesson.id];
 
-				addXp(xpEarned).then(() => {
-					if (passedCheckpoint && unitId) {
-						markCheckpointComplete(unitId);
-					}
+		completeLearningSession({
+			sessionType,
+			xpEarned,
+			score,
+			plannedCorrectCount: correctAnswersCount,
+			plannedExerciseCount: scoredExerciseCount,
+			practicedLessonIds,
+			completedLessonId: !isAssessmentSession && !isReviewSession ? lesson.id : undefined,
+			checkpointUnitId: isAssessmentSession ? checkpointUnitId : undefined,
+			passed: isAssessmentSession ? checkpointPassed : score >= 70,
+		})
+			.then(async (res) => {
+				setResultsData(res);
+				setLeaderboardSyncFailed(false);
 
-					setResultsData({
-						xpEarned,
-						newTotalXp: 0,
-						newStreak: 0,
-						levelledUp: false,
-						newLevel: 0,
-					});
-				});
-				return;
-			}
+				if (res.xpEarned <= 0 || !user?.id) return;
 
-			if (isReviewSession) {
-				if (reviewSavedRef.current) return;
-				reviewSavedRef.current = true;
-
-				const lessonIds = reviewedLessonIds.length > 0 ? reviewedLessonIds : [lesson.id];
-				lessonIds.forEach((id) => recordPractice(id, score));
-				router.replace("/");
-				return;
-			}
-
-			const xpEarned = isCheckpoint === "true" ? 50 : correctAnswersCount * 10;
-			const isDaily = isDailyChallenge === "true";
-			
-			completeExerciseSession(lesson.id, xpEarned, isDaily).then((res) => {
-				recordPractice(lesson.id, score);
-				setResultsData({
-					xpEarned,
-					newTotalXp: res.newTotalXp,
-					newStreak: res.newStreak,
-					levelledUp: res.levelledUp,
-					newLevel: res.newLevel,
-				});
-
-				if (isCheckpoint === "true" && currentUnit) {
-					completeCheckpoint(currentUnit.id);
-				}
-
-				// Leaderboard integration (fire & forget)
-				if (user?.id) {
+				try {
 					const displayName = user.fullName ?? user.username ?? "Anonymous";
 					const avatarUrl = user.imageUrl;
-					
-					console.log("Initiating leaderboard upsert fetch call with data:", {
-						clerkUserId: user.id,
-						displayName,
-						avatarUrl,
-						sessionXP: xpEarned,
-					});
 
-					fetch("/api/leaderboard/upsert", {
+					authFetch(getToken, "/api/leaderboard/upsert", {
 						method: "POST",
 						headers: {
 							"Content-Type": "application/json",
 						},
 						body: JSON.stringify({
-							clerkUserId: user.id,
 							displayName,
 							avatarUrl,
-							sessionXP: xpEarned,
+							sessionXP: res.xpEarned,
 						}),
 					})
-						.then((r) => {
-							console.log("Leaderboard upsert fetch returned response status:", r.status);
-							return r.json();
-						})
+						.then((r) => r.json())
 						.then((data) => {
 							if (data.error) {
-								console.error("Leaderboard upsert failed on server:", data.error);
-							} else {
-								console.log("Leaderboard upsert success response:", data);
+								setLeaderboardSyncFailed(true);
 							}
 						})
-						.catch((err) => {
-							console.error("Leaderboard upsert network error:", err);
+						.catch(() => {
+							setLeaderboardSyncFailed(true);
 						});
+				} catch {
+					setLeaderboardSyncFailed(true);
 				}
+			})
+			.catch((error) => {
+				sessionSavedRef.current = false;
+				console.error("Failed to complete learning session:", error);
 			});
-		}
 	}, [
 		isFinished,
 		resultsData,
 		lesson,
 		correctAnswersCount,
 		exercises.length,
+		plannedExerciseCount,
 		isDailyChallenge,
-		completeExerciseSession,
-		recordPractice,
-		addXp,
+		completeLearningSession,
+		getToken,
 		user,
-		isCheckpoint,
 		currentUnit,
-		completeCheckpoint,
-		markCheckpointComplete,
 		isReviewSession,
-		isCheckpointMode,
+		isAssessmentSession,
 		reviewedLessonIds,
-		router,
 		unitId,
+		activeLessons,
 	]);
 
 	const playAudio = useCallback(() => {
@@ -445,25 +684,18 @@ export default function ExerciseSessionScreen({
 			setMatchedRights([]);
 			setSelectedLeft(null);
 			setSelectedRight(null);
+			setMatchingHadMistake(false);
 		}
 	}, [currentIndex, currentExercise]);
 
 	useEffect(() => {
 		if (currentExercise?.type === "fill-in-the-blank") {
-			setFillBlankOptions(
-				buildFillBlankOptions(currentExercise.correctAnswer, selectedLanguageId, currentExercise.options)
-			);
+			setFillBlankOptions(buildFillBlankOptions(currentExercise, selectedLanguageId));
 			return;
 		}
 
 		setFillBlankOptions([]);
-	}, [
-		currentExercise?.correctAnswer,
-		currentExercise?.id,
-		currentExercise?.options,
-		currentExercise?.type,
-		selectedLanguageId,
-	]);
+	}, [currentExercise, selectedLanguageId]);
 
 	// Listen & Type speak initially
 	useEffect(() => {
@@ -478,25 +710,33 @@ export default function ExerciseSessionScreen({
 
 	// Slide In Spring Animation
 	useEffect(() => {
+		if (Platform.OS === "web") {
+			slideAnim.setValue(0);
+			return;
+		}
+
 		slideAnim.setValue(SCREEN_WIDTH);
 		Animated.spring(slideAnim, {
 			toValue: 0,
 			speed: 12,
 			bounciness: 6,
-			useNativeDriver: true,
+			useNativeDriver: false,
 		}).start();
 	}, [currentIndex, slideAnim]);
 
 	useEffect(() => {
 		Animated.timing(progressAnim, {
-			toValue: exercises.length > 0 ? currentIndex / exercises.length : 0,
+			toValue:
+				plannedExerciseCount > 0
+					? completedPlannedExerciseCount / plannedExerciseCount
+					: 0,
 			duration: 300,
 			useNativeDriver: false,
 		}).start();
-	}, [currentIndex, exercises.length, progressAnim]);
+	}, [completedPlannedExerciseCount, plannedExerciseCount, progressAnim]);
 
 	useEffect(() => {
-		if (!isCheckpointMode || !isFinished || !resultsData || resultsData.xpEarned < 50) {
+		if (!isAssessmentSession || !isFinished || !resultsData?.passed) {
 			goldPulseAnim.setValue(1);
 			return;
 		}
@@ -518,7 +758,7 @@ export default function ExerciseSessionScreen({
 
 		animation.start();
 		return () => animation.stop();
-	}, [goldPulseAnim, isCheckpointMode, isFinished, resultsData]);
+	}, [goldPulseAnim, isAssessmentSession, isFinished, resultsData]);
 
 	const animateLostHeart = (heartNumber: number) => {
 		const heartAnim = heartScaleAnims[heartNumber - 1];
@@ -544,14 +784,93 @@ export default function ExerciseSessionScreen({
 		});
 	};
 
-	const handleAnswer = (correct: boolean, correctAnswer: string) => {
+	const clearFeedbackExplanation = useCallback(() => {
+		explanationRequestIdRef.current += 1;
+		setFeedbackExplanationTitle("");
+		setFeedbackExplanation("");
+		setFeedbackExplanationExample("");
+		setFeedbackExplanationLoading(false);
+	}, []);
+
+	const requestAnswerExplanation = useCallback(
+		async (correct: boolean, correctAnswer: string, selectedAnswer?: string) => {
+			if (!currentExercise) return;
+
+			const shouldExplain =
+				!correct ||
+				currentExercise.difficultyBand === "challenge" ||
+				isAssessmentSession;
+
+			if (!shouldExplain) return;
+
+			const requestId = explanationRequestIdRef.current + 1;
+			explanationRequestIdRef.current = requestId;
+			const concepts = getCurriculumExplanationContext(
+				currentExercise.conceptIds ?? [currentExercise.id]
+			);
+			const fallback = buildFallbackExplanation(correct, correctAnswer, concepts);
+
+			setFeedbackExplanationTitle(fallback.title);
+			setFeedbackExplanation("");
+			setFeedbackExplanationExample("");
+			setFeedbackExplanationLoading(true);
+
+			try {
+				const response = await authFetch(getToken, "/api/explain-answer", {
+					method: "POST",
+					headers: {
+						"Content-Type": "application/json",
+					},
+					body: JSON.stringify({
+						exerciseType: currentExercise.type,
+						question: currentExercise.question,
+						selectedAnswer,
+						correctAnswer,
+						isCorrect: correct,
+						languageId: currentExercise.languageId ?? activeLanguageId,
+						difficultyBand: currentExercise.difficultyBand,
+						concepts,
+					}),
+				});
+
+				if (!response.ok) {
+					throw new Error("Explanation API unavailable");
+				}
+
+				const explanation = parseExplanationResponse(await response.json());
+
+				if (!explanation) {
+					throw new Error("Explanation response invalid");
+				}
+
+				if (explanationRequestIdRef.current !== requestId) return;
+
+				setFeedbackExplanationTitle(explanation.title);
+				setFeedbackExplanation(explanation.tip);
+				setFeedbackExplanationExample(explanation.example ?? explanation.retryPrompt ?? "");
+				setFeedbackExplanationLoading(false);
+			} catch {
+				if (explanationRequestIdRef.current !== requestId) return;
+
+				setFeedbackExplanationTitle(fallback.title);
+				setFeedbackExplanation(fallback.tip);
+				setFeedbackExplanationExample(fallback.example ?? fallback.retryPrompt ?? "");
+				setFeedbackExplanationLoading(false);
+			}
+		},
+		[activeLanguageId, currentExercise, getToken, isAssessmentSession]
+	);
+
+	const handleAnswer = (correct: boolean, correctAnswer: string, selectedAnswer?: string) => {
+		clearFeedbackExplanation();
+
 		if (correct) {
-			if (!isCheckpointMode) {
+			if (!isAssessmentSession) {
 				setCombo((prev) => prev + 1);
 			}
 			Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
 		} else {
-			if (!isCheckpointMode) {
+			if (!isAssessmentSession) {
 				setCombo(0);
 				animateLostHeart(hearts);
 				setHearts((prev) => Math.max(prev - 1, 0));
@@ -562,6 +881,7 @@ export default function ExerciseSessionScreen({
 		setLastAnswerCorrect(correct);
 		setCorrectAnswerText(correctAnswer);
 		setFeedbackVisible(true);
+		requestAnswerExplanation(correct, correctAnswer, selectedAnswer).catch(() => {});
 	};
 
 	// Match pairs verification
@@ -586,6 +906,7 @@ export default function ExerciseSessionScreen({
 	};
 
 	const verifyMatch = (leftWord: string, rightWord: string) => {
+		if (!currentExercise) return;
 		const pairs = currentExercise?.pairs || [];
 		const isMatch = pairs.some(p => p.left === leftWord && p.right === rightWord);
 
@@ -598,13 +919,44 @@ export default function ExerciseSessionScreen({
 			setSelectedRight(null);
 
 			if (nextMatchedLefts.length === pairs.length) {
+				const finalCorrect = !matchingHadMistake;
+				const selectedAnswer = finalCorrect
+					? "all pairs matched"
+					: "completed with one or more mismatches";
+				const pairAnswerText =
+					currentExercise.correctAnswer ||
+					pairs.map((pair) => `${pair.left} = ${pair.right}`).join(", ");
+
 				setIsAnswered(true);
-				setIsCorrect(true);
-				setCorrectAnswersCount(prev => prev + 1);
-				removeMistake(currentExercise.id);
-				handleAnswer(true, currentExercise.correctAnswer);
+				setIsCorrect(finalCorrect);
+
+				if (finalCorrect) {
+					if (currentExerciseIsPlanned) {
+						setCorrectAnswersCount(prev => prev + 1);
+					}
+					removeMistake(currentExercise.id);
+				} else {
+					addMistake(currentExercise.id);
+				}
+
+				if (finalCorrect && currentExercise.repairForExerciseId) {
+					removeMistake(currentExercise.repairForExerciseId);
+				}
+
+				recordCurrentExerciseAttempt(finalCorrect, selectedAnswer);
+				handleAnswer(finalCorrect, pairAnswerText, selectedAnswer);
+
+				posthog.capture("exercise_answered", {
+					exercise_id: currentExercise.id,
+					exercise_type: currentExercise.type,
+					is_correct: finalCorrect,
+					is_repair: Boolean(currentExercise.isRepair),
+					repair_for_exercise_id: currentExercise.repairForExerciseId ?? null,
+					lesson_id: lessonId ?? "review-session",
+				});
 			}
 		} else {
+			setMatchingHadMistake(true);
 			setMismatchedLeft(leftWord);
 			setMismatchedRight(rightWord);
 			setSelectedLeft(null);
@@ -618,11 +970,43 @@ export default function ExerciseSessionScreen({
 		}
 	};
 
+	const handleSelectFillBlankOption = useCallback(
+		(option: FillBlankOption) => {
+			if (isAnswered) return;
+			setTypedAnswer(option.value);
+			if (Platform.OS === "ios") {
+				Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => null);
+			}
+		},
+		[isAnswered]
+	);
+
+	const handleFillBlankTileDrop = useCallback(
+		(option: FillBlankOption, pageX: number, pageY: number) => {
+			if (isAnswered) return;
+
+			blankSlotRef.current?.measureInWindow((x, y, width, height) => {
+				const hitSlop = 18;
+				const isInsideSlot =
+					pageX >= x - hitSlop &&
+					pageX <= x + width + hitSlop &&
+					pageY >= y - hitSlop &&
+					pageY <= y + height + hitSlop;
+
+				if (isInsideSlot) {
+					handleSelectFillBlankOption(option);
+				}
+			});
+		},
+		[handleSelectFillBlankOption, isAnswered]
+	);
+
 	// Formats strings for loose matching in Listen & Type and Fill In Blank
 	const normalizeText = (text: string) => {
 		return text
+			.normalize("NFKC")
 			.toLowerCase()
-			.replace(/[¿?¡!.,]/g, "")
+			.replace(/[\u00BF?\u00A1!.,]/g, "")
 			.replace(/\s+/g, " ")
 			.trim();
 	};
@@ -640,7 +1024,9 @@ export default function ExerciseSessionScreen({
 				break;
 			case "fill-in-the-blank":
 			case "listen-type":
-				correct = normalizeText(typedAnswer) === normalizeText(currentExercise.correctAnswer);
+				correct = [currentExercise.correctAnswer, ...(currentExercise.acceptedAnswers ?? [])].some(
+					(answer) => normalizeText(typedAnswer) === normalizeText(answer)
+				);
 				break;
 			default:
 				break;
@@ -649,17 +1035,29 @@ export default function ExerciseSessionScreen({
 		setIsCorrect(correct);
 		setIsAnswered(true);
 		if (correct) {
-			setCorrectAnswersCount(prev => prev + 1);
+			if (currentExerciseIsPlanned) {
+				setCorrectAnswersCount(prev => prev + 1);
+			}
 			removeMistake(currentExercise.id);
+			if (currentExercise.repairForExerciseId) {
+				removeMistake(currentExercise.repairForExerciseId);
+			}
 		} else {
 			addMistake(currentExercise.id);
 		}
-		handleAnswer(correct, currentExercise.correctAnswer);
+		const selectedAnswer =
+			currentExercise.type === "mcq" || currentExercise.type === "tap-word"
+				? selectedOption ?? ""
+				: typedAnswer;
+		recordCurrentExerciseAttempt(correct, selectedAnswer);
+		handleAnswer(correct, currentExercise.correctAnswer, selectedAnswer);
 
 		posthog.capture("exercise_answered", {
 			exercise_id: currentExercise.id,
 			exercise_type: currentExercise.type,
 			is_correct: correct,
+			is_repair: Boolean(currentExercise.isRepair),
+			repair_for_exercise_id: currentExercise.repairForExerciseId ?? null,
 			lesson_id: lessonId ?? "review-session",
 		});
 	};
@@ -675,6 +1073,7 @@ export default function ExerciseSessionScreen({
 		setMatchedRights([]);
 		setMismatchedLeft(null);
 		setMismatchedRight(null);
+		setMatchingHadMistake(false);
 	};
 
 	const advanceExercise = () => {
@@ -689,8 +1088,9 @@ export default function ExerciseSessionScreen({
 	// Advance flow
 	const handleContinue = () => {
 		setFeedbackVisible(false);
+		clearFeedbackExplanation();
 
-		if (!isCheckpointMode && hearts <= 0 && !lastAnswerCorrect) {
+		if (!isAssessmentSession && hearts <= 0 && !lastAnswerCorrect) {
 			setShowHeartModal(true);
 			return;
 		}
@@ -698,30 +1098,87 @@ export default function ExerciseSessionScreen({
 		advanceExercise();
 	};
 
+	const handlePracticeRepair = () => {
+		if (
+			!currentExercise ||
+			!repairCandidate ||
+			repairInsertInFlightRef.current ||
+			queuedRepairForExerciseIdsRef.current.has(currentExercise.id)
+		) {
+			return;
+		}
+
+		repairInsertInFlightRef.current = true;
+		setFeedbackVisible(false);
+		clearFeedbackExplanation();
+
+		if (hearts <= 0) {
+			setShowHeartModal(true);
+			return;
+		}
+
+		queuedRepairForExerciseIdsRef.current.add(currentExercise.id);
+		queuedRepairExerciseIdsRef.current.add(repairCandidate.id);
+
+		if (repairCandidate.lessonId) {
+			setReviewedLessonIds((prev) =>
+				prev.includes(repairCandidate.lessonId!)
+					? prev
+					: [...prev, repairCandidate.lessonId!]
+			);
+		}
+
+		setExercises((prev) => {
+			const insertAt = Math.min(currentIndex + 1, prev.length);
+			return [
+				...prev.slice(0, insertAt),
+				repairCandidate,
+				...prev.slice(insertAt),
+			];
+		});
+		setCurrentIndex((prev) => prev + 1);
+		resetCurrentExerciseState();
+	};
+
 	const handleTryAgain = () => {
 		setShowHeartModal(false);
+		setExercises([...plannedExercisesRef.current]);
+		setReviewedLessonIds([...plannedReviewedLessonIdsRef.current]);
+		setPlannedExerciseIds(plannedExercisesRef.current.map((exercise) => exercise.id));
 		setCurrentIndex(0);
 		setCombo(0);
 		setHearts(3);
 		setFeedbackVisible(false);
 		setLastAnswerCorrect(false);
 		setCorrectAnswerText("");
+		clearFeedbackExplanation();
 		setCorrectAnswersCount(0);
 		setIsFinished(false);
 		setResultsData(null);
+		sessionSavedRef.current = false;
+		queuedRepairExerciseIdsRef.current.clear();
+		queuedRepairForExerciseIdsRef.current.clear();
+		repairInsertInFlightRef.current = false;
 		resetCurrentExerciseState();
 	};
 
 	const handleRetryCheckpoint = () => {
+		setExercises([...plannedExercisesRef.current]);
+		setReviewedLessonIds([...plannedReviewedLessonIdsRef.current]);
+		setPlannedExerciseIds(plannedExercisesRef.current.map((exercise) => exercise.id));
 		setCurrentIndex(0);
 		setCombo(0);
 		setFeedbackVisible(false);
 		setLastAnswerCorrect(false);
 		setCorrectAnswerText("");
+		clearFeedbackExplanation();
 		setCorrectAnswersCount(0);
 		setIsFinished(false);
 		setResultsData(null);
-		checkpointSavedRef.current = false;
+		sessionSavedRef.current = false;
+		queuedRepairExerciseIdsRef.current.clear();
+		queuedRepairForExerciseIdsRef.current.clear();
+		repairInsertInFlightRef.current = false;
 		resetCurrentExerciseState();
 	};
 
@@ -781,7 +1238,7 @@ export default function ExerciseSessionScreen({
 						No Exercises Found
 					</Text>
 					<Text className="font-poppins text-[14px] text-neutral-secondary mb-6 text-center max-w-[280px]">
-						{isCheckpointMode
+						{isAssessmentSession
 							? "This unit does not have checkpoint questions yet."
 							: isReviewSession
 							? "No review exercises are ready yet. Complete a lesson first, then come back to review."
@@ -807,8 +1264,13 @@ export default function ExerciseSessionScreen({
 	}
 
 	if (isFinished) {
-		const scorePercent = (correctAnswersCount / exercises.length) * 100;
-		const passed = scorePercent >= 70;
+		const resultCorrectCount = resultsData?.plannedCorrectCount ?? correctAnswersCount;
+		const resultExerciseCount =
+			resultsData?.plannedExerciseCount ?? (plannedExerciseCount || exercises.length);
+		const scorePercent = resultsData?.score ?? (
+			resultExerciseCount > 0 ? Math.round((resultCorrectCount / resultExerciseCount) * 100) : 0
+		);
+		const passed = resultsData?.passed ?? scorePercent >= 70;
 
 		if (!resultsData) {
 			return (
@@ -822,8 +1284,8 @@ export default function ExerciseSessionScreen({
 			);
 		}
 
-		if (isCheckpointMode) {
-			const checkpointPassed = scorePercent >= 80;
+		if (isAssessmentSession) {
+			const checkpointPassed = resultsData.passed;
 
 			return (
 				<SafeAreaView style={styles.safeArea}>
@@ -863,9 +1325,17 @@ export default function ExerciseSessionScreen({
 						<View className="bg-neutral-surface border border-neutral-border rounded-xl px-5 py-2.5 mb-8 flex-row items-center">
 							<Feather name="check" size={16} color={checkpointPassed ? "#58CC02" : "#FF9600"} />
 							<Text className="font-poppins-bold text-[14px] text-neutral-primary ml-2">
-								{correctAnswersCount} / {exercises.length} Correct
+								{resultCorrectCount} / {resultExerciseCount} Correct
 							</Text>
 						</View>
+
+						{leaderboardSyncFailed ? (
+							<View className="bg-[#FFF8E6] border border-[#FFE8B3] rounded-xl px-4 py-3 mb-5 max-w-[320px]">
+								<Text className="font-poppins-semibold text-[12px] text-[#A25700] text-center">
+									Your XP was saved locally. League sync will retry after your next completed session.
+								</Text>
+							</View>
+						) : null}
 
 						<View className="gap-3 w-full max-w-[320px]">
 							{!checkpointPassed && (
@@ -892,7 +1362,7 @@ export default function ExerciseSessionScreen({
 			<SafeAreaView style={styles.safeArea}>
 				<View className="flex-1 justify-center items-center px-6 bg-white w-full">
 					{/* Checkpoint Completed Banner */}
-					{isCheckpoint === "true" && (
+					{isAssessmentSession && (
 						<View className="w-full max-w-[320px] bg-[#FFFBE6] border-2 border-[#FFC800] rounded-2xl p-4 mb-6 items-center">
 							<Text className="font-poppins-bold text-[20px] text-[#FFC800]">
 								Checkpoint Passed! 🏆
@@ -916,14 +1386,14 @@ export default function ExerciseSessionScreen({
 					)}
 
 					<Feather
-						name={isCheckpoint === "true" ? "award" : passed ? "check-circle" : "award"}
+						name={isAssessmentSession ? "award" : passed ? "check-circle" : "award"}
 						size={80}
-						color={isCheckpoint === "true" ? "#FFC800" : passed ? "#21C16B" : "#FF8A00"}
+						color={isAssessmentSession ? "#FFC800" : passed ? "#21C16B" : "#FF8A00"}
 						className="mb-6"
 					/>
 
 					<Text className="font-poppins-bold text-[28px] text-neutral-primary text-center leading-[36px]">
-						{isCheckpoint === "true" 
+						{isAssessmentSession
 							? "Checkpoint Completed!" 
 							: passed 
 							? "Terrific Job!" 
@@ -931,7 +1401,7 @@ export default function ExerciseSessionScreen({
 					</Text>
 
 					<Text className="font-poppins text-[15px] text-neutral-secondary text-center mt-2 leading-[22px] max-w-[280px]">
-						{isCheckpoint === "true"
+						{isAssessmentSession
 							? "You've successfully proven your skills for this unit! Keep up the great work! ⚡"
 							: passed
 							? "Awesome job! You're a natural language learner! 🥳"
@@ -982,9 +1452,17 @@ export default function ExerciseSessionScreen({
 					<View className="bg-neutral-surface border border-neutral-border rounded-xl px-5 py-2.5 mb-8 flex-row items-center">
 						<Feather name="check" size={16} color="#21C16B" />
 						<Text className="font-poppins-bold text-[14px] text-neutral-primary ml-2">
-							{correctAnswersCount} / {exercises.length} Correct
+							{resultCorrectCount} / {resultExerciseCount} Correct
 						</Text>
 					</View>
+
+					{leaderboardSyncFailed ? (
+						<View className="bg-[#FFF8E6] border border-[#FFE8B3] rounded-xl px-4 py-3 mb-5 max-w-[320px]">
+							<Text className="font-poppins-semibold text-[12px] text-[#A25700] text-center">
+								Your XP was saved locally. League sync will retry after your next completed session.
+							</Text>
+						</View>
+					) : null}
 
 					{/* Confirm exit */}
 					<Button3D
@@ -1026,7 +1504,7 @@ export default function ExerciseSessionScreen({
 						/>
 					</View>
 
-					{!isCheckpointMode && (
+					{!isAssessmentSession && (
 						<View className="flex-row items-center gap-1.5 mr-3">
 							{[1, 2, 3].map((heartNumber) => {
 								const isHeartFilled = heartNumber <= hearts || animatingLostHeart === heartNumber;
@@ -1051,11 +1529,11 @@ export default function ExerciseSessionScreen({
 					<View className="flex-row items-center bg-[#FFF8E6] px-2.5 py-1 rounded-full border border-[#FFE8B3]">
 						<Feather name="zap" size={12} color="#FF8A00" />
 						<Text className="font-poppins-bold text-[11px] text-[#FF8A00] ml-1">
-							{isCheckpointMode
+							{isAssessmentSession
 								? "Checkpoint"
 								: isReviewSession
 								? "Review"
-								: `${isCheckpoint === "true" ? 50 : correctAnswersCount * 10} XP`}
+								: `${correctAnswersCount * 10} XP`}
 						</Text>
 					</View>
 				</View>
@@ -1069,15 +1547,19 @@ export default function ExerciseSessionScreen({
 					<Animated.View
 						style={{
 							flex: 1,
-							transform: [{ translateX: slideAnim }],
+							...(Platform.OS === "web"
+								? {}
+								: { transform: [{ translateX: slideAnim }] }),
 						}}
 					>
 						{/* Mode Label Indicator */}
 						<View className="mb-1">
 							<Text 
 								className={`font-poppins-bold text-[11px] uppercase tracking-wider ${
-									isCheckpointMode || isCheckpoint === "true"
+									isAssessmentSession
 										? "text-[#FFC800]"
+										: currentExercise?.isRepair
+										? "text-[#1CB0F6]"
 										: isReviewSession
 										? "text-[#FFC800]"
 										: mode === "mistakes"
@@ -1089,20 +1571,27 @@ export default function ExerciseSessionScreen({
 										: "text-lingua-purple"
 								}`}
 							>
-								{isCheckpointMode
+								{isAssessmentSession
 									? "\u2B50 CHECKPOINT QUIZ"
-									: isCheckpoint === "true"
-									? "Unit Checkpoint Quiz"
+									: currentExercise?.isRepair
+									? "Repair Practice"
 									: isReviewSession
-									? "\u{1F9E0} Review Session"
+									? `\u{1F9E0} Review Session${reviewFocusLabel ? ` • ${reviewFocusLabel}` : ""}`
 									: mode === "mistakes"
 									? "Mistakes Review"
 									: mode === "vocabulary"
 									? "Vocabulary Practice"
 									: mode === "listening"
 									? "Listening Practice"
-									: "Lesson Practice"}
+								: "Lesson Practice"}
 							</Text>
+							{currentExercise?.difficultyBand ? (
+								<Text
+									className={`font-poppins-bold text-[10px] uppercase tracking-[0.5px] mt-1 ${difficultyBandClass}`}
+								>
+									{difficultyBandLabel}
+								</Text>
+							) : null}
 						</View>
 
 						<Text className="font-poppins-bold text-[20px] text-neutral-primary leading-[26px] mb-5">
@@ -1153,19 +1642,16 @@ export default function ExerciseSessionScreen({
 							<View className="bg-white border border-neutral-border rounded-[24px] p-5 shadow-sm">
 								{/* Missing slot sentence display */}
 								<View className="flex-row items-center justify-center flex-wrap gap-2.5 py-6">
-									{currentExercise.sentence?.split(" ").map((word, idx) => {
+									{(currentExercise.sentence ?? "___").split(" ").map((word, idx) => {
 										const isBlank = word.includes("___");
 										if (isBlank) {
 											const [beforeBlank = "", afterBlank = ""] = word.split("___");
-											let blankStatusClass = "";
-											const pronunciation = getFillBlankPronunciation(typedAnswer, selectedLanguageId);
-
-											if (typedAnswer) {
-												blankStatusClass = "card-3d-active";
-											}
-											if (isAnswered) {
-												blankStatusClass = isCorrect ? "card-3d-correct" : "card-3d-incorrect";
-											}
+											const selectedBlankOption = fillBlankOptions.find(
+												(option) => option.value === typedAnswer
+											);
+											const pronunciation =
+												selectedBlankOption?.pronunciation ??
+												getFillBlankPronunciation(typedAnswer, selectedLanguageId);
 
 											return (
 												<View key={idx} className="flex-row items-center gap-2">
@@ -1174,25 +1660,43 @@ export default function ExerciseSessionScreen({
 															{beforeBlank}
 														</Text>
 													) : null}
-													<TouchableOpacity
-														disabled={isAnswered || !typedAnswer}
-														onPress={() => setTypedAnswer("")}
-														activeOpacity={0.75}
-														className={`min-w-[120px] px-4 py-2.5 items-center card-3d ${blankStatusClass}`}
+													<NativeView
+														ref={blankSlotRef}
+														style={[
+															styles.fillBlankSlot,
+															typedAnswer ? styles.fillBlankSlotActive : null,
+															isAnswered
+																? isCorrect
+																	? styles.fillBlankSlotCorrect
+																	: styles.fillBlankSlotIncorrect
+																: null,
+														]}
 													>
-														<Text
-															className={`font-poppins-bold text-[18px] ${
-																typedAnswer ? "text-neutral-primary" : "text-neutral-secondary"
-															}`}
+														<NativeTouchableOpacity
+															disabled={isAnswered || !typedAnswer}
+															onPress={() => setTypedAnswer("")}
+															activeOpacity={0.75}
+															style={styles.fillBlankSlotPressable}
 														>
-															{typedAnswer || "Tap answer"}
-														</Text>
-														{pronunciation ? (
-															<Text className="font-poppins-semibold text-[11px] text-neutral-secondary mt-0.5">
-																{pronunciation}
+															<Text
+																className={`font-poppins-bold text-[18px] text-center ${
+																	typedAnswer ? "text-neutral-primary" : "text-neutral-secondary"
+																}`}
+															>
+																{selectedBlankOption?.label ?? (typedAnswer || "Drop or tap answer")}
 															</Text>
-														) : null}
-													</TouchableOpacity>
+															{pronunciation ? (
+																<Text className="font-poppins-semibold text-[11px] text-neutral-secondary mt-0.5 text-center">
+																	{pronunciation}
+																</Text>
+															) : null}
+															{selectedBlankOption?.translation ? (
+																<Text className="font-poppins text-[10px] text-neutral-secondary mt-0.5 text-center">
+																	{selectedBlankOption.translation}
+																</Text>
+															) : null}
+														</NativeTouchableOpacity>
+													</NativeView>
 													{afterBlank ? (
 														<Text className="font-poppins-semibold text-[18px] text-neutral-primary">
 															{afterBlank}
@@ -1211,28 +1715,19 @@ export default function ExerciseSessionScreen({
 
 								<View className="border-t border-neutral-border pt-4">
 									<Text className="font-poppins-bold text-[12px] text-neutral-secondary uppercase tracking-[0.5px] mb-3 text-center">
-										Choose the missing part
+										Tap or drag the missing part
 									</Text>
 									<View className="flex-row flex-wrap justify-center gap-3">
 										{fillBlankOptions
 											.filter((option) => option.value !== typedAnswer)
 											.map((option) => (
-												<TouchableOpacity
+												<FillBlankTile
 													key={option.value}
+													option={option}
 													disabled={isAnswered}
-													onPress={() => setTypedAnswer(option.value)}
-													activeOpacity={0.75}
-													className="min-w-[92px] px-4 py-3 items-center card-3d"
-												>
-													<Text className="font-poppins-bold text-[15px] text-neutral-primary text-center">
-														{option.value}
-													</Text>
-													{option.pronunciation ? (
-														<Text className="font-poppins-semibold text-[11px] text-neutral-secondary mt-0.5 text-center">
-															{option.pronunciation}
-														</Text>
-													) : null}
-												</TouchableOpacity>
+													onSelect={handleSelectFillBlankOption}
+													onDrop={handleFillBlankTileDrop}
+												/>
 											))}
 									</View>
 								</View>
@@ -1400,8 +1895,19 @@ export default function ExerciseSessionScreen({
 					visible={feedbackVisible}
 					isCorrect={lastAnswerCorrect}
 					correctAnswer={correctAnswerText}
-					combo={isCheckpointMode ? 0 : combo}
+					explanationTitle={feedbackExplanationTitle}
+					explanation={feedbackExplanation}
+					explanationLoading={feedbackExplanationLoading}
+					example={feedbackExplanationExample}
+					combo={isAssessmentSession ? 0 : combo}
 					onContinue={handleContinue}
+					successTitle={
+						currentExercise?.isRepair && lastAnswerCorrect
+							? "Nice recovery!"
+							: undefined
+					}
+					secondaryActionTitle={repairCandidate ? "PRACTICE THIS" : undefined}
+					onSecondaryAction={repairCandidate ? handlePracticeRepair : undefined}
 				/>
 
 				<Modal
@@ -1462,10 +1968,8 @@ export default function ExerciseSessionScreen({
 									Are you sure?
 								</Text>
 								<Text className="font-poppins text-[13px] text-neutral-secondary text-center mt-2 leading-[20px] px-2 mb-6">
-									{isCheckpointMode
+									{isAssessmentSession
 										? "You are in the middle of a Checkpoint Quiz. Leaving now will lose all session progress."
-										: isCheckpoint === "true"
-										? "You are in the middle of a Unit Checkpoint Quiz. Leaving now will lose all session progress."
 										: isReviewSession
 										? "You are in the middle of a review session. Leaving now will lose all session progress."
 										: mode === "mistakes"
@@ -1541,6 +2045,62 @@ const styles = StyleSheet.create({
 		fontSize: 15,
 		color: "#0D132B",
 		textAlign: "center",
+	},
+	fillBlankSlot: {
+		minWidth: 148,
+		minHeight: 64,
+		borderWidth: 2,
+		borderColor: "#E5E5E5",
+		borderRadius: 16,
+		backgroundColor: "#FFFFFF",
+		alignItems: "center",
+		justifyContent: "center",
+	},
+	fillBlankSlotActive: {
+		borderColor: "#1CB0F6",
+		backgroundColor: "#DDF4FF",
+	},
+	fillBlankSlotCorrect: {
+		borderColor: "#58CC02",
+		backgroundColor: "#D7FFB8",
+	},
+	fillBlankSlotIncorrect: {
+		borderColor: "#FF4B4B",
+		backgroundColor: "#FFDFE0",
+	},
+	fillBlankSlotPressable: {
+		width: "100%",
+		minHeight: 60,
+		paddingHorizontal: 16,
+		paddingVertical: 10,
+		alignItems: "center",
+		justifyContent: "center",
+	},
+	fillBlankTile: {
+		minWidth: 96,
+		zIndex: 1,
+	},
+	fillBlankTileDragging: {
+		zIndex: 10,
+	},
+	fillBlankTilePressable: {
+		minHeight: 58,
+		paddingHorizontal: 14,
+		paddingVertical: 10,
+		borderWidth: 2,
+		borderColor: "#E5E5E5",
+		borderRadius: 16,
+		backgroundColor: "#FFFFFF",
+		alignItems: "center",
+		justifyContent: "center",
+		...(Platform.OS === "android"
+			? { elevation: 2 }
+			: {
+					shadowColor: "#000000",
+					shadowOffset: { width: 0, height: 2 },
+					shadowOpacity: 0.08,
+					shadowRadius: 4,
+				}),
 	},
 	pairButton: {
 		borderWidth: 2,

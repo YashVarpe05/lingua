@@ -653,6 +653,6 @@ const styles = StyleSheet.create({
 	},
 	mascot: {
 		top: "50%",
-		marginTop: -185,
+		transform: [{ translateY: -185 }],
 	},
 });

@@ -1,0 +1,470 @@
+
+> lingua@1.0.0 web
+> expo start --web --port 8081
+
+env: load .env.local .env
+env: export CLERK_AUTHORIZED_PARTIES CLERK_SECRET_KEY DATABASE_URL EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY EXPO_PUBLIC_SUPABASE_ANON_KEY EXPO_PUBLIC_SUPABASE_URL GEMINI_MODEL POSTHOG_HOST POSTHOG_PROJECT_TOKEN STREAM_API_KEY STREAM_API_SECRET SUPABASE_SERVICE_ROLE_KEY
+✅ Clerk iOS plugin loaded
+✅ Clerk Android plugin loaded
+Starting project at C:\Project\lingua
+✅ Clerk iOS plugin loaded
+✅ Clerk Android plugin loaded
+✅ Clerk iOS plugin loaded
+✅ Clerk Android plugin loaded
+✅ Clerk iOS plugin loaded
+✅ Clerk Android plugin loaded
+✅ Clerk iOS plugin loaded
+✅ Clerk Android plugin loaded
+Using src/app as the root directory for Expo Router.
+React Compiler enabled
+Starting Metro Bundler
+
+✅ Clerk iOS plugin loaded
+✅ Clerk Android plugin loaded
+✅ Clerk iOS plugin loaded
+✅ Clerk Android plugin loaded
+✅ Clerk iOS plugin loaded
+✅ Clerk Android plugin loaded
+✅ Clerk iOS plugin loaded
+✅ Clerk Android plugin loaded
+✅ Clerk iOS plugin loaded
+✅ Clerk Android plugin loaded
+Waiting on http://localhost:8081
+Logs for your project will appear below.
+✅ Clerk iOS plugin loaded
+✅ Clerk Android plugin loaded
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web node_modules\expo-router\entry.js ▓▓▓▓▓▓▓░░░░░░░░░ 49.9% ( 725/1026)
+λ node_modules\@expo\router-server\node\render.js ▓▓▓▓▓▓░░░░░░░░░░ 39.5% ( 658/1050)
+Web node_modules\expo-router\entry.js ▓▓▓▓▓▓▓▓▓░░░░░░░ 61.6% (1006/1428)
+λ node_modules\@expo\router-server\node\render.js ▓▓▓▓▓▓▓░░░░░░░░░ 48.1% ( 904/1467)
+Web node_modules\expo-router\entry.js ▓▓▓▓▓▓▓▓▓░░░░░░░ 61.6% (1117/1574)
+λ node_modules\@expo\router-server\node\render.js ▓▓▓▓▓▓▓▓▓▓░░░░░░ 65.2% (1428/1768)
+Web node_modules\expo-router\entry.js ▓▓▓▓▓▓▓▓▓▓░░░░░░ 67.3% (1699/2088)
+λ node_modules\@expo\router-server\node\render.js ▓▓▓▓▓▓▓▓▓▓▓▓░░░░ 78.7% (1761/1985)
+Web node_modules\expo-router\entry.js ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░ 94.0% (2245/2330)
+λ node_modules\@expo\router-server\node\render.js ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░ 93.9% (2153/2274)
+λ Bundled 19672ms node_modules\@expo\router-server\node\render.js (2425 modules)
+Web node_modules\expo-router\entry.js ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░ 99.9% (2513/2513)
+PostHog config: { apiKey: 'SET', host: 'https://us.i.posthog.com', isConfigured: true }
+λ  LOG  Stream Video SDK native modules not found. Falling back to simulated calling.
+Web node_modules\expo-router\entry.js ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░ 99.9% (2513/2513)
+λ src\app\api\leaderboard\fetch+api.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web Bundled 30302ms node_modules\expo-router\entry.js (2513 modules)
+λ Bundled 2143ms src\app\api\leaderboard\fetch+api.ts (61 modules)
+Web node_modules\expo-router\entry.js ▓▓▓▓▓▓░░░░░░░░░░ 39.4% (410/653)
+Web node_modules\expo-router\entry.js ▓▓▓▓▓▓▓▓▓░░░░░░░ 58.8% (1074/1513)
+Web node_modules\expo-router\entry.js ▓▓▓▓▓▓▓▓▓▓▓▓▓▓░░ 93.2% (2198/2298)
+Web Bundled 12025ms node_modules\expo-router\entry.js (2514 modules)
+ LOG  [web] Logs will appear in the browser console
+λ src\app\api\leaderboard\upsert+api.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 98ms src\app\api\leaderboard\upsert+api.ts (1 module)
+λ Bundled 852ms src\app\api\stream+api.ts (154 modules)
+λ Bundled 77ms src\app\api\agent\start+api.ts (1 module)
+λ Bundled 111ms src\app\api\agent\stop+api.ts (47 modules)
+λ Bundled 98ms src\app\api\explain-answer+api.ts (1 module)
+λ Bundled 14ms src\app\api\leaderboard\migrate+api.ts (1 module)
+λ src\app\api\leaderboard\fetch+api.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 190ms src\app\api\leaderboard\fetch+api.ts (1 module)
+λ src\app\api\leaderboard\fetch+api.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 3ms src\app\api\leaderboard\fetch+api.ts (1 module)
+λ src\app\api\leaderboard\fetch+api.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 4ms src\app\api\leaderboard\fetch+api.ts (1 module)
+λ src\app\api\leaderboard\fetch+api.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 3ms src\app\api\leaderboard\fetch+api.ts (1 module)
+λ src\app\api\leaderboard\fetch+api.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 339ms src\app\api\leaderboard\fetch+api.ts (1 module)
+λ src\app\api\leaderboard\fetch+api.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 5ms src\app\api\leaderboard\fetch+api.ts (1 module)
+λ src\app\api\leaderboard\fetch+api.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 4ms src\app\api\leaderboard\fetch+api.ts (1 module)
+λ src\app\api\leaderboard\fetch+api.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 3ms src\app\api\leaderboard\fetch+api.ts (1 module)
+λ src\app\api\leaderboard\fetch+api.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 3ms src\app\api\leaderboard\fetch+api.ts (1 module)
+λ src\app\api\leaderboard\fetch+api.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 7ms src\app\api\leaderboard\fetch+api.ts (1 module)
+λ src\app\api\leaderboard\fetch+api.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 64ms src\app\api\leaderboard\fetch+api.ts (1 module)
+λ Bundled 58ms src\app\api\leaderboard\upsert+api.ts (1 module)
+λ Bundled 297ms src\app\api\stream+api.ts (1 module)
+λ Bundled 21ms src\app\api\agent\start+api.ts (1 module)
+λ Bundled 18ms src\app\api\agent\stop+api.ts (1 module)
+λ Bundled 39ms src\app\api\explain-answer+api.ts (1 module)
+λ Bundled 1ms src\app\api\leaderboard\migrate+api.ts (1 module)
+✅ Clerk iOS plugin loaded
+✅ Clerk Android plugin loaded
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ node_modules\@expo\router-server\node\render.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web Bundled 3693ms node_modules\expo-router\entry.js (1 module)
+λ node_modules\@expo\router-server\node\render.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 4006ms node_modules\@expo\router-server\node\render.js (1 module)
+PostHog config: { apiKey: 'SET', host: 'https://us.i.posthog.com', isConfigured: true }
+λ  LOG  Stream Video SDK native modules not found. Falling back to simulated calling.
+Web Bundled 99ms node_modules\expo-router\entry.js (1 module)
+ LOG  [web] Logs will appear in the browser console
+λ Bundled 93ms src\app\api\leaderboard\fetch+api.ts (1 module)
+λ src\app\api\leaderboard\fetch+api.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 120ms src\app\api\leaderboard\fetch+api.ts (1 module)
+✅ Clerk iOS plugin loaded
+✅ Clerk Android plugin loaded
+λ Bundled 865ms node_modules\@expo\router-server\node\render.js (1 module)
+PostHog config: { apiKey: 'SET', host: 'https://us.i.posthog.com', isConfigured: true }
+λ  LOG  Stream Video SDK native modules not found. Falling back to simulated calling.
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web Bundled 4668ms node_modules\expo-router\entry.js (1 module)
+Web Bundled 200ms node_modules\expo-router\entry.js (1 module)
+ LOG  [web] Logs will appear in the browser console
+✅ Clerk iOS plugin loaded
+✅ Clerk Android plugin loaded
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 58ms node_modules\@expo\router-server\node\render.js (1 module)
+PostHog config: { apiKey: 'SET', host: 'https://us.i.posthog.com', isConfigured: true }
+λ  LOG  Stream Video SDK native modules not found. Falling back to simulated calling.
+Web Bundled 1026ms node_modules\expo-router\entry.js (1 module)
+Web Bundled 82ms node_modules\expo-router\entry.js (1 module)
+ LOG  [web] Logs will appear in the browser console
+λ src\app\api\leaderboard\fetch+api.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 16ms src\app\api\leaderboard\fetch+api.ts (1 module)
+ ERROR  SyntaxError: C:\Project\lingua\src\lib\apiClient.ts: Unexpected token (82:2)
+
+  80 | 	return response;
+  81 | };
+> 82 | 		...init,
+     | 		^
+  83 | 		headers,
+  84 | 	});
+  85 |
+    at constructor (C:\Project\lingua\node_modules\@babel\parser\lib\index.js:365:19)
+    at TypeScriptParserMixin.raise (C:\Project\lingua\node_modules\@babel\parser\lib\index.js:6616:19)
+    at TypeScriptParserMixin.unexpected (C:\Project\lingua\node_modules\@babel\parser\lib\index.js:6636:16)
+    at TypeScriptParserMixin.parseExprAtom (C:\Project\lingua\node_modules\@babel\parser\lib\index.js:11459:22)
+    at TypeScriptParserMixin.parseExprSubscripts (C:\Project\lingua\node_modules\@babel\parser\lib\index.js:11098:23)
+    at TypeScriptParserMixin.parseUpdate (C:\Project\lingua\node_modules\@babel\parser\lib\index.js:11083:21)
+    at TypeScriptParserMixin.parseMaybeUnary (C:\Project\lingua\node_modules\@babel\parser\lib\index.js:11063:23)
+    at TypeScriptParserMixin.parseMaybeUnary (C:\Project\lingua\node_modules\@babel\parser\lib\index.js:9854:18)
+    at TypeScriptParserMixin.parseMaybeUnaryOrPrivate (C:\Project\lingua\node_modules\@babel\parser\lib\index.js:10916:61)
+    at TypeScriptParserMixin.parseExprOps (C:\Project\lingua\node_modules\@babel\parser\lib\index.js:10921:23)
+    at TypeScriptParserMixin.parseMaybeConditional (C:\Project\lingua\node_modules\@babel\parser\lib\index.js:10898:23)
+    at TypeScriptParserMixin.parseMaybeAssign (C:\Project\lingua\node_modules\@babel\parser\lib\index.js:10848:21)
+    at TypeScriptParserMixin.parseMaybeAssign (C:\Project\lingua\node_modules\@babel\parser\lib\index.js:9803:20)
+    at TypeScriptParserMixin.parseExpressionBase (C:\Project\lingua\node_modules\@babel\parser\lib\index.js:10801:23)
+    at C:\Project\lingua\node_modules\@babel\parser\lib\index.js:10797:39
+    at TypeScriptParserMixin.allowInAnd (C:\Project\lingua\node_modules\@babel\parser\lib\index.js:12438:16)
+    at TypeScriptParserMixin.parseExpression (C:\Project\lingua\node_modules\@babel\parser\lib\index.js:10797:17)
+    at TypeScriptParserMixin.parseStatementContent (C:\Project\lingua\node_modules\@babel\parser\lib\index.js:12912:23)
+    at TypeScriptParserMixin.parseStatementContent (C:\Project\lingua\node_modules\@babel\parser\lib\index.js:9525:18)
+    at TypeScriptParserMixin.parseStatementLike (C:\Project\lingua\node_modules\@babel\parser\lib\index.js:12784:17)
+    at TypeScriptParserMixin.parseModuleItem (C:\Project\lingua\node_modules\@babel\parser\lib\index.js:12761:17)
+    at TypeScriptParserMixin.parseBlockOrModuleBlockBody (C:\Project\lingua\node_modules\@babel\parser\lib\index.js:13333:36)
+    at TypeScriptParserMixin.parseBlockBody (C:\Project\lingua\node_modules\@babel\parser\lib\index.js:13326:10)
+    at TypeScriptParserMixin.parseProgram (C:\Project\lingua\node_modules\@babel\parser\lib\index.js:12639:10)
+    at TypeScriptParserMixin.parseTopLevel (C:\Project\lingua\node_modules\@babel\parser\lib\index.js:12629:25)
+    at TypeScriptParserMixin.parse (C:\Project\lingua\node_modules\@babel\parser\lib\index.js:14505:25)
+    at TypeScriptParserMixin.parse (C:\Project\lingua\node_modules\@babel\parser\lib\index.js:10143:18)
+    at parse (C:\Project\lingua\node_modules\@babel\parser\lib\index.js:14518:26)
+    at parser (C:\Project\lingua\node_modules\@babel\core\lib\parser\index.js:41:34)
+    at parser.next (<anonymous>)
+    at normalizeFile (C:\Project\lingua\node_modules\@babel\core\lib\transformation\normalize-file.js:64:37)
+    at normalizeFile.next (<anonymous>)
+    at run (C:\Project\lingua\node_modules\@babel\core\lib\transformation\index.js:22:50)
+    at run.next (<anonymous>)
+    at transform (C:\Project\lingua\node_modules\@babel\core\lib\transform.js:22:33)
+    at transform.next (<anonymous>)
+    at evaluateSync (C:\Project\lingua\node_modules\gensync\index.js:251:28)
+    at sync (C:\Project\lingua\node_modules\gensync\index.js:89:14)
+    at stopHiding - secret - don't use this - v1 (C:\Project\lingua\node_modules\@babel\core\lib\errors\rewrite-stack-trace.js:47:12)
+    at Object.transformSync (C:\Project\lingua\node_modules\@babel\core\lib\transform.js:40:76)
+    at parseWithBabel (C:\Project\lingua\node_modules\@expo\metro-config\build\transformSync.js:75:18)
+    at transformSync (C:\Project\lingua\node_modules\@expo\metro-config\build\transformSync.js:54:16)
+    at Object.transform (C:\Project\lingua\node_modules\@expo\metro-config\build\babel-transformer.js:132:58)
+    at transformJSWithBabel (C:\Project\lingua\node_modules\@expo\metro-config\build\transform-worker\metro-transform-worker.js:481:47)
+    at Object.transform (C:\Project\lingua\node_modules\@expo\metro-config\build\transform-worker\metro-transform-worker.js:598:12)
+    at Object.transform (C:\Project\lingua\node_modules\@expo\metro-config\build\transform-worker\transform-worker.js:178:19)
+    at Object.transform (C:\Project\lingua\node_modules\react-native-css\dist\commonjs\metro\metro-transformer.js:16:19)
+    at Object.transform (C:\Project\lingua\node_modules\@expo\metro-config\build\transform-worker\supervising-transform-worker.js:94:25)
+    at transformFile (C:\Project\lingua\node_modules\metro\src\DeltaBundler\Worker.flow.js:67:36)
+    at Object.transform (C:\Project\lingua\node_modules\metro\src\DeltaBundler\Worker.flow.js:42:10)
+λ Bundled 4ms src\app\api\leaderboard\fetch+api.ts (1 module)
+ ERROR  SyntaxError: C:\Project\lingua\src\lib\apiClient.ts: Unexpected token (82:2)
+
+  80 | 	return response;
+  81 | };
+> 82 | 		...init,
+     | 		^
+  83 | 		headers,
+  84 | 	});
+  85 |
+    at constructor (C:\Project\lingua\node_modules\@babel\parser\lib\index.js:365:19)
+    at TypeScriptParserMixin.raise (C:\Project\lingua\node_modules\@babel\parser\lib\index.js:6616:19)
+    at TypeScriptParserMixin.unexpected (C:\Project\lingua\node_modules\@babel\parser\lib\index.js:6636:16)
+    at TypeScriptParserMixin.parseExprAtom (C:\Project\lingua\node_modules\@babel\parser\lib\index.js:11459:22)
+    at TypeScriptParserMixin.parseExprSubscripts (C:\Project\lingua\node_modules\@babel\parser\lib\index.js:11098:23)
+    at TypeScriptParserMixin.parseUpdate (C:\Project\lingua\node_modules\@babel\parser\lib\index.js:11083:21)
+    at TypeScriptParserMixin.parseMaybeUnary (C:\Project\lingua\node_modules\@babel\parser\lib\index.js:11063:23)
+    at TypeScriptParserMixin.parseMaybeUnary (C:\Project\lingua\node_modules\@babel\parser\lib\index.js:9854:18)
+    at TypeScriptParserMixin.parseMaybeUnaryOrPrivate (C:\Project\lingua\node_modules\@babel\parser\lib\index.js:10916:61)
+    at TypeScriptParserMixin.parseExprOps (C:\Project\lingua\node_modules\@babel\parser\lib\index.js:10921:23)
+    at TypeScriptParserMixin.parseMaybeConditional (C:\Project\lingua\node_modules\@babel\parser\lib\index.js:10898:23)
+    at TypeScriptParserMixin.parseMaybeAssign (C:\Project\lingua\node_modules\@babel\parser\lib\index.js:10848:21)
+    at TypeScriptParserMixin.parseMaybeAssign (C:\Project\lingua\node_modules\@babel\parser\lib\index.js:9803:20)
+    at TypeScriptParserMixin.parseExpressionBase (C:\Project\lingua\node_modules\@babel\parser\lib\index.js:10801:23)
+    at C:\Project\lingua\node_modules\@babel\parser\lib\index.js:10797:39
+    at TypeScriptParserMixin.allowInAnd (C:\Project\lingua\node_modules\@babel\parser\lib\index.js:12438:16)
+    at TypeScriptParserMixin.parseExpression (C:\Project\lingua\node_modules\@babel\parser\lib\index.js:10797:17)
+    at TypeScriptParserMixin.parseStatementContent (C:\Project\lingua\node_modules\@babel\parser\lib\index.js:12912:23)
+    at TypeScriptParserMixin.parseStatementContent (C:\Project\lingua\node_modules\@babel\parser\lib\index.js:9525:18)
+    at TypeScriptParserMixin.parseStatementLike (C:\Project\lingua\node_modules\@babel\parser\lib\index.js:12784:17)
+    at TypeScriptParserMixin.parseModuleItem (C:\Project\lingua\node_modules\@babel\parser\lib\index.js:12761:17)
+    at TypeScriptParserMixin.parseBlockOrModuleBlockBody (C:\Project\lingua\node_modules\@babel\parser\lib\index.js:13333:36)
+    at TypeScriptParserMixin.parseBlockBody (C:\Project\lingua\node_modules\@babel\parser\lib\index.js:13326:10)
+    at TypeScriptParserMixin.parseProgram (C:\Project\lingua\node_modules\@babel\parser\lib\index.js:12639:10)
+    at TypeScriptParserMixin.parseTopLevel (C:\Project\lingua\node_modules\@babel\parser\lib\index.js:12629:25)
+    at TypeScriptParserMixin.parse (C:\Project\lingua\node_modules\@babel\parser\lib\index.js:14505:25)
+    at TypeScriptParserMixin.parse (C:\Project\lingua\node_modules\@babel\parser\lib\index.js:10143:18)
+    at parse (C:\Project\lingua\node_modules\@babel\parser\lib\index.js:14518:26)
+    at parser (C:\Project\lingua\node_modules\@babel\core\lib\parser\index.js:41:34)
+    at parser.next (<anonymous>)
+    at normalizeFile (C:\Project\lingua\node_modules\@babel\core\lib\transformation\normalize-file.js:64:37)
+    at normalizeFile.next (<anonymous>)
+    at run (C:\Project\lingua\node_modules\@babel\core\lib\transformation\index.js:22:50)
+    at run.next (<anonymous>)
+    at transform (C:\Project\lingua\node_modules\@babel\core\lib\transform.js:22:33)
+    at transform.next (<anonymous>)
+    at evaluateSync (C:\Project\lingua\node_modules\gensync\index.js:251:28)
+    at sync (C:\Project\lingua\node_modules\gensync\index.js:89:14)
+    at stopHiding - secret - don't use this - v1 (C:\Project\lingua\node_modules\@babel\core\lib\errors\rewrite-stack-trace.js:47:12)
+    at Object.transformSync (C:\Project\lingua\node_modules\@babel\core\lib\transform.js:40:76)
+    at parseWithBabel (C:\Project\lingua\node_modules\@expo\metro-config\build\transformSync.js:75:18)
+    at transformSync (C:\Project\lingua\node_modules\@expo\metro-config\build\transformSync.js:54:16)
+    at Object.transform (C:\Project\lingua\node_modules\@expo\metro-config\build\babel-transformer.js:132:58)
+    at transformJSWithBabel (C:\Project\lingua\node_modules\@expo\metro-config\build\transform-worker\metro-transform-worker.js:481:47)
+    at Object.transform (C:\Project\lingua\node_modules\@expo\metro-config\build\transform-worker\metro-transform-worker.js:598:12)
+    at Object.transform (C:\Project\lingua\node_modules\@expo\metro-config\build\transform-worker\transform-worker.js:178:19)
+    at Object.transform (C:\Project\lingua\node_modules\react-native-css\dist\commonjs\metro\metro-transformer.js:16:19)
+    at Object.transform (C:\Project\lingua\node_modules\@expo\metro-config\build\transform-worker\supervising-transform-worker.js:94:25)
+    at transformFile (C:\Project\lingua\node_modules\metro\src\DeltaBundler\Worker.flow.js:67:36)
+    at Object.transform (C:\Project\lingua\node_modules\metro\src\DeltaBundler\Worker.flow.js:42:10)
+λ src\app\api\leaderboard\fetch+api.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 7ms src\app\api\leaderboard\fetch+api.ts (1 module)
+λ src\app\api\leaderboard\fetch+api.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 5ms src\app\api\leaderboard\fetch+api.ts (1 module)
+λ src\app\api\leaderboard\fetch+api.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 28ms src\app\api\leaderboard\fetch+api.ts (1 module)
+λ Bundled 17ms src\app\api\leaderboard\fetch+api.ts (1 module)
+λ src\app\api\leaderboard\fetch+api.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 3ms src\app\api\leaderboard\fetch+api.ts (1 module)
+λ src\app\api\leaderboard\upsert+api.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 71ms src\app\api\leaderboard\upsert+api.ts (1 module)
+λ Bundled 36ms src\app\api\stream+api.ts (1 module)
+λ Bundled 35ms src\app\api\agent\start+api.ts (1 module)
+λ Bundled 33ms src\app\api\agent\stop+api.ts (1 module)
+λ Bundled 26ms src\app\api\explain-answer+api.ts (1 module)
+λ Bundled 1ms src\app\api\leaderboard\migrate+api.ts (1 module)
+✅ Clerk iOS plugin loaded
+✅ Clerk Android plugin loaded
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web Bundled 544ms node_modules\expo-router\entry.js (1 module)
+λ Bundled 664ms node_modules\@expo\router-server\node\render.js (1 module)
+PostHog config: { apiKey: 'SET', host: 'https://us.i.posthog.com', isConfigured: true }
+λ  LOG  Stream Video SDK native modules not found. Falling back to simulated calling.
+Web Bundled 83ms node_modules\expo-router\entry.js (1 module)
+ LOG  [web] Logs will appear in the browser console
+λ Bundled 6ms src\app\api\leaderboard\fetch+api.ts (1 module)
+✅ Clerk iOS plugin loaded
+✅ Clerk Android plugin loaded
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 627ms node_modules\@expo\router-server\node\render.js (1 module)
+PostHog config: { apiKey: 'SET', host: 'https://us.i.posthog.com', isConfigured: true }
+λ  LOG  Stream Video SDK native modules not found. Falling back to simulated calling.
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web Bundled 4216ms node_modules\expo-router\entry.js (1 module)
+Web Bundled 219ms node_modules\expo-router\entry.js (1 module)
+ LOG  [web] Logs will appear in the browser console
+✅ Clerk iOS plugin loaded
+✅ Clerk Android plugin loaded
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 62ms node_modules\@expo\router-server\node\render.js (1 module)
+PostHog config: { apiKey: 'SET', host: 'https://us.i.posthog.com', isConfigured: true }
+λ  LOG  Stream Video SDK native modules not found. Falling back to simulated calling.
+Web Bundled 856ms node_modules\expo-router\entry.js (1 module)
+Web Bundled 75ms node_modules\expo-router\entry.js (1 module)
+ LOG  [web] Logs will appear in the browser console
+λ src\app\api\explain-answer+api.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 3ms src\app\api\explain-answer+api.ts (1 module)
+✅ Clerk iOS plugin loaded
+✅ Clerk Android plugin loaded
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 164ms node_modules\@expo\router-server\node\render.js (1 module)
+PostHog config: { apiKey: 'SET', host: 'https://us.i.posthog.com', isConfigured: true }
+λ  LOG  Stream Video SDK native modules not found. Falling back to simulated calling.
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web Bundled 5782ms node_modules\expo-router\entry.js (1 module)
+Web Bundled 101ms node_modules\expo-router\entry.js (1 module)
+ LOG  [web] Logs will appear in the browser console
+λ Bundled 204ms src\app\api\leaderboard\fetch+api.ts (1 module)
+✅ Clerk iOS plugin loaded
+✅ Clerk Android plugin loaded
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ node_modules\@expo\router-server\node\render.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 4232ms node_modules\@expo\router-server\node\render.js (1 module)
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+PostHog config: { apiKey: 'SET', host: 'https://us.i.posthog.com', isConfigured: true }
+λ  LOG  Stream Video SDK native modules not found. Falling back to simulated calling.
+Web Bundled 4983ms node_modules\expo-router\entry.js (1 module)
+Web Bundled 96ms node_modules\expo-router\entry.js (1 module)
+ LOG  [web] Logs will appear in the browser console
+λ Bundled 65ms src\app\api\leaderboard\fetch+api.ts (1 module)
+✅ Clerk iOS plugin loaded
+✅ Clerk Android plugin loaded
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 60ms node_modules\@expo\router-server\node\render.js (1 module)
+PostHog config: { apiKey: 'SET', host: 'https://us.i.posthog.com', isConfigured: true }
+λ  LOG  Stream Video SDK native modules not found. Falling back to simulated calling.
+Web Bundled 860ms node_modules\expo-router\entry.js (1 module)
+Web Bundled 74ms node_modules\expo-router\entry.js (1 module)
+ LOG  [web] Logs will appear in the browser console
+λ src\app\api\leaderboard\upsert+api.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 64ms src\app\api\leaderboard\upsert+api.ts (1 module)
+✅ Clerk iOS plugin loaded
+✅ Clerk Android plugin loaded
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 68ms node_modules\@expo\router-server\node\render.js (1 module)
+PostHog config: { apiKey: 'SET', host: 'https://us.i.posthog.com', isConfigured: true }
+λ  LOG  Stream Video SDK native modules not found. Falling back to simulated calling.
+Web Bundled 921ms node_modules\expo-router\entry.js (1 module)
+Web Bundled 79ms node_modules\expo-router\entry.js (1 module)
+ LOG  [web] Logs will appear in the browser console
+λ Bundled 2ms src\app\api\leaderboard\fetch+api.ts (1 module)
+✅ Clerk iOS plugin loaded
+✅ Clerk Android plugin loaded
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 173ms node_modules\@expo\router-server\node\render.js (1 module)
+PostHog config: { apiKey: 'SET', host: 'https://us.i.posthog.com', isConfigured: true }
+λ  LOG  Stream Video SDK native modules not found. Falling back to simulated calling.
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web Bundled 5845ms node_modules\expo-router\entry.js (1 module)
+Web Bundled 77ms node_modules\expo-router\entry.js (1 module)
+ LOG  [web] Logs will appear in the browser console
+λ src\app\api\explain-answer+api.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 38ms src\app\api\explain-answer+api.ts (1 module)
+λ src\app\api\leaderboard\upsert+api.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 80ms src\app\api\leaderboard\upsert+api.ts (1 module)
+λ src\app\api\leaderboard\fetch+api.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 66ms src\app\api\leaderboard\fetch+api.ts (1 module)
+✅ Clerk iOS plugin loaded
+✅ Clerk Android plugin loaded
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 3117ms node_modules\@expo\router-server\node\render.js (1 module)
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+PostHog config: { apiKey: 'SET', host: 'https://us.i.posthog.com', isConfigured: true }
+λ  LOG  Stream Video SDK native modules not found. Falling back to simulated calling.
+Web Bundled 3893ms node_modules\expo-router\entry.js (1 module)
+Web Bundled 102ms node_modules\expo-router\entry.js (1 module)
+ LOG  [web] Logs will appear in the browser console
+✅ Clerk iOS plugin loaded
+✅ Clerk Android plugin loaded
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 74ms node_modules\@expo\router-server\node\render.js (1 module)
+PostHog config: { apiKey: 'SET', host: 'https://us.i.posthog.com', isConfigured: true }
+λ  LOG  Stream Video SDK native modules not found. Falling back to simulated calling.
+Web Bundled 786ms node_modules\expo-router\entry.js (1 module)
+Web Bundled 96ms node_modules\expo-router\entry.js (1 module)
+ LOG  [web] Logs will appear in the browser console
+✅ Clerk iOS plugin loaded
+✅ Clerk Android plugin loaded
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 60ms node_modules\@expo\router-server\node\render.js (1 module)
+PostHog config: { apiKey: 'SET', host: 'https://us.i.posthog.com', isConfigured: true }
+λ  LOG  Stream Video SDK native modules not found. Falling back to simulated calling.
+Web Bundled 980ms node_modules\expo-router\entry.js (1 module)
+Web Bundled 91ms node_modules\expo-router\entry.js (1 module)
+ LOG  [web] Logs will appear in the browser console
+✅ Clerk iOS plugin loaded
+✅ Clerk Android plugin loaded
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 79ms node_modules\@expo\router-server\node\render.js (1 module)
+PostHog config: { apiKey: 'SET', host: 'https://us.i.posthog.com', isConfigured: true }
+λ  LOG  Stream Video SDK native modules not found. Falling back to simulated calling.
+Web Bundled 749ms node_modules\expo-router\entry.js (1 module)
+Web Bundled 102ms node_modules\expo-router\entry.js (1 module)
+ LOG  [web] Logs will appear in the browser console
+✅ Clerk iOS plugin loaded
+✅ Clerk Android plugin loaded
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 62ms node_modules\@expo\router-server\node\render.js (1 module)
+PostHog config: { apiKey: 'SET', host: 'https://us.i.posthog.com', isConfigured: true }
+λ  LOG  Stream Video SDK native modules not found. Falling back to simulated calling.
+Web Bundled 874ms node_modules\expo-router\entry.js (1 module)
+Web Bundled 73ms node_modules\expo-router\entry.js (1 module)
+ LOG  [web] Logs will appear in the browser console
+✅ Clerk iOS plugin loaded
+✅ Clerk Android plugin loaded
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ node_modules\@expo\router-server\node\render.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 10127ms node_modules\@expo\router-server\node\render.js (1 module)
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+PostHog config: { apiKey: 'SET', host: 'https://us.i.posthog.com', isConfigured: true }
+λ  LOG  Stream Video SDK native modules not found. Falling back to simulated calling.
+Web Bundled 14297ms node_modules\expo-router\entry.js (1 module)
+Web Bundled 377ms node_modules\expo-router\entry.js (1 module)
+ LOG  [web] Logs will appear in the browser console
+✅ Clerk iOS plugin loaded
+✅ Clerk Android plugin loaded
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 488ms node_modules\@expo\router-server\node\render.js (1 module)
+PostHog config: { apiKey: 'SET', host: 'https://us.i.posthog.com', isConfigured: true }
+λ  LOG  Stream Video SDK native modules not found. Falling back to simulated calling.
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web Bundled 4149ms node_modules\expo-router\entry.js (1 module)
+Web Bundled 152ms node_modules\expo-router\entry.js (1 module)
+ LOG  [web] Logs will appear in the browser console
+λ src\app\api\leaderboard\fetch+api.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 930ms src\app\api\leaderboard\fetch+api.ts (1 module)
+λ src\app\api\leaderboard\upsert+api.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 3215ms src\app\api\leaderboard\upsert+api.ts (1 module)
+λ src\app\api\leaderboard\fetch+api.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ src\app\api\stream+api.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 2956ms src\app\api\leaderboard\fetch+api.ts (1 module)
+λ src\app\api\stream+api.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ src\app\api\leaderboard\upsert+api.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 3892ms src\app\api\stream+api.ts (1 module)
+λ Bundled 3607ms src\app\api\leaderboard\upsert+api.ts (1 module)
+λ Bundled 808ms src\app\api\agent\start+api.ts (1 module)
+λ Bundled 1348ms src\app\api\stream+api.ts (1 module)
+λ src\app\api\agent\stop+api.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ src\app\api\agent\start+api.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 6ms src\app\api\agent\start+api.ts (1 module)
+λ Bundled 5510ms src\app\api\agent\stop+api.ts (1 module)
+λ Bundled 135ms src\app\api\explain-answer+api.ts (1 module)
+λ Bundled 13ms src\app\api\leaderboard\migrate+api.ts (1 module)
+λ src\app\api\leaderboard\fetch+api.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 90ms src\app\api\leaderboard\fetch+api.ts (1 module)
+λ src\app\api\leaderboard\fetch+api.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 5ms src\app\api\leaderboard\fetch+api.ts (1 module)
+λ src\app\api\leaderboard\fetch+api.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 5ms src\app\api\leaderboard\fetch+api.ts (1 module)
+λ src\app\api\leaderboard\upsert+api.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 99ms src\app\api\leaderboard\upsert+api.ts (1 module)
+λ Bundled 280ms src\app\api\stream+api.ts (1 module)
+λ Bundled 2ms src\app\api\agent\start+api.ts (1 module)
+λ Bundled 1ms src\app\api\agent\stop+api.ts (1 module)
+λ Bundled 2ms src\app\api\explain-answer+api.ts (1 module)
+λ Bundled 1ms src\app\api\leaderboard\migrate+api.ts (1 module)
+λ src\app\api\leaderboard\fetch+api.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 3ms src\app\api\leaderboard\fetch+api.ts (1 module)
+✅ Clerk iOS plugin loaded
+✅ Clerk Android plugin loaded
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ node_modules\@expo\router-server\node\render.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 4568ms node_modules\@expo\router-server\node\render.js (1 module)
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+PostHog config: { apiKey: 'SET', host: 'https://us.i.posthog.com', isConfigured: true }
+λ  LOG  Stream Video SDK native modules not found. Falling back to simulated calling.
+Web Bundled 5841ms node_modules\expo-router\entry.js (1 module)
+Web Bundled 90ms node_modules\expo-router\entry.js (1 module)
+ LOG  [web] Logs will appear in the browser console

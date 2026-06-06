@@ -1,0 +1,552 @@
+const fs = require("fs");
+const path = require("path");
+const vm = require("vm");
+const ts = require("typescript");
+
+const ROOT = process.cwd();
+const SCAN_ROOTS = [
+	"README.md",
+	"docs",
+	"src/app",
+	"src/components",
+	"src/data",
+	"src/lib",
+	"src/store",
+	"src/utils",
+];
+const SCAN_EXTENSIONS = new Set([".md", ".ts", ".tsx"]);
+const SKIP_SCAN_FILES = new Set(["AGENTS.MD", "AGENTS.md"]);
+
+const DATA_FILES = {
+	languages: "src/data/languages.ts",
+	lessons: "src/data/lessons.ts",
+	units: "src/data/units.ts",
+	curriculum: "src/data/curriculum.ts",
+};
+
+const walkScanFiles = (relativePath, files = []) => {
+	const fullPath = path.join(ROOT, relativePath);
+	if (!fs.existsSync(fullPath)) return files;
+
+	const stat = fs.statSync(fullPath);
+	if (stat.isFile()) {
+		if (
+			SCAN_EXTENSIONS.has(path.extname(fullPath)) &&
+			!SKIP_SCAN_FILES.has(path.basename(fullPath))
+		) {
+			files.push(relativePath);
+		}
+		return files;
+	}
+
+	fs.readdirSync(fullPath).forEach((entry) => {
+		walkScanFiles(path.join(relativePath, entry), files);
+	});
+
+	return files;
+};
+
+const FILES_TO_SCAN = Array.from(
+	new Set(SCAN_ROOTS.flatMap((root) => walkScanFiles(root)))
+).sort();
+
+const EXERCISE_TYPES = new Set([
+	"mcq",
+	"fill-in-the-blank",
+	"matching-pairs",
+	"tap-word",
+	"listen-type",
+]);
+
+const REQUIRED_LESSON_EXERCISE_TYPES = new Set([
+	"mcq",
+	"fill-in-the-blank",
+	"matching-pairs",
+	"tap-word",
+	"listen-type",
+]);
+
+const MOJIBAKE_PATTERNS = [
+	{ name: "latin1-decoded UTF-8 lead C2", regex: /\u00c2./g },
+	{ name: "latin1-decoded UTF-8 lead C3", regex: /\u00c3./g },
+	{ name: "broken CJK UTF-8", regex: /\u00e3[\u0080-\u00bf]/g },
+	{ name: "broken Arabic/Cyrillic UTF-8", regex: /[\u00d8\u00d9][\u0080-\u00bf]/g },
+	{ name: "broken punctuation UTF-8", regex: /\u00e2[\u0080-\u00bf]/g },
+	{ name: "broken emoji UTF-8", regex: /\u00f0[\u0080-\u00bf]/g },
+	{ name: "replacement character", regex: /\ufffd/g },
+];
+
+const CONTENT_REGRESSIONS = [
+	"Me llamo Maria",
+	"I am Maria",
+	"Yo ___ Maria",
+	"El menu",
+	"Un cafe",
+	"Quiero cafe",
+	"Buenos dias",
+	"te verde",
+	"La cuenta esta",
+	"La comida esta",
+	"El cafe esta",
+	"La mesa esta aqui",
+	"Podemos tener el menu",
+	"Gracias por el cafe",
+	"Como estas",
+	"Como te llamas",
+	"S'il vous plait",
+	"Ich heisse",
+	"Ola",
+	"Nao",
+	"Meu nome e",
+];
+
+const getLineNumber = (text, index) => text.slice(0, index).split(/\r?\n/).length;
+
+const addIssue = (issues, file, type, value, line) => {
+	issues.push({ file, line, type, value });
+};
+
+const isNonEmptyString = (value) =>
+	typeof value === "string" && value.trim().length > 0;
+
+const loadTsExports = (relativeFile) => {
+	const filePath = path.join(ROOT, relativeFile);
+	const source = fs.readFileSync(filePath, "utf8");
+	const output = ts.transpileModule(source, {
+		compilerOptions: {
+			module: ts.ModuleKind.CommonJS,
+			target: ts.ScriptTarget.ES2020,
+		},
+		fileName: filePath,
+	}).outputText;
+	const module = { exports: {} };
+	const sandbox = {
+		exports: module.exports,
+		module,
+		require: (moduleName) => {
+			throw new Error(`Unexpected runtime import in ${relativeFile}: ${moduleName}`);
+		},
+	};
+
+	vm.runInNewContext(output, sandbox, { filename: relativeFile });
+	return module.exports;
+};
+
+const assertArray = (issues, file, name, value) => {
+	if (Array.isArray(value)) return true;
+	addIssue(issues, file, "missing export array", name);
+	return false;
+};
+
+const assertUniqueIds = (issues, file, label, items) => {
+	const seen = new Map();
+	for (const item of items) {
+		const id = item?.id;
+		if (!isNonEmptyString(id)) {
+			addIssue(issues, file, "missing id", label);
+			continue;
+		}
+		if (seen.has(id)) {
+			addIssue(issues, file, "duplicate id", `${label}: ${id}`);
+		}
+		seen.set(id, true);
+	}
+};
+
+const isGeneratedFallbackLessonId = (lessonId, languageId) =>
+	new RegExp(`^${languageId}_u1_l[1-6]$`).test(lessonId);
+
+const getLessonPlanConceptIds = (plan) => [
+	...(plan?.primaryConceptIds ?? []),
+	...(plan?.supportConceptIds ?? []),
+];
+
+const getExerciseSearchText = (exercise) =>
+	[
+		exercise?.question,
+		exercise?.correctAnswer,
+		exercise?.sentence,
+		exercise?.audioText,
+		...(exercise?.options ?? []),
+		...(exercise?.acceptedAnswers ?? []),
+		...(exercise?.wordBank ?? []).flatMap((option) => [
+			option?.value,
+			option?.label,
+			option?.pronunciation,
+			option?.translation,
+		]),
+		...(exercise?.pairs ?? []).flatMap((pair) => [pair?.left, pair?.right]),
+	]
+		.filter(isNonEmptyString)
+		.join(" ")
+		.normalize("NFKC")
+		.toLowerCase();
+
+const validateExplicitWordBank = (issues, file, exercise, label) => {
+	if (!Array.isArray(exercise.wordBank) || exercise.wordBank.length === 0) return;
+
+	if (exercise.wordBank.length < 4) {
+		addIssue(issues, file, "wordBank needs at least 4 options", label);
+	}
+
+	const seenValues = new Set();
+	for (const option of exercise.wordBank) {
+		if (!isNonEmptyString(option?.value)) {
+			addIssue(issues, file, "wordBank option missing value", label);
+			continue;
+		}
+		if (seenValues.has(option.value)) {
+			addIssue(issues, file, "duplicate wordBank option", `${label}:${option.value}`);
+		}
+		seenValues.add(option.value);
+
+		if (!isNonEmptyString(option.label)) {
+			addIssue(issues, file, "wordBank option missing label", `${label}:${option.value}`);
+		}
+		if (!isNonEmptyString(option.pronunciation)) {
+			addIssue(issues, file, "wordBank option missing pronunciation", `${label}:${option.value}`);
+		}
+		if (!isNonEmptyString(option.translation)) {
+			addIssue(issues, file, "wordBank option missing translation", `${label}:${option.value}`);
+		}
+	}
+};
+
+const validateExercise = (issues, file, exercise, context) => {
+	const label = `${context}:${exercise?.id ?? "missing-id"}`;
+
+	if (!isNonEmptyString(exercise?.id)) {
+		addIssue(issues, file, "exercise missing id", context);
+	}
+	if (!EXERCISE_TYPES.has(exercise?.type)) {
+		addIssue(issues, file, "invalid exercise type", label);
+	}
+	if (!isNonEmptyString(exercise?.question)) {
+		addIssue(issues, file, "exercise missing question", label);
+	}
+	if (exercise?.type !== "matching-pairs" && !isNonEmptyString(exercise?.correctAnswer)) {
+		addIssue(issues, file, "exercise missing correctAnswer", label);
+	}
+
+	if (exercise?.lessonId && exercise.lessonId !== context.lessonId) {
+		addIssue(issues, file, "exercise lessonId mismatch", label);
+	}
+	if (exercise?.unitId && exercise.unitId !== context.unitId) {
+		addIssue(issues, file, "exercise unitId mismatch", label);
+	}
+	if (exercise?.languageId && exercise.languageId !== context.languageId) {
+		addIssue(issues, file, "exercise languageId mismatch", label);
+	}
+
+	if (exercise?.type === "mcq" || exercise?.type === "tap-word") {
+		if (!Array.isArray(exercise.options) || exercise.options.length < 2) {
+			addIssue(issues, file, "choice exercise needs options", label);
+		} else if (!exercise.options.includes(exercise.correctAnswer)) {
+			addIssue(issues, file, "correct answer missing from options", label);
+		}
+	}
+
+	if (exercise?.type === "fill-in-the-blank") {
+		if (!isNonEmptyString(exercise.sentence) && !isNonEmptyString(exercise.question)) {
+			addIssue(issues, file, "fill-in exercise needs sentence or question", label);
+		}
+		if (isNonEmptyString(exercise.sentence) && !exercise.sentence.includes("___")) {
+			addIssue(issues, file, "fill-in sentence missing blank marker", label);
+		}
+		if (
+			Array.isArray(exercise.wordBank) &&
+			exercise.wordBank.length > 0 &&
+			!exercise.wordBank.some((option) => option?.value === exercise.correctAnswer)
+		) {
+			addIssue(issues, file, "wordBank missing correct answer", label);
+		}
+		validateExplicitWordBank(issues, file, exercise, label);
+	}
+
+	if (exercise?.type === "matching-pairs") {
+		if (!Array.isArray(exercise.pairs) || exercise.pairs.length < 2) {
+			addIssue(issues, file, "matching exercise needs pairs", label);
+		} else {
+			const pairIds = new Set();
+			for (const pair of exercise.pairs) {
+				if (!isNonEmptyString(pair?.id) || pairIds.has(pair.id)) {
+					addIssue(issues, file, "invalid matching pair id", label);
+				}
+				pairIds.add(pair.id);
+				if (!isNonEmptyString(pair?.left) || !isNonEmptyString(pair?.right)) {
+					addIssue(issues, file, "matching pair needs left and right", label);
+				}
+			}
+		}
+	}
+
+	if (exercise?.type === "listen-type" && !isNonEmptyString(exercise.audioText)) {
+		addIssue(issues, file, "listen-type missing audioText", label);
+	}
+};
+
+const validateDataGraph = (issues) => {
+	const { languages } = loadTsExports(DATA_FILES.languages);
+	const { units } = loadTsExports(DATA_FILES.units);
+	const { lessons } = loadTsExports(DATA_FILES.lessons);
+	const {
+		curriculumConcepts,
+		curriculumLessonPlans,
+	} = loadTsExports(DATA_FILES.curriculum);
+
+	if (!assertArray(issues, DATA_FILES.languages, "languages", languages)) return;
+	if (!assertArray(issues, DATA_FILES.units, "units", units)) return;
+	if (!assertArray(issues, DATA_FILES.lessons, "lessons", lessons)) return;
+	if (!assertArray(issues, DATA_FILES.curriculum, "curriculumConcepts", curriculumConcepts)) return;
+	if (!assertArray(issues, DATA_FILES.curriculum, "curriculumLessonPlans", curriculumLessonPlans)) return;
+
+	assertUniqueIds(issues, DATA_FILES.languages, "language", languages);
+	assertUniqueIds(issues, DATA_FILES.units, "unit", units);
+	assertUniqueIds(issues, DATA_FILES.lessons, "lesson", lessons);
+	assertUniqueIds(issues, DATA_FILES.curriculum, "concept", curriculumConcepts);
+	assertUniqueIds(
+		issues,
+		DATA_FILES.curriculum,
+		"lesson plan",
+		curriculumLessonPlans.map((plan) => ({ id: plan.lessonId }))
+	);
+
+	const languageIds = new Set(languages.map((language) => language.id));
+	const unitById = new Map(units.map((unit) => [unit.id, unit]));
+	const lessonById = new Map(lessons.map((lesson) => [lesson.id, lesson]));
+	const conceptById = new Map(curriculumConcepts.map((concept) => [concept.id, concept]));
+	const lessonPlanByLessonId = new Map(
+		curriculumLessonPlans.map((plan) => [plan.lessonId, plan])
+	);
+	const allExerciseIds = new Set();
+
+	for (const language of languages) {
+		const label = `language:${language?.id ?? "missing-id"}`;
+		["id", "name", "nativeName", "flag", "code"].forEach((field) => {
+			if (!isNonEmptyString(language?.[field])) {
+				addIssue(issues, DATA_FILES.languages, "language missing field", `${label}.${field}`);
+			}
+		});
+	}
+
+	for (const unit of units) {
+		const label = `unit:${unit?.id ?? "missing-id"}`;
+		if (!languageIds.has(unit.languageId)) {
+			addIssue(issues, DATA_FILES.units, "unit languageId missing", label);
+		}
+		if (!isNonEmptyString(unit.title) || !isNonEmptyString(unit.description)) {
+			addIssue(issues, DATA_FILES.units, "unit missing title or description", label);
+		}
+		if (typeof unit.order !== "number" || unit.order < 1) {
+			addIssue(issues, DATA_FILES.units, "unit invalid order", label);
+		}
+
+		const checkpoint = unit.checkpointQuiz;
+		if (checkpoint) {
+			if (!isNonEmptyString(checkpoint.id) || !isNonEmptyString(checkpoint.title)) {
+				addIssue(issues, DATA_FILES.units, "checkpoint missing id or title", label);
+			}
+			if (!Array.isArray(checkpoint.exercises) || checkpoint.exercises.length !== 5) {
+				addIssue(issues, DATA_FILES.units, "checkpoint must have 5 exercises", label);
+			} else {
+				checkpoint.exercises.forEach((exercise) => {
+					if (allExerciseIds.has(exercise.id)) {
+						addIssue(issues, DATA_FILES.units, "duplicate exercise id", exercise.id);
+					}
+					allExerciseIds.add(exercise.id);
+					validateExercise(issues, DATA_FILES.units, exercise, {
+						lessonId: undefined,
+						unitId: unit.id,
+						languageId: unit.languageId,
+						toString: () => label,
+					});
+				});
+			}
+		}
+	}
+
+	for (const lesson of lessons) {
+		const unit = unitById.get(lesson.unitId);
+		const label = `lesson:${lesson?.id ?? "missing-id"}`;
+		const lessonPlan = lessonPlanByLessonId.get(lesson.id);
+		if (!unit) {
+			addIssue(issues, DATA_FILES.lessons, "lesson unitId missing", label);
+		}
+		if (!isNonEmptyString(lesson.title) || !isNonEmptyString(lesson.description)) {
+			addIssue(issues, DATA_FILES.lessons, "lesson missing title or description", label);
+		}
+		if (typeof lesson.order !== "number" || lesson.order < 1) {
+			addIssue(issues, DATA_FILES.lessons, "lesson invalid order", label);
+		}
+		if (!Array.isArray(lesson.activities)) {
+			addIssue(issues, DATA_FILES.lessons, "lesson activities must be an array", label);
+		} else if (!lesson.isCheckpoint && lesson.activities.length === 0) {
+			addIssue(issues, DATA_FILES.lessons, "lesson needs at least one teaching activity", label);
+		}
+		if (!Array.isArray(lesson.goals) || lesson.goals.length < 2) {
+			addIssue(issues, DATA_FILES.lessons, "lesson needs at least 2 learning goals", label);
+		}
+		if (!lessonPlan && !lesson.isCheckpoint) {
+			addIssue(issues, DATA_FILES.curriculum, "lesson missing curriculum plan", label);
+		}
+
+		const exercises = lesson.exercises ?? [];
+		if (!lesson.isCheckpoint && exercises.length < 6) {
+			addIssue(issues, DATA_FILES.lessons, "lesson needs at least 6 exercises", label);
+		}
+		const exerciseTypes = new Set(exercises.map((exercise) => exercise.type));
+		if (!lesson.isCheckpoint) {
+			for (const exerciseType of REQUIRED_LESSON_EXERCISE_TYPES) {
+				if (!exerciseTypes.has(exerciseType)) {
+					addIssue(issues, DATA_FILES.lessons, "lesson missing exercise type", `${label}:${exerciseType}`);
+				}
+			}
+		}
+
+		if (lessonPlan) {
+			const planConceptIds = getLessonPlanConceptIds(lessonPlan);
+			const matchedConceptIds = new Set();
+
+			for (const exercise of exercises) {
+				const searchText = getExerciseSearchText(exercise);
+				for (const conceptId of planConceptIds) {
+					const concept = conceptById.get(conceptId);
+					if (
+						concept?.keywords?.some((keyword) =>
+							searchText.includes(keyword.normalize("NFKC").toLowerCase())
+						)
+					) {
+						matchedConceptIds.add(conceptId);
+					}
+				}
+			}
+
+			for (const conceptId of lessonPlan.primaryConceptIds ?? []) {
+				if (!matchedConceptIds.has(conceptId)) {
+					addIssue(issues, DATA_FILES.lessons, "primary concept not represented in exercises", `${label}:${conceptId}`);
+				}
+			}
+		}
+
+		exercises.forEach((exercise) => {
+			if (allExerciseIds.has(exercise.id)) {
+				addIssue(issues, DATA_FILES.lessons, "duplicate exercise id", exercise.id);
+			}
+			allExerciseIds.add(exercise.id);
+			validateExercise(issues, DATA_FILES.lessons, exercise, {
+				lessonId: lesson.id,
+				unitId: lesson.unitId,
+				languageId: unit?.languageId,
+				toString: () => label,
+			});
+		});
+	}
+
+	for (const concept of curriculumConcepts) {
+		const label = `concept:${concept?.id ?? "missing-id"}`;
+		if (!languageIds.has(concept.languageId)) {
+			addIssue(issues, DATA_FILES.curriculum, "concept languageId missing", label);
+		}
+		if (!isNonEmptyString(concept.title) || !isNonEmptyString(concept.description)) {
+			addIssue(issues, DATA_FILES.curriculum, "concept missing title or description", label);
+		}
+		if (!Array.isArray(concept.keywords) || concept.keywords.length === 0) {
+			addIssue(issues, DATA_FILES.curriculum, "concept missing keywords", label);
+		}
+	}
+
+	for (const plan of curriculumLessonPlans) {
+		const label = `lessonPlan:${plan?.lessonId ?? "missing-id"}`;
+		const unit = unitById.get(plan.unitId);
+		const lesson = lessonById.get(plan.lessonId);
+		const generatedLesson = isGeneratedFallbackLessonId(plan.lessonId, plan.languageId);
+
+		if (!languageIds.has(plan.languageId)) {
+			addIssue(issues, DATA_FILES.curriculum, "lesson plan languageId missing", label);
+		}
+		if (!unit) {
+			addIssue(issues, DATA_FILES.curriculum, "lesson plan unitId missing", label);
+		}
+		if (!lesson && !generatedLesson) {
+			addIssue(issues, DATA_FILES.curriculum, "lesson plan lessonId missing", label);
+		}
+		if (lesson && lesson.unitId !== plan.unitId) {
+			addIssue(issues, DATA_FILES.curriculum, "lesson plan unit mismatch", label);
+		}
+		if (unit && unit.languageId !== plan.languageId) {
+			addIssue(issues, DATA_FILES.curriculum, "lesson plan language mismatch", label);
+		}
+		if (!isNonEmptyString(plan.canDoStatement)) {
+			addIssue(issues, DATA_FILES.curriculum, "lesson plan missing canDoStatement", label);
+		}
+
+		const conceptIds = [
+			...(plan.primaryConceptIds ?? []),
+			...(plan.supportConceptIds ?? []),
+		];
+		if (!Array.isArray(plan.primaryConceptIds) || plan.primaryConceptIds.length === 0) {
+			addIssue(issues, DATA_FILES.curriculum, "lesson plan missing primary concepts", label);
+		}
+		conceptIds.forEach((conceptId) => {
+			const concept = conceptById.get(conceptId);
+			if (!concept) {
+				addIssue(issues, DATA_FILES.curriculum, "lesson plan concept missing", `${label}:${conceptId}`);
+			} else if (concept.languageId !== plan.languageId) {
+				addIssue(issues, DATA_FILES.curriculum, "lesson plan concept language mismatch", `${label}:${conceptId}`);
+			}
+		});
+	}
+};
+
+const findIssues = () => {
+	const issues = [];
+
+	for (const relativeFile of FILES_TO_SCAN) {
+		const filePath = path.join(ROOT, relativeFile);
+		const text = fs.readFileSync(filePath, "utf8");
+
+		for (const pattern of MOJIBAKE_PATTERNS) {
+			for (const match of text.matchAll(pattern.regex)) {
+				addIssue(
+					issues,
+					relativeFile,
+					pattern.name,
+					match[0],
+					getLineNumber(text, match.index ?? 0)
+				);
+			}
+		}
+
+		for (const phrase of CONTENT_REGRESSIONS) {
+			let index = text.indexOf(phrase);
+			while (index !== -1) {
+				addIssue(
+					issues,
+					relativeFile,
+					"content regression",
+					phrase,
+					getLineNumber(text, index)
+				);
+				index = text.indexOf(phrase, index + phrase.length);
+			}
+		}
+	}
+
+	validateDataGraph(issues);
+	return issues;
+};
+
+const issues = findIssues();
+
+if (issues.length) {
+	console.error("Content encoding/data-quality issues found:");
+	for (const issue of issues) {
+		const location = issue.line ? `${issue.file}:${issue.line}` : issue.file;
+		console.error(
+			`- ${location} [${issue.type}] ${JSON.stringify(issue.value)}`
+		);
+	}
+	process.exit(1);
+}
+
+console.log("Content encoding and data graph checks passed.");

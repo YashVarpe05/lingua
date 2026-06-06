@@ -110,20 +110,20 @@ export const lessons: Lesson[] = [
     id: "es_u1_l2",
     unitId: "es_unit_1",
     title: "AI Teacher: Introductions",
-    description: "Join your AI teacher Maria to learn how to introduce yourself and state your name.",
+    description: "Join your AI teacher María to learn how to introduce yourself and state your name.",
     type: "video",
     order: 2,
     xpReward: 20,
     durationMinutes: 5,
     goals: ["Ask for someone's name", "State your own name in Spanish", "Exchange pleasantries"],
-    aiPrompt: "You are Maria, a warm, energetic, and highly encouraging Spanish teacher. Your goal is strictly to teach the user how to introduce themselves using the question '¿Cómo te llamas?' (What is your name?) and reply with 'Me llamo...' (My name is...). Introduce 'Mucho gusto' (Nice to meet you) at the end. Stay strictly within this focus and do not teach other words or topics. Speak mostly in English, and introduce Spanish words slowly with translations. Keep your sentences short, natural, and friendly (use contractions like 'let's', 'I'm'). Actively listen to the student's responses: if they make a mistake, gently encourage them to try again. Keep your replies to one or two conversational sentences. Ask the student to repeat or try introducing themselves.",
+    aiPrompt: "You are María, a warm, energetic, and highly encouraging Spanish teacher. Your goal is strictly to teach the user how to introduce themselves using the question '¿Cómo te llamas?' (What is your name?) and reply with 'Me llamo...' (My name is...). Introduce 'Mucho gusto' (Nice to meet you) at the end. Stay strictly within this focus and do not teach other words or topics. Speak mostly in English, and introduce Spanish words slowly with translations. Keep your sentences short, natural, and friendly (use contractions like 'let's', 'I'm'). Actively listen to the student's responses: if they make a mistake, gently encourage them to try again. Keep your replies to one or two conversational sentences. Ask the student to repeat or try introducing themselves.",
     activities: [
       {
         id: "es_u1_l2_a1",
         lessonId: "es_u1_l2",
         type: "multiple-choice",
         question: "Which phrase means 'What is your name?'",
-        options: ["¿Cómo estás?", "¿Cómo te llamas?", "Mucho gusto", "Me llamo Maria"],
+        options: ["¿Cómo estás?", "¿Cómo te llamas?", "Mucho gusto", "Me llamo María"],
         correctAnswer: "¿Cómo te llamas?",
       },
       {
@@ -186,8 +186,8 @@ export const lessons: Lesson[] = [
       {
         id: "es_u1_l2_e7",
         type: "fill-in-the-blank",
-        question: "Fill in the blank to say 'I am Maria'",
-        sentence: "Yo ___ Maria",
+        question: "Fill in the blank to say 'I am María'",
+        sentence: "Yo ___ María",
         correctAnswer: "soy"
       },
       {
@@ -208,7 +208,6 @@ export const lessons: Lesson[] = [
     order: 3,
     xpReward: 15,
     durationMinutes: 4,
-    isCheckpoint: true,
     goals: ["Introduce yourself in a conversation", "Respond to simple questions"],
     aiPrompt: "You are Carlos, a helpful local language partner in Madrid. Initiate a chat conversation by saying hello and asking the user's name ('Hola! ¿Cómo te llamas?'). Guide the user to respond in Spanish. Keep your sentences short and beginner-friendly, correcting mistakes gently.",
     activities: [
@@ -387,7 +386,6 @@ export const lessons: Lesson[] = [
     order: 2,
     xpReward: 20,
     durationMinutes: 5,
-    isCheckpoint: true,
     goals: ["Order a drink and snack politely", "Understand pricing questions"],
     aiPrompt: "You are Sofia, a friendly barista at a café in Buenos Aires. Greet the user ('Buenas tardes! ¿Qué desea tomar?') and guide them through ordering coffee or a snack. Respond realistically, ask if they want anything else, and present the bill ('la cuenta') when asked.",
     activities: [
@@ -571,7 +569,6 @@ export const lessons: Lesson[] = [
     order: 2,
     xpReward: 20,
     durationMinutes: 5,
-    isCheckpoint: true,
     goals: ["Ask name in French", "Say 'My name is...'", "Express pleasure in meeting"],
     aiPrompt: "You are Pierre, a warm, energetic, and highly encouraging French teacher. Your goal is strictly to teach the user how to introduce themselves using the question 'Comment vous appelez-vous?' (What is your name?) and reply with 'Je m'appelle...' (My name is...). Introduce 'Enchanté' (Nice to meet you / Delighted) at the end. Stay strictly within this focus and do not teach other words or topics. Speak mostly in English, and introduce French words slowly with translations. Keep your sentences short, natural, and friendly (use contractions like 'let's', 'I'm'). Actively listen to the student's responses: if they make a mistake, gently encourage them to try again. Keep your replies to one or two conversational sentences. Ask the student to repeat or try introducing themselves.",
     activities: [
@@ -694,8 +691,16 @@ export const lessons: Lesson[] = [
         id: "ja_u1_l1_e2",
         type: "fill-in-the-blank",
         question: "Translate 'Excuse me' into Japanese",
-        sentence: "すみ___",
-        correctAnswer: "ません"
+        sentence: "___",
+        correctAnswer: "\u3059\u307F\u307E\u305B\u3093",
+        acceptedAnswers: ["sumimasen", "Sumimasen"],
+        wordBank: [
+          { value: "\u3059\u307F\u307E\u305B\u3093", label: "\u3059\u307F\u307E\u305B\u3093", pronunciation: "sumimasen", translation: "Excuse me" },
+          { value: "\u3042\u308A\u304C\u3068\u3046", label: "\u3042\u308A\u304C\u3068\u3046", pronunciation: "arigatou", translation: "Thank you" },
+          { value: "\u3053\u3093\u306B\u3061\u306F", label: "\u3053\u3093\u306B\u3061\u306F", pronunciation: "konnichiwa", translation: "Hello" },
+          { value: "\u3055\u3088\u3046\u306A\u3089", label: "\u3055\u3088\u3046\u306A\u3089", pronunciation: "sayounara", translation: "Goodbye" },
+          { value: "\u306F\u3058\u3081\u307E\u3057\u3066", label: "\u306F\u3058\u3081\u307E\u3057\u3066", pronunciation: "hajimemashite", translation: "Nice to meet you" }
+        ]
       },
       {
         id: "ja_u1_l1_e3",
@@ -734,8 +739,16 @@ export const lessons: Lesson[] = [
         id: "ja_u1_l1_e7",
         type: "fill-in-the-blank",
         question: "Translate 'Hello' into Japanese",
-        sentence: "こん___は",
-        correctAnswer: "にち"
+        sentence: "___",
+        correctAnswer: "\u3053\u3093\u306B\u3061\u306F",
+        acceptedAnswers: ["konnichiwa", "Konnichiwa"],
+        wordBank: [
+          { value: "\u3053\u3093\u306B\u3061\u306F", label: "\u3053\u3093\u306B\u3061\u306F", pronunciation: "konnichiwa", translation: "Hello" },
+          { value: "\u3059\u307F\u307E\u305B\u3093", label: "\u3059\u307F\u307E\u305B\u3093", pronunciation: "sumimasen", translation: "Excuse me" },
+          { value: "\u3042\u308A\u304C\u3068\u3046", label: "\u3042\u308A\u304C\u3068\u3046", pronunciation: "arigatou", translation: "Thank you" },
+          { value: "\u3055\u3088\u3046\u306A\u3089", label: "\u3055\u3088\u3046\u306A\u3089", pronunciation: "sayounara", translation: "Goodbye" },
+          { value: "\u306F\u3058\u3081\u307E\u3057\u3066", label: "\u306F\u3058\u3081\u307E\u3057\u3066", pronunciation: "hajimemashite", translation: "Nice to meet you" }
+        ]
       },
       {
         id: "ja_u1_l1_e8",
@@ -755,7 +768,6 @@ export const lessons: Lesson[] = [
     order: 2,
     xpReward: 15,
     durationMinutes: 4,
-    isCheckpoint: true,
     goals: ["Exchange names", "End a self-introduction with Yoroshiku"],
     aiPrompt: "You are Kenji, a polite Japanese student in Tokyo. Greet the user warmly and introduce yourself ('Hajimemashite, Kenji desu. Yoroshiku onegai shimasu. O-namae wa?'). Encourage the user to state their name using '[Name] desu' and close with 'Yoroshiku'. Use simple romaji or hiragana as preferred by the user.",
     activities: [
@@ -780,8 +792,16 @@ export const lessons: Lesson[] = [
         id: "ja_u1_l2_e2",
         type: "fill-in-the-blank",
         question: "Translate 'I am Kenji' into Japanese",
-        sentence: "ケンジ___",
-        correctAnswer: "です"
+        sentence: "\u30B1\u30F3\u30B8 ___",
+        correctAnswer: "\u3067\u3059",
+        acceptedAnswers: ["desu", "Desu"],
+        wordBank: [
+          { value: "\u3067\u3059", label: "\u3067\u3059", pronunciation: "desu", translation: "I am / is" },
+          { value: "\u306F\u3058\u3081\u307E\u3057\u3066", label: "\u306F\u3058\u3081\u307E\u3057\u3066", pronunciation: "hajimemashite", translation: "Nice to meet you" },
+          { value: "\u3088\u308D\u3057\u304F\u304A\u306D\u304C\u3044\u3057\u307E\u3059", label: "\u3088\u308D\u3057\u304F\u304A\u306D\u304C\u3044\u3057\u307E\u3059", pronunciation: "yoroshiku onegai shimasu", translation: "Goodwill close" },
+          { value: "\u304A\u540D\u524D\u306F", label: "\u304A\u540D\u524D\u306F", pronunciation: "o-namae wa", translation: "Your name?" },
+          { value: "\u3059\u307F\u307E\u305B\u3093", label: "\u3059\u307F\u307E\u305B\u3093", pronunciation: "sumimasen", translation: "Excuse me" }
+        ]
       },
       {
         id: "ja_u1_l2_e3",
@@ -820,8 +840,16 @@ export const lessons: Lesson[] = [
         id: "ja_u1_l2_e7",
         type: "fill-in-the-blank",
         question: "Translate 'Nice to meet you' into Japanese",
-        sentence: "は___まして",
-        correctAnswer: "じめ"
+        sentence: "___",
+        correctAnswer: "\u306F\u3058\u3081\u307E\u3057\u3066",
+        acceptedAnswers: ["hajimemashite", "Hajimemashite"],
+        wordBank: [
+          { value: "\u306F\u3058\u3081\u307E\u3057\u3066", label: "\u306F\u3058\u3081\u307E\u3057\u3066", pronunciation: "hajimemashite", translation: "Nice to meet you" },
+          { value: "\u3088\u308D\u3057\u304F\u304A\u306D\u304C\u3044\u3057\u307E\u3059", label: "\u3088\u308D\u3057\u304F\u304A\u306D\u304C\u3044\u3057\u307E\u3059", pronunciation: "yoroshiku onegai shimasu", translation: "Goodwill close" },
+          { value: "\u3067\u3059", label: "\u3067\u3059", pronunciation: "desu", translation: "I am / is" },
+          { value: "\u3053\u3093\u306B\u3061\u306F", label: "\u3053\u3093\u306B\u3061\u306F", pronunciation: "konnichiwa", translation: "Hello" },
+          { value: "\u3059\u307F\u307E\u305B\u3093", label: "\u3059\u307F\u307E\u305B\u3093", pronunciation: "sumimasen", translation: "Excuse me" }
+        ]
       },
       {
         id: "ja_u1_l2_e8",
@@ -842,7 +870,24 @@ export const lessons: Lesson[] = [
     xpReward: 10,
     durationMinutes: 4,
     goals: ["Name common foods", "Ask for a menu"],
-    activities: [],
+    activities: [
+      {
+        id: "es_u3_l1_a1",
+        lessonId: "es_u3_l1",
+        type: "multiple-choice",
+        question: "What does 'La comida' mean?",
+        options: ["The bill", "The food", "The table", "The menu"],
+        correctAnswer: "The food",
+      },
+      {
+        id: "es_u3_l1_a2",
+        lessonId: "es_u3_l1",
+        type: "translate",
+        question: "Translate: 'El menú, por favor'",
+        correctAnswer: "The menu, please",
+        translationContext: "Use this when asking a waiter for the menu.",
+      },
+    ],
     exercises: [
       {
         id: "es_u3_l1_e1",
@@ -850,6 +895,61 @@ export const lessons: Lesson[] = [
         question: "What is 'La cuenta'?",
         options: ["The food", "The bill", "The menu", "The table"],
         correctAnswer: "The bill"
+      },
+      {
+        id: "es_u3_l1_e2",
+        type: "mcq",
+        question: "Select the correct translation for 'food'",
+        options: ["La comida", "La cuenta", "La mesa", "El agua"],
+        correctAnswer: "La comida"
+      },
+      {
+        id: "es_u3_l1_e3",
+        type: "fill-in-the-blank",
+        question: "Complete: 'The menu, please'",
+        sentence: "El ___, por favor",
+        correctAnswer: "menú",
+        acceptedAnswers: ["menu"]
+      },
+      {
+        id: "es_u3_l1_e4",
+        type: "matching-pairs",
+        question: "Match the dining words",
+        pairs: [
+          { id: "p1", left: "La cuenta", right: "The bill" },
+          { id: "p2", left: "La comida", right: "The food" },
+          { id: "p3", left: "La mesa", right: "The table" },
+          { id: "p4", left: "El menú", right: "The menu" }
+        ],
+        correctAnswer: ""
+      },
+      {
+        id: "es_u3_l1_e5",
+        type: "tap-word",
+        question: "Select the phrase for 'The food is good'",
+        options: ["La comida es buena", "La cuenta es buena", "El menú es agua", "La mesa es café"],
+        correctAnswer: "La comida es buena"
+      },
+      {
+        id: "es_u3_l1_e6",
+        type: "listen-type",
+        question: "Listen and type what you hear",
+        correctAnswer: "La comida",
+        audioText: "La comida"
+      },
+      {
+        id: "es_u3_l1_e7",
+        type: "fill-in-the-blank",
+        question: "Complete: 'The bill is on the table'",
+        sentence: "La cuenta está en la ___",
+        correctAnswer: "mesa"
+      },
+      {
+        id: "es_u3_l1_e8",
+        type: "mcq",
+        question: "Translate: 'Thank you for the meal.'",
+        options: ["Gracias por la comida.", "Gracias por la cuenta.", "El menú, por favor.", "La mesa está aquí."],
+        correctAnswer: "Gracias por la comida."
       }
     ]
   },
@@ -862,9 +962,25 @@ export const lessons: Lesson[] = [
     order: 2,
     xpReward: 15,
     durationMinutes: 5,
-    isCheckpoint: true,
     goals: ["Order food politely", "Ask for the bill"],
-    activities: [],
+    activities: [
+      {
+        id: "es_u3_l2_a1",
+        lessonId: "es_u3_l2",
+        type: "multiple-choice",
+        question: "Which phrase means 'I would like to order food'?",
+        options: ["Quisiera ordenar comida.", "La cuenta, por favor.", "El menú, por favor.", "Gracias por la comida."],
+        correctAnswer: "Quisiera ordenar comida.",
+      },
+      {
+        id: "es_u3_l2_a2",
+        lessonId: "es_u3_l2",
+        type: "translate",
+        question: "Translate: 'La cuenta, por favor'",
+        correctAnswer: "The bill, please",
+        translationContext: "Use this when you are ready to pay at a restaurant.",
+      },
+    ],
     exercises: [
       {
         id: "es_u3_l2_e1",
@@ -872,6 +988,60 @@ export const lessons: Lesson[] = [
         question: "How do you say 'The bill, please'?",
         options: ["La cuenta, por favor", "Hola, buenas tardes", "Gracias por la comida", "Un café, por favor"],
         correctAnswer: "La cuenta, por favor"
+      },
+      {
+        id: "es_u3_l2_e2",
+        type: "mcq",
+        question: "Select the polite phrase for 'I would like to order food.'",
+        options: ["Quisiera ordenar comida.", "Quisiera pagar agua.", "La mesa es buena.", "El menú está tarde."],
+        correctAnswer: "Quisiera ordenar comida."
+      },
+      {
+        id: "es_u3_l2_e3",
+        type: "fill-in-the-blank",
+        question: "Complete: 'I would like to order food'",
+        sentence: "Quisiera ordenar ___",
+        correctAnswer: "comida"
+      },
+      {
+        id: "es_u3_l2_e4",
+        type: "matching-pairs",
+        question: "Match the restaurant phrases",
+        pairs: [
+          { id: "p1", left: "Quisiera ordenar", right: "I would like to order" },
+          { id: "p2", left: "La cuenta, por favor", right: "The bill, please" },
+          { id: "p3", left: "El menú, por favor", right: "The menu, please" },
+          { id: "p4", left: "Gracias por la comida", right: "Thank you for the meal" }
+        ],
+        correctAnswer: ""
+      },
+      {
+        id: "es_u3_l2_e5",
+        type: "tap-word",
+        question: "Select the best request for a menu and water",
+        options: ["¿Podemos tener el menú y agua?", "¿Podemos tener la cuenta y leche?", "Gracias por el café.", "La comida es tarde."],
+        correctAnswer: "¿Podemos tener el menú y agua?"
+      },
+      {
+        id: "es_u3_l2_e6",
+        type: "listen-type",
+        question: "Listen and type what you hear",
+        correctAnswer: "La cuenta, por favor",
+        audioText: "La cuenta, por favor"
+      },
+      {
+        id: "es_u3_l2_e7",
+        type: "fill-in-the-blank",
+        question: "Complete the polite request",
+        sentence: "La cuenta, por ___",
+        correctAnswer: "favor"
+      },
+      {
+        id: "es_u3_l2_e8",
+        type: "mcq",
+        question: "Translate: 'Can we have the menu and water?'",
+        options: ["¿Podemos tener el menú y agua?", "¿Podemos tener la cuenta y leche?", "¿Podemos comer el barista?", "¿Podemos beber la mesa?"],
+        correctAnswer: "¿Podemos tener el menú y agua?"
       }
     ]
   }

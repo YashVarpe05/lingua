@@ -1,15 +1,66 @@
 import { StreamClient } from "@stream-io/node-sdk";
 import { lessons, vocabulary, phrases } from "../../data/lessons";
+import { requireApiAuth } from "../../lib/serverAuth";
+import { buildLessonCallId } from "../../lib/streamCall";
+import { getLanguageUnitsAndLessons } from "../../utils/learning";
+
+type StreamTranscriptionLanguage =
+	| "en"
+	| "es"
+	| "fr"
+	| "ja"
+	| "ar"
+	| "de"
+	| "zh"
+	| "it"
+	| "pt"
+	| "ru"
+	| "ko"
+	| "nl";
+
+const streamTranscriptionLanguages = new Set<StreamTranscriptionLanguage>([
+	"en",
+	"es",
+	"fr",
+	"ja",
+	"ar",
+	"de",
+	"zh",
+	"it",
+	"pt",
+	"ru",
+	"ko",
+	"nl",
+]);
 
 export async function POST(request: Request) {
 	try {
-		const { userId, userName, userImage, lessonId, languageId } = await request.json();
+		const auth = await requireApiAuth(request);
 
-		if (!userId) {
-			return Response.json({ error: "Missing userId parameter" }, { status: 400 });
+		if (auth instanceof Response) {
+			return auth;
 		}
+
+		const body = (await request.json()) as Record<string, unknown>;
+		const userName = typeof body.userName === "string" ? body.userName : auth.userId;
+		const userImage = typeof body.userImage === "string" ? body.userImage : "";
+		const lessonId = typeof body.lessonId === "string" ? body.lessonId : "";
+		const languageId = typeof body.languageId === "string" ? body.languageId : "es";
+
 		if (!lessonId) {
 			return Response.json({ error: "Missing lessonId parameter" }, { status: 400 });
+		}
+		if (!languageId) {
+			return Response.json({ error: "Missing languageId parameter" }, { status: 400 });
+		}
+
+		const activeLessons = getLanguageUnitsAndLessons(languageId).lessons;
+		const lesson =
+			activeLessons.find((item) => item.id === lessonId) ||
+			lessons.find((item) => item.id === lessonId);
+
+		if (!lesson) {
+			return Response.json({ error: "Invalid lessonId" }, { status: 400 });
 		}
 
 		const apiKey = process.env.STREAM_API_KEY;
@@ -22,17 +73,13 @@ export async function POST(request: Request) {
 			);
 		}
 
-		// Initialize server SDK client with a longer timeout (10 seconds)
 		const client = new StreamClient(apiKey, apiSecret, { timeout: 10000 });
+		const token = client.createToken(auth.userId);
 
-		// Generate Stream user token
-		const token = client.createToken(userId);
-
-		// Upsert the user metadata and the teacher metadata so they have names and photos in the call
 		await client.upsertUsers([
 			{
-				id: userId,
-				name: userName || userId,
+				id: auth.userId,
+				name: userName || auth.userId,
 				image: userImage || "",
 				role: "user",
 			},
@@ -44,16 +91,8 @@ export async function POST(request: Request) {
 			},
 		]);
 
-		// Create a call type "default" with a valid, clean callId
-		// Stream callIds must be alphanumeric, underscore, or hyphen, up to 64 chars.
-		const cleanLessonId = lessonId.replace(/[^a-zA-Z0-9-_]/g, "");
-		const cleanUserId = userId.replace(/[^a-zA-Z0-9-_]/g, "");
-		const callId = `lesson-${cleanLessonId}-${cleanUserId}`.slice(0, 64);
-		
+		const callId = buildLessonCallId(lessonId, auth.userId);
 		const call = client.video.call("default", callId);
-
-		// Find the lesson and pack its details plus relevant vocab and phrases
-		const lesson = lessons.find((l) => l.id === lessonId);
 		const filteredVocab = vocabulary
 			.filter((v) => v.languageId === languageId)
 			.map((v) => ({
@@ -68,29 +107,33 @@ export async function POST(request: Request) {
 				translation: p.translation,
 				pronunciation: p.pronunciation,
 			}));
+		const transcriptionLanguage = streamTranscriptionLanguages.has(
+			languageId as StreamTranscriptionLanguage
+		)
+			? (languageId as StreamTranscriptionLanguage)
+			: "en";
 
-		// Initialize/get the call on the backend, assigning both the user and the teacher as admin members
 		await call.getOrCreate({
 			data: {
-				created_by_id: userId,
+				created_by_id: auth.userId,
 				members: [
-					{ user_id: userId, role: "admin" },
+					{ user_id: auth.userId, role: "admin" },
 					{ user_id: "teacher", role: "admin" },
 				],
 				settings_override: {
 					transcription: {
 						mode: "auto-on",
 						closed_caption_mode: "auto-on",
-						language: languageId || "en",
+						language: transcriptionLanguage,
 					},
 				},
 				custom: {
 					lessonId,
 					languageId: languageId || "en",
-					lessonTitle: lesson?.title || "",
-					lessonDescription: lesson?.description || "",
-					goals: lesson?.goals || [],
-					aiPrompt: lesson?.aiPrompt || "",
+					lessonTitle: lesson.title || "",
+					lessonDescription: lesson.description || "",
+					goals: lesson.goals || [],
+					aiPrompt: lesson.aiPrompt || "",
 					vocabulary: filteredVocab,
 					phrases: filteredPhrases,
 				},
@@ -102,8 +145,8 @@ export async function POST(request: Request) {
 			token,
 			callId,
 		});
-	} catch (error: any) {
+	} catch (error) {
 		console.error("Stream API Route error:", error);
-		return Response.json({ error: error.message || "Internal server error" }, { status: 500 });
+		return Response.json({ error: "Internal server error" }, { status: 500 });
 	}
 }

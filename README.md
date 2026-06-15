@@ -2,6 +2,17 @@
 
 This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
 
+## Course design plan
+
+For the lesson, chapter, checkpoint, review, and course design plan, start with
+[`docs/course-architecture.md`](docs/course-architecture.md).
+
+For the research-backed learning engine architecture, see
+[`docs/duolingo-system-research.md`](docs/duolingo-system-research.md).
+
+For the Expo API route production checklist, see
+[`docs/api-production-readiness.md`](docs/api-production-readiness.md).
+
 ## Get started
 
 1. Install dependencies

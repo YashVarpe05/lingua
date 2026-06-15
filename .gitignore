@@ -25,6 +25,8 @@ expo-env.d.ts
 npm-debug.*
 yarn-debug.*
 yarn-error.*
+.expo-*-qa.*.log
+*.code-workspace
 
 # macOS
 .DS_Store
@@ -42,3 +44,7 @@ app-example
 /ios
 /android
 .env
+
+# Agent config directories
+.agents/
+.claude/

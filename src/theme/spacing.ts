@@ -1,12 +1,10 @@
 /**
- * Lingua Design System — Spacing & Layout Tokens
+ * Lingua Design System - Spacing & Layout Tokens
  *
- * Use Tailwind classes (e.g. `p-4`, `rounded-card`, `shadow-card`)
- * whenever possible. Import this file only when you need raw values
- * in JavaScript.
+ * Prefer NativeWind classes such as `p-4`, `gap-3`, and `rounded-card`.
+ * Import this file only when raw values are needed in JavaScript.
  */
 
-// ─── Spacing Scale (in px, maps to Tailwind default 4px grid) ───────
 export const spacing = {
   xs: 4,
   sm: 8,
@@ -20,7 +18,6 @@ export const spacing = {
   "6xl": 64,
 } as const;
 
-// ─── Border Radius ───────────────────────────────────────────────────
 export const borderRadius = {
   sm: 8,
   md: 12,
@@ -33,7 +30,6 @@ export const borderRadius = {
   badge: 20,
 } as const;
 
-// ─── Shadows (React Native StyleSheet format) ────────────────────────
 export const shadows = {
   card: {
     shadowColor: "#0D132B",

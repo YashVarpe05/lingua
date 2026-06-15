@@ -1,6 +1,11 @@
 {
   "version": 1,
   "skills": {
+    "agent": {
+      "source": "visionagents.ai",
+      "sourceType": "well-known",
+      "computedHash": "71fa5fcb73ebd687a8bc6702716703778fcfaa4e0db95475b12bfc4c7f296267"
+    },
     "building-native-ui": {
       "source": "expo/skills",
       "sourceType": "github",
@@ -84,6 +89,54 @@
       "sourceType": "github",
       "skillPath": "plugins/expo/skills/native-data-fetching/SKILL.md",
       "computedHash": "3cd0ba91f359f9f84cd40f36f356287994a0e952520fac6e03ef7952d0397879"
+    },
+    "stream": {
+      "source": "GetStream/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/stream/SKILL.md",
+      "computedHash": "dc32b7a6f15ddb9646187b18c43d2a7a4ee5771085312f305a44c334db2da8fc"
+    },
+    "stream-android": {
+      "source": "GetStream/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/stream-android/SKILL.md",
+      "computedHash": "94ea90a75c1ac82a7c25562ac330d5a2c6d51c40e15926ede12de69f772b4797"
+    },
+    "stream-builder": {
+      "source": "GetStream/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/stream-builder/SKILL.md",
+      "computedHash": "94609cda135d56eaae9f0b311e50c1ba23ef481ea3bc0ab60fc48c9ce42aaf7c"
+    },
+    "stream-cli": {
+      "source": "GetStream/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/stream-cli/SKILL.md",
+      "computedHash": "a3a134407c3514210a0ab8b0b1a7ef11be4dd7a2a902ab847206cfef3d61de01"
+    },
+    "stream-docs": {
+      "source": "GetStream/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/stream-docs/SKILL.md",
+      "computedHash": "8dc6db67bbbd05febefacdb93e6e051df7878dcfc0b10988e5e5b3215f5f68c3"
+    },
+    "stream-react-native": {
+      "source": "GetStream/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/stream-react-native/SKILL.md",
+      "computedHash": "fcf7980758ea9a2c558d7a2ad4b39edcb9296002d536b8c3d0d4150f6c8b199a"
+    },
+    "supabase": {
+      "source": "supabase/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/supabase/SKILL.md",
+      "computedHash": "d414d598b9428b3e851c4ce61898649906b19e55aa7415bb42a286bd9ca2ab32"
+    },
+    "supabase-postgres-best-practices": {
+      "source": "supabase/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/supabase-postgres-best-practices/SKILL.md",
+      "computedHash": "0d2c4857a7d6fdcd3fbc46e458fa4c497f029cab89a01548b3defce203003932"
     },
     "upgrading-expo": {
       "source": "expo/skills",

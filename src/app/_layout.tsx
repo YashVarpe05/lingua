@@ -3,6 +3,7 @@ import "../../global.css";
 import { posthog } from "@/config/posthog";
 import { fonts } from "@/constants/fonts";
 import { useLanguageStore } from "@/store/useLanguageStore";
+import { useProgressStore } from "@/store/useProgressStore";
 import { ClerkProvider, useAuth } from "@clerk/expo";
 import { tokenCache } from "@clerk/expo/token-cache";
 import { useFonts } from "expo-font";
@@ -31,6 +32,14 @@ SplashScreen.preventAutoHideAsync();
 
 function RootLayoutNav() {
 	const { isLoaded: clerkLoaded, isSignedIn } = useAuth();
+	const checkAndResetDailyXP = useProgressStore((state) => state.checkAndResetDailyXP);
+	const progressHasHydrated = useProgressStore((state) => state._hasHydrated);
+
+	useEffect(() => {
+		if (!progressHasHydrated) return;
+		checkAndResetDailyXP();
+	}, [checkAndResetDailyXP, progressHasHydrated]);
+
 	const [fontsLoaded, fontError] = useFonts(fonts);
 	const router = useRouter();
 	const segments = useSegments();
@@ -126,7 +135,7 @@ export default function RootLayout() {
 		<PostHogProvider
 			client={posthog}
 			autocapture={{
-				captureScreens: true,
+				captureScreens: false,
 				captureTouches: true,
 				propsToCapture: ["testID"],
 				maxElementsCaptured: 20,

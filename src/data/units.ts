@@ -1,22 +1,169 @@
 import { Unit } from "../types/learning";
+import { coreA1Units } from "./a1Course";
 
-export const units: Unit[] = [
+const legacyUnits: Unit[] = [
 	// Spanish Units
 	{
 		id: "es_unit_1",
 		languageId: "es",
 		title: "Unit 1: Introductions & Basics",
-		description:
-			"Start with simple Spanish greetings, introduce yourself, and learn basic vocabulary.",
+		description: "Introduce yourself and exchange basic greetings",
 		order: 1,
+		unitColor: "#58CC02",
+		unitEmoji: "\u{1F44B}",
+		cefr: "A1",
+		canDoGoal: "I can greet someone, introduce myself, ask their name, and say thank you.",
+		targetVocabulary: ["hola", "adiós", "gracias", "por favor", "me llamo", "mucho gusto"],
+		grammarFocus: ["greeting phrases", "me llamo", "simple question patterns"],
+		checkpointQuiz: {
+			id: "es_unit_1_checkpoint",
+			title: "Unit 1 Checkpoint",
+			exercises: [
+				{
+					id: "es_unit_1_cp_1",
+					type: "mcq",
+					question: "Translate: 'Hello, my name is Ana.'",
+					options: ["Hola, me llamo Ana.", "Adiós, soy Ana.", "Gracias, Ana.", "Por favor, Ana."],
+					correctAnswer: "Hola, me llamo Ana.",
+				},
+				{
+					id: "es_unit_1_cp_2",
+					type: "mcq",
+					question: "Translate: 'Nice to meet you, Carlos.'",
+					options: ["Mucho gusto, Carlos.", "¿Cómo estás, Carlos?", "De nada, Carlos.", "Hasta luego, Carlos."],
+					correctAnswer: "Mucho gusto, Carlos.",
+				},
+				{
+					id: "es_unit_1_cp_3",
+					type: "mcq",
+					question: "Choose the best translation: 'How are you today?'",
+					options: ["¿Cómo estás hoy?", "¿Cómo te llamas hoy?", "Me llamo hoy.", "Gracias hoy."],
+					correctAnswer: "¿Cómo estás hoy?",
+				},
+				{
+					id: "es_unit_1_cp_4",
+					type: "mcq",
+					question: "Translate: 'Thank you, see you later.'",
+					options: ["Gracias, hasta luego.", "Hola, hasta luego.", "Por favor, de nada.", "Adiós, me llamo."],
+					correctAnswer: "Gracias, hasta luego.",
+				},
+				{
+					id: "es_unit_1_cp_5",
+					type: "mcq",
+					question: "Choose the best reply to: '¿Cómo te llamas?'",
+					options: ["Me llamo Sofia.", "Estoy gracias.", "Hasta luego.", "Por favor."],
+					correctAnswer: "Me llamo Sofia.",
+				},
+			],
+		},
 	},
 	{
 		id: "es_unit_2",
 		languageId: "es",
 		title: "Unit 2: Daily Life & Travel",
-		description:
-			"Learn to order food at a restaurant, ask for directions, and navigate travel scenarios.",
+		description: "Order café drinks, ask for the menu, and pay politely",
 		order: 2,
+		unitColor: "#1CB0F6",
+		unitEmoji: "\u2615",
+		cefr: "A1",
+		canDoGoal: "I can order a café drink or snack and ask for the menu or bill politely.",
+		targetVocabulary: ["café", "leche", "agua", "menú", "cuenta", "por favor"],
+		grammarFocus: ["quiero", "polite requests", "basic ordering phrases"],
+		checkpointQuiz: {
+			id: "es_unit_2_checkpoint",
+			title: "Unit 2 Checkpoint",
+			exercises: [
+				{
+					id: "es_unit_2_cp_1",
+					type: "mcq",
+					question: "Translate: 'I want a coffee with milk, please.'",
+					options: ["Quiero un café con leche, por favor.", "Quiero la cuenta con leche.", "Tengo un menú, por favor.", "Buenas tardes con café."],
+					correctAnswer: "Quiero un café con leche, por favor.",
+				},
+				{
+					id: "es_unit_2_cp_2",
+					type: "mcq",
+					question: "Translate: 'The menu, please.'",
+					options: ["El menú, por favor.", "La cuenta, por favor.", "Un agua, por favor.", "Buenas tardes."],
+					correctAnswer: "El menú, por favor.",
+				},
+				{
+					id: "es_unit_2_cp_3",
+					type: "mcq",
+					question: "Choose the best translation: 'Can I have the bill?'",
+					options: ["La cuenta, por favor.", "El agua, por favor.", "El café está verde.", "Quiero un croissant."],
+					correctAnswer: "La cuenta, por favor.",
+				},
+				{
+					id: "es_unit_2_cp_4",
+					type: "mcq",
+					question: "Translate: 'Good afternoon, I want water.'",
+					options: ["Buenas tardes, quiero agua.", "Buenos días, quiero leche.", "Buenas noches, quiero café.", "Hola, quiero la cuenta."],
+					correctAnswer: "Buenas tardes, quiero agua.",
+				},
+				{
+					id: "es_unit_2_cp_5",
+					type: "mcq",
+					question: "Choose the best translation: 'I want a croissant and green tea.'",
+					options: ["Quiero un croissant y té verde.", "Quiero leche y la cuenta.", "Quiero un menú y agua.", "Quiero café con barista."],
+					correctAnswer: "Quiero un croissant y té verde.",
+				},
+			],
+		},
+	},
+	{
+		id: "es_unit_3",
+		languageId: "es",
+		title: "Unit 3: Gastronomy & Dining",
+		description: "Order food, navigate restaurants, and discuss meals",
+		order: 3,
+		unitColor: "#FF9600",
+		unitEmoji: "\u{1F355}",
+		cefr: "A2",
+		canDoGoal: "I can order a simple meal and respond to common restaurant questions.",
+		targetVocabulary: ["comida", "mesa", "menú", "agua", "cuenta", "ordenar"],
+		grammarFocus: ["quisiera", "podemos tener", "simple restaurant sentences"],
+		checkpointQuiz: {
+			id: "es_unit_3_checkpoint",
+			title: "Unit 3 Checkpoint",
+			exercises: [
+				{
+					id: "es_unit_3_cp_1",
+					type: "mcq",
+					question: "Translate: 'The bill is on the table.'",
+					options: ["La cuenta está en la mesa.", "La comida está en el menú.", "El agua está con leche.", "El café está por favor."],
+					correctAnswer: "La cuenta está en la mesa.",
+				},
+				{
+					id: "es_unit_3_cp_2",
+					type: "mcq",
+					question: "Translate: 'I would like to order food.'",
+					options: ["Quisiera ordenar comida.", "Quisiera pagar la mesa.", "Quisiera hablar agua.", "Quisiera abrir el menú verde."],
+					correctAnswer: "Quisiera ordenar comida.",
+				},
+				{
+					id: "es_unit_3_cp_3",
+					type: "mcq",
+					question: "Choose the best translation: 'Thank you for the meal.'",
+					options: ["Gracias por la comida.", "Gracias por la cuenta.", "Gracias por el menú.", "Gracias por la mesa."],
+					correctAnswer: "Gracias por la comida.",
+				},
+				{
+					id: "es_unit_3_cp_4",
+					type: "mcq",
+					question: "Translate: 'Can we have the menu and water?'",
+					options: ["¿Podemos tener el menú y agua?", "¿Podemos tener la cuenta y leche?", "¿Podemos comer el barista?", "¿Podemos beber la mesa?"],
+					correctAnswer: "¿Podemos tener el menú y agua?",
+				},
+				{
+					id: "es_unit_3_cp_5",
+					type: "mcq",
+					question: "Choose the best translation: 'The food is very good.'",
+					options: ["La comida es muy buena.", "La cuenta es muy buena.", "El agua es muy tarde.", "El café es muy menú."],
+					correctAnswer: "La comida es muy buena.",
+				},
+			],
+		},
 	},
 
 	// French Units
@@ -24,9 +171,55 @@ export const units: Unit[] = [
 		id: "fr_unit_1",
 		languageId: "fr",
 		title: "Unit 1: First Steps in French",
-		description:
-			"Master polite greetings, exchange name information, and practice basic pronunciation.",
+		description: "Introduce yourself and exchange basic greetings",
 		order: 1,
+		unitColor: "#58CC02",
+		unitEmoji: "\u{1F44B}",
+		cefr: "A1",
+		canDoGoal: "I can greet someone, introduce myself, ask their name, and say thanks.",
+		targetVocabulary: ["bonjour", "merci", "au revoir", "je m'appelle", "enchanté"],
+		grammarFocus: ["greeting phrases", "je m'appelle", "polite name questions"],
+		checkpointQuiz: {
+			id: "fr_unit_1_checkpoint",
+			title: "Unit 1 Checkpoint",
+			exercises: [
+				{
+					id: "fr_unit_1_cp_1",
+					type: "mcq",
+					question: "Translate: 'Hello, my name is Pierre.'",
+					options: ["Bonjour, je m'appelle Pierre.", "Merci, je suis Pierre.", "Au revoir, Pierre.", "S'il vous plaît, Pierre."],
+					correctAnswer: "Bonjour, je m'appelle Pierre.",
+				},
+				{
+					id: "fr_unit_1_cp_2",
+					type: "mcq",
+					question: "Translate: 'Nice to meet you, Marie.'",
+					options: ["Enchanté, Marie.", "Bonjour beaucoup, Marie.", "De rien, Marie.", "Au revoir, Marie."],
+					correctAnswer: "Enchanté, Marie.",
+				},
+				{
+					id: "fr_unit_1_cp_3",
+					type: "mcq",
+					question: "Choose the best translation: 'What is your name?'",
+					options: ["Comment vous appelez-vous?", "Comment ça va?", "Où sont les toilettes?", "Je m'appelle comment?"],
+					correctAnswer: "Comment vous appelez-vous?",
+				},
+				{
+					id: "fr_unit_1_cp_4",
+					type: "mcq",
+					question: "Translate: 'Thank you very much.'",
+					options: ["Merci beaucoup.", "Bonjour beaucoup.", "De rien beaucoup.", "Au revoir beaucoup."],
+					correctAnswer: "Merci beaucoup.",
+				},
+				{
+					id: "fr_unit_1_cp_5",
+					type: "mcq",
+					question: "Choose the best reply to: 'Je m'appelle Claire.'",
+					options: ["Enchanté.", "S'il vous plaît.", "Où sont les toilettes?", "Au revoir."],
+					correctAnswer: "Enchanté.",
+				},
+			],
+		},
 	},
 
 	// Japanese Units
@@ -34,17 +227,117 @@ export const units: Unit[] = [
 		id: "ja_unit_1",
 		languageId: "ja",
 		title: "Unit 1: Hiragana & Greetings",
-		description:
-			"Begin with Japanese greetings (Konnichiwa), introduce yourself politely, and discover basic Hiragana sounds.",
+		description: "Introduce yourself and exchange basic greetings",
 		order: 1,
+		unitColor: "#58CC02",
+		unitEmoji: "\u{1F44B}",
+		cefr: "A1",
+		canDoGoal: "I can start a polite first conversation in Japanese.",
+		targetVocabulary: ["konnichiwa", "arigatou", "sumimasen", "hajimemashite", "desu", "o-namae wa"],
+		grammarFocus: ["set greeting phrases", "desu", "polite self-introduction"],
+		checkpointQuiz: {
+			id: "ja_unit_1_checkpoint",
+			title: "Unit 1 Checkpoint",
+			exercises: [
+				{
+					id: "ja_unit_1_cp_1",
+					type: "mcq",
+					question: "Translate: 'Hello, I am Kenji.'",
+					options: ["Konnichiwa, Kenji desu.", "Arigatou, Kenji desu.", "Sayounara, Kenji desu.", "Sumimasen, Kenji desu."],
+					correctAnswer: "Konnichiwa, Kenji desu.",
+				},
+				{
+					id: "ja_unit_1_cp_2",
+					type: "mcq",
+					question: "Translate: 'Nice to meet you.'",
+					options: ["Hajimemashite.", "Arigatou.", "Sayounara.", "O-namae wa?"],
+					correctAnswer: "Hajimemashite.",
+				},
+				{
+					id: "ja_unit_1_cp_3",
+					type: "mcq",
+					question: "Choose the best translation: 'What is your name?'",
+					options: ["O-namae wa?", "O-genki desu ka?", "Kore wo kudasai.", "Yoroshiku onegai shimasu."],
+					correctAnswer: "O-namae wa?",
+				},
+				{
+					id: "ja_unit_1_cp_4",
+					type: "mcq",
+					question: "Translate: 'Thank you for helping me.'",
+					options: ["Tetsudatte kurete arigatou.", "Konnichiwa, hajimemashite.", "Sayounara, sumimasen.", "O-namae wa arigatou."],
+					correctAnswer: "Tetsudatte kurete arigatou.",
+				},
+				{
+					id: "ja_unit_1_cp_5",
+					type: "mcq",
+					question: "Choose the best ending for a self-introduction.",
+					options: ["Yoroshiku onegai shimasu.", "Kore wo kudasai.", "O-genki desu ka?", "Sayounara."],
+					correctAnswer: "Yoroshiku onegai shimasu.",
+				},
+			],
+		},
 	},
+
 	// Arabic Units
 	{
 		id: "ar_unit_1",
 		languageId: "ar",
 		title: "Unit 1: First Steps in Arabic",
-		description:
-			"Master polite greetings, exchange name information, and practice basic pronunciation.",
+		description: "Introduce yourself and exchange basic greetings",
 		order: 1,
+		unitColor: "#58CC02",
+		unitEmoji: "\u{1F44B}",
+		cefr: "A1",
+		canDoGoal: "I can greet someone, introduce myself, and use basic polite phrases.",
+		targetVocabulary: ["marhaba", "shukran", "ismi", "ma ismuka", "tasharrafna"],
+		grammarFocus: ["greeting phrases", "ismi", "basic name questions"],
+		checkpointQuiz: {
+			id: "ar_unit_1_checkpoint",
+			title: "Unit 1 Checkpoint",
+			exercises: [
+				{
+					id: "ar_unit_1_cp_1",
+					type: "mcq",
+					question: "Translate: 'Hello, my name is Sami.'",
+					options: ["Marhaba, ismi Sami.", "Shukran, ismi Sami.", "Ma'a salama, Sami.", "Min fadlak, Sami."],
+					correctAnswer: "Marhaba, ismi Sami.",
+				},
+				{
+					id: "ar_unit_1_cp_2",
+					type: "mcq",
+					question: "Translate: 'Thank you very much.'",
+					options: ["Shukran jazeelan.", "Marhaba jazeelan.", "Ismi jazeelan.", "Ma'a salama jazeelan."],
+					correctAnswer: "Shukran jazeelan.",
+				},
+				{
+					id: "ar_unit_1_cp_3",
+					type: "mcq",
+					question: "Choose the best translation: 'What is your name?'",
+					options: ["Ma ismuka?", "Kayfa haluka?", "Ayna al-qahwa?", "Min fadlak."],
+					correctAnswer: "Ma ismuka?",
+				},
+				{
+					id: "ar_unit_1_cp_4",
+					type: "mcq",
+					question: "Translate: 'Nice to meet you.'",
+					options: ["Tasharrafna.", "Shukran.", "Marhaba.", "Ma'a salama."],
+					correctAnswer: "Tasharrafna.",
+				},
+				{
+					id: "ar_unit_1_cp_5",
+					type: "mcq",
+					question: "Choose the best translation: 'Goodbye and thank you.'",
+					options: ["Ma'a salama wa shukran.", "Marhaba wa ismi.", "Min fadlak wa qahwa.", "Kayfa haluka wa marhaba."],
+					correctAnswer: "Ma'a salama wa shukran.",
+				},
+			],
+		},
 	},
+];
+
+const coreA1UnitIds = new Set(coreA1Units.map((unit) => unit.id));
+
+export const units: Unit[] = [
+	...coreA1Units,
+	...legacyUnits.filter((unit) => !coreA1UnitIds.has(unit.id)),
 ];

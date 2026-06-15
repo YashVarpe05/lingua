@@ -257,7 +257,7 @@ const checkDatabaseUrl = async () => {
 
 	const client = new Client({
 		connectionString: databaseUrl,
-		ssl: { rejectUnauthorized: false },
+		ssl: { rejectUnauthorized: true },
 		connectionTimeoutMillis: 10000,
 	});
 

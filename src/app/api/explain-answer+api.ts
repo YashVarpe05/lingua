@@ -204,6 +204,9 @@ const parseExplanationText = (text: string) => {
 	}
 };
 
+const isAbortError = (error: unknown) =>
+	error instanceof Error && error.name === "AbortError";
+
 export async function POST(request: Request) {
 	try {
 		const auth = await requireApiAuth(request);
@@ -212,7 +215,15 @@ export async function POST(request: Request) {
 			return auth;
 		}
 
-		const payload = validateRequest(await request.json());
+		let requestBody: unknown;
+
+		try {
+			requestBody = await request.json();
+		} catch {
+			return Response.json({ error: "Malformed JSON request body" }, { status: 400 });
+		}
+
+		const payload = validateRequest(requestBody);
 
 		if (!payload) {
 			return Response.json({ error: "Invalid explanation request" }, { status: 400 });
@@ -228,32 +239,43 @@ export async function POST(request: Request) {
 		const controller = new AbortController();
 		const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 
-		const response = await fetch(
-			`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,
-			{
-				method: "POST",
-				headers: {
-					"Content-Type": "application/json",
-					"x-goog-api-key": apiKey,
-				},
-				body: JSON.stringify({
-					contents: [
-						{
-							parts: [{ text: buildPrompt(payload) }],
-						},
-					],
-					generationConfig: {
-						temperature: 0.35,
-						maxOutputTokens: 220,
-						responseMimeType: "application/json",
-						responseJsonSchema: explanationSchema,
-					},
-				}),
-				signal: controller.signal,
-			}
-		);
+		let response: Response;
 
-		clearTimeout(timeout);
+		try {
+			response = await fetch(
+				`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,
+				{
+					method: "POST",
+					headers: {
+						"Content-Type": "application/json",
+						"x-goog-api-key": apiKey,
+					},
+					body: JSON.stringify({
+						contents: [
+							{
+								parts: [{ text: buildPrompt(payload) }],
+							},
+						],
+						generationConfig: {
+							temperature: 0.35,
+							maxOutputTokens: 220,
+							responseMimeType: "application/json",
+							responseJsonSchema: explanationSchema,
+						},
+					}),
+					signal: controller.signal,
+				}
+			);
+		} catch (error) {
+			if (isAbortError(error)) {
+				return Response.json({ error: "Gemini explanation timed out" }, { status: 504 });
+			}
+			const message = error instanceof Error ? error.message : "Unknown fetch error";
+			console.error("Gemini explain-answer fetch failed:", message);
+			return Response.json({ error: "Failed to fetch Gemini explanation" }, { status: 500 });
+		} finally {
+			clearTimeout(timeout);
+		}
 
 		if (!response.ok) {
 			const errorText = await response.text();

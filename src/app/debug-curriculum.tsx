@@ -62,6 +62,31 @@ export default function DebugCurriculumScreen() {
 	const selectedLanguage =
 		report.languages.find((language) => language.id === selectedLanguageId) ??
 		report.languages[0];
+
+	if (!selectedLanguage) {
+		return (
+			<SafeAreaView style={styles.safeArea}>
+				<View className="flex-1 bg-[#F6F7FB] px-5 py-6">
+					<TouchableOpacity
+						onPress={() => router.back()}
+						className="w-10 h-10 rounded-full bg-white border border-neutral-border items-center justify-center"
+						activeOpacity={0.75}
+					>
+						<Feather name="arrow-left" size={20} color="#0D132B" />
+					</TouchableOpacity>
+					<View className="bg-white border border-neutral-border rounded-[24px] p-5 mt-5">
+						<Text className="font-poppins-bold text-[20px] text-neutral-primary">
+							No curriculum data
+						</Text>
+						<Text className="font-poppins text-[13px] text-neutral-secondary leading-[20px] mt-2">
+							The QA report did not include any languages to inspect.
+						</Text>
+					</View>
+				</View>
+			</SafeAreaView>
+		);
+	}
+
 	const statusStyles = getStatusStyles(selectedLanguage.status);
 	const completionPercent = getCompletionPercent(selectedLanguage);
 

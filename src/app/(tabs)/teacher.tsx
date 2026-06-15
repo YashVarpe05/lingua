@@ -415,16 +415,18 @@ export default function TeacherScreen() {
 										</Text>
 									</TouchableOpacity>
 
-									<TouchableOpacity
-										onPress={handleCompleteMockLesson}
-										className="flex-row items-center justify-center rounded-2xl h-[48px] border-[1.5px] border-[#6C4EF5] bg-[#FBFBFF] w-full"
-										activeOpacity={0.7}
-									>
-										<Feather name="check" size={14} color="#6C4EF5" />
-										<Text className="font-poppins-semibold text-[13px] text-lingua-purple ml-1.5">
-											Mock Complete (Earn XP)
-										</Text>
-									</TouchableOpacity>
+									{__DEV__ ? (
+										<TouchableOpacity
+											onPress={handleCompleteMockLesson}
+											className="flex-row items-center justify-center rounded-2xl h-[48px] border-[1.5px] border-[#6C4EF5] bg-[#FBFBFF] w-full"
+											activeOpacity={0.7}
+										>
+											<Feather name="check" size={14} color="#6C4EF5" />
+											<Text className="font-poppins-semibold text-[13px] text-lingua-purple ml-1.5">
+												Mock Complete (Earn XP)
+											</Text>
+										</TouchableOpacity>
+									) : null}
 								</View>
 							</View>
 						)}

@@ -13,11 +13,19 @@ import type {
 	ExerciseType,
 	ExerciseAttempt,
 	Lesson,
+	PronunciationMemoryEntry,
 	SessionIntent,
 	Unit,
 } from "@/types/learning";
 
-type PracticeMode = "mistakes" | "vocabulary" | "listening" | "review" | "checkpoint";
+type PracticeMode =
+	| "mistakes"
+	| "vocabulary"
+	| "listening"
+	| "speaking"
+	| "mastery"
+	| "review"
+	| "checkpoint";
 
 interface GenerateSessionPlanInput {
 	intent: SessionIntent;
@@ -31,6 +39,7 @@ interface GenerateSessionPlanInput {
 	recentMistakes?: string[];
 	recentAttempts?: ExerciseAttempt[];
 	conceptMemory?: Record<string, ConceptMemoryEntry>;
+	pronunciationConceptMemory?: Record<string, PronunciationMemoryEntry>;
 	focusConceptIds?: string[];
 	exerciseDifficultyMemory?: Record<string, DifficultyMemoryEntry>;
 	conceptDifficultyMemory?: Record<string, DifficultyMemoryEntry>;
@@ -76,6 +85,8 @@ const SESSION_LIMITS: Partial<Record<SessionIntent, number>> = {
 	mistakes: 8,
 	vocabulary: 8,
 	listening: 8,
+	speaking: 6,
+	mastery: 8,
 	checkpoint: 5,
 };
 
@@ -85,6 +96,13 @@ const VOCABULARY_EXERCISE_TYPES = new Set<ExerciseType>([
 	"mcq",
 	"matching-pairs",
 	"tap-word",
+]);
+
+const SPEAKING_SOURCE_EXERCISE_TYPES = new Set<ExerciseType>([
+	"mcq",
+	"fill-in-the-blank",
+	"tap-word",
+	"listen-type",
 ]);
 
 const shuffleItems = <T,>(items: T[]): T[] =>
@@ -163,8 +181,11 @@ const inferDifficulty = (
 	total: number,
 	intent: SessionIntent
 ): ExerciseDifficulty => {
-	if (exercise.difficulty) return exercise.difficulty;
 	if (intent === "checkpoint") return "challenge";
+	if (intent === "mastery") {
+		return index >= Math.max(total - 1, 0) ? "challenge" : "practice";
+	}
+	if (exercise.difficulty) return exercise.difficulty;
 	if (index >= Math.max(total - 2, 0)) return "challenge";
 	if (exercise.type === "listen-type" || exercise.type === "matching-pairs") {
 		return "practice";
@@ -301,8 +322,8 @@ const getDifficultyCurveTargets = (count: number, intent: SessionIntent) => {
 	if (count <= 0) return [];
 	if (count === 1) return [0.5];
 
-	const start = intent === "review" ? 0.3 : 0.25;
-	const end = intent === "review" ? 0.8 : 0.84;
+	const start = intent === "review" ? 0.3 : intent === "mastery" ? 0.55 : 0.25;
+	const end = intent === "review" ? 0.8 : intent === "mastery" ? 0.94 : 0.84;
 
 	return Array.from({ length: count }, (_, index) => {
 		const position = index / (count - 1);
@@ -384,6 +405,41 @@ const getConceptUrgencyScore = (
 	return (1 - recall) * 3 + incorrectRatio + dueBoost;
 };
 
+const getPronunciationUrgencyScore = (
+	entry: PronunciationMemoryEntry | undefined,
+	now: number
+) => {
+	if (!entry) return 0;
+
+	const scoreGap = Math.max((75 - entry.avgScore) / 100, 0);
+	const lowScoreRatio = entry.attempts > 0 ? entry.lowScoreCount / entry.attempts : 0;
+	const daysSincePractice = Math.max((now - entry.lastPracticed) / 86400000, 0);
+	const dueBoost = entry.avgScore < 70 || entry.lastScore < 70 ? 1.2 : 0.5;
+
+	return scoreGap * 3 + lowScoreRatio + Math.min(daysSincePractice / 14, 1) * 0.3 + dueBoost;
+};
+
+const toSpeakingItem = (item: SessionExerciseItem): SessionExerciseItem => {
+	const audioText = item.exercise.audioText ?? item.exercise.correctAnswer;
+
+	return {
+		...item,
+		exercise: {
+			...item.exercise,
+			id: `${item.exercise.id}_speaking`,
+			type: "speaking",
+			question: "Say this phrase out loud",
+			audioText,
+			options: undefined,
+			pairs: undefined,
+			sentence: undefined,
+			difficulty:
+				item.exercise.difficulty === "challenge" ? "challenge" : "practice",
+			estimatedSeconds: Math.max(item.exercise.estimatedSeconds ?? 16, 18),
+		},
+	};
+};
+
 const buildReviewItems = (input: GenerateSessionPlanInput): ReviewBuildResult => {
 	const reviewLimit = SESSION_LIMITS.review ?? 5;
 	const activeLessons = input.lessons.filter((lesson) => !lesson.isCheckpoint);
@@ -408,6 +464,7 @@ const buildReviewItems = (input: GenerateSessionPlanInput): ReviewBuildResult =>
 		(attempt) => attempt.languageId === input.selectedLanguageId
 	);
 	const conceptMemory = input.conceptMemory ?? {};
+	const pronunciationConceptMemory = input.pronunciationConceptMemory ?? {};
 	const recentIncorrectExerciseScore = new Map<string, number>();
 	const languageConceptIds = new Set(
 		languageAttempts.flatMap((attempt) => attempt.conceptIds)
@@ -432,6 +489,23 @@ const buildReviewItems = (input: GenerateSessionPlanInput): ReviewBuildResult =>
 			return b.lastPracticed - a.lastPracticed;
 		})
 		.map((entry) => entry.conceptId);
+	const weakPronunciationConceptIds = Object.values(pronunciationConceptMemory)
+		.filter(
+			(entry) =>
+				entry.languageId === input.selectedLanguageId &&
+				(entry.avgScore < 75 || entry.lastScore < 70 || entry.lowScoreCount > 0)
+		)
+		.map((entry) => ({
+			conceptId: entry.id,
+			score: getPronunciationUrgencyScore(entry, now),
+			lastPracticed: entry.lastPracticed,
+		}))
+		.filter((entry) => entry.score > 0.55)
+		.sort((a, b) => {
+			if (b.score !== a.score) return b.score - a.score;
+			return b.lastPracticed - a.lastPracticed;
+		})
+		.map((entry) => entry.conceptId);
 	const recentMistakeConceptIds = languageAttempts
 		.filter((attempt) => !attempt.correct)
 		.flatMap((attempt) => attempt.conceptIds);
@@ -448,6 +522,7 @@ const buildReviewItems = (input: GenerateSessionPlanInput): ReviewBuildResult =>
 		...new Set([
 			...requestedFocusConceptIds,
 			...weakConceptIds,
+			...weakPronunciationConceptIds,
 			...recentMistakeConceptIds,
 		]),
 	].slice(0, 3);
@@ -460,7 +535,20 @@ const buildReviewItems = (input: GenerateSessionPlanInput): ReviewBuildResult =>
 	});
 
 	const allItems = getExercisesFromLessons(activeLessons);
-	const scoredItems = allItems
+	const pronunciationCandidateItems = allItems
+		.filter((item) => SPEAKING_SOURCE_EXERCISE_TYPES.has(item.exercise.type))
+		.map((item) => {
+			const { lesson, unit } = getItemContext(item, input.lessons, input.units);
+			const conceptIds = buildConceptIds(item.exercise, lesson, unit);
+			const hasWeakPronunciationConcept = conceptIds.some((conceptId) =>
+				weakPronunciationConceptIds.includes(conceptId)
+			);
+
+			return hasWeakPronunciationConcept ? toSpeakingItem(item) : null;
+		})
+		.filter((item): item is SessionExerciseItem => Boolean(item));
+	const candidateItems = [...pronunciationCandidateItems, ...allItems];
+	const scoredItems = candidateItems
 		.map((item) => {
 			const { lesson, unit } = getItemContext(item, input.lessons, input.units);
 			const conceptIds = buildConceptIds(item.exercise, lesson, unit);
@@ -471,6 +559,15 @@ const buildReviewItems = (input: GenerateSessionPlanInput): ReviewBuildResult =>
 					getConceptUrgencyScore(conceptMemory[conceptId], now) + focusBoost,
 				);
 			}, 0);
+			const pronunciationScore = conceptIds.reduce((highest, conceptId) => {
+				const urgency = getPronunciationUrgencyScore(
+					pronunciationConceptMemory[conceptId],
+					now
+				);
+				const speakingBoost =
+					urgency > 0 && item.exercise.type === "speaking" ? 1.2 : 0;
+				return Math.max(highest, urgency + speakingBoost);
+			}, 0);
 			const mistakeScore = recentIncorrectExerciseScore.get(item.exercise.id) ?? 0;
 			const urgentLessonScore = urgentLessonIdSet.has(item.lessonId ?? "") ? 0.8 : 0;
 			const lessonScore = item.lessonId
@@ -480,7 +577,12 @@ const buildReviewItems = (input: GenerateSessionPlanInput): ReviewBuildResult =>
 			return {
 				item,
 				conceptIds,
-				score: conceptScore + mistakeScore + urgentLessonScore + lessonScore,
+				score:
+					conceptScore +
+					pronunciationScore +
+					mistakeScore +
+					urgentLessonScore +
+					lessonScore,
 			};
 		})
 		.filter((entry) => entry.score > 0)
@@ -559,6 +661,18 @@ const buildPracticeItems = (input: GenerateSessionPlanInput): SessionExerciseIte
 	if (input.intent === "listening") {
 		return shuffleItems(
 			unitItems.filter((item) => item.exercise.type === "listen-type")
+		);
+	}
+
+	if (input.intent === "speaking") {
+		return shuffleItems(
+			unitItems
+				.filter(
+					(item) =>
+						SPEAKING_SOURCE_EXERCISE_TYPES.has(item.exercise.type) &&
+						Boolean(item.exercise.correctAnswer.trim())
+				)
+				.map(toSpeakingItem)
 		);
 	}
 
@@ -657,9 +771,11 @@ const resolveSessionIntent = (input: GenerateSessionPlanInput): SessionIntent =>
 	if (input.intent === "checkpoint" || input.mode === "checkpoint" || input.isLegacyCheckpoint) {
 		return "checkpoint";
 	}
+	if (input.intent === "mastery" || input.mode === "mastery") return "mastery";
 	if (input.mode === "mistakes") return "mistakes";
 	if (input.mode === "vocabulary") return "vocabulary";
 	if (input.mode === "listening") return "listening";
+	if (input.mode === "speaking") return "speaking";
 	return "lesson";
 };
 
@@ -676,7 +792,12 @@ export const generateSessionPlan = (input: GenerateSessionPlanInput): SessionPla
 		const reviewPlan = buildReviewItems(input);
 		items = reviewPlan.items;
 		focusConceptIds = reviewPlan.focusConceptIds;
-	} else if (intent === "mistakes" || intent === "vocabulary" || intent === "listening") {
+	} else if (
+		intent === "mistakes" ||
+		intent === "vocabulary" ||
+		intent === "listening" ||
+		intent === "speaking"
+	) {
 		items = buildPracticeItems(input);
 	} else if (input.lesson) {
 		items = (input.lesson.exercises ?? []).map((exercise) => ({

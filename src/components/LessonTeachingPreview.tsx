@@ -1,6 +1,8 @@
 import React, { useMemo } from "react";
 import { Feather } from "@expo/vector-icons";
 import { Text, View } from "@/tw";
+import { Image } from "@/tw/image";
+import { images } from "@/constants/images";
 import { getCurriculumConceptsForLesson } from "@/data/curriculum";
 import type { Lesson, Unit, WordBankOption } from "@/types/learning";
 
@@ -101,7 +103,11 @@ export default function LessonTeachingPreview({
 			<View className="rounded-2xl border border-[#D7FFB8] bg-[#F5FFE8] p-4">
 				<View className="flex-row items-start gap-3">
 					<View className="w-9 h-9 rounded-full bg-[#58CC02] items-center justify-center">
-						<Feather name="target" size={17} color="#FFFFFF" />
+						<Image
+							source={images.appIconTarget}
+							className="w-5 h-5"
+							contentFit="contain"
+						/>
 					</View>
 					<View className="flex-1">
 						<Text className="font-poppins-bold text-[11px] uppercase tracking-wider text-[#58A700]">

@@ -127,7 +127,7 @@ export default function AudioLessonScreen() {
 			return;
 		}
 
-		const timers: any[] = [];
+		const timers: ReturnType<typeof setTimeout>[] = [];
 
 		// 1. Teacher starts lesson
 		timers.push(setTimeout(() => {

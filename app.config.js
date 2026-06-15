@@ -41,6 +41,13 @@ export default {
       "expo-secure-store",
       "expo-web-browser",
       "expo-localization",
+      [
+        "expo-audio",
+        {
+          microphonePermission: "Allow $(PRODUCT_NAME) to record your voice for pronunciation practice.",
+          recordAudioAndroid: true
+        }
+      ],
       "@stream-io/video-react-native-sdk",
       [
         "@config-plugins/react-native-webrtc",

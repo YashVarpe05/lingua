@@ -10,6 +10,9 @@ For the lesson, chapter, checkpoint, review, and course design plan, start with
 For the research-backed learning engine architecture, see
 [`docs/duolingo-system-research.md`](docs/duolingo-system-research.md).
 
+For the Expo API route production checklist, see
+[`docs/api-production-readiness.md`](docs/api-production-readiness.md).
+
 ## Get started
 
 1. Install dependencies

@@ -39,7 +39,13 @@ export interface Activity {
   translationContext?: string; // Context notes helper for translation exercises
 }
 
-export type ExerciseType = "mcq" | "fill-in-the-blank" | "matching-pairs" | "tap-word" | "listen-type";
+export type ExerciseType =
+  | "mcq"
+  | "fill-in-the-blank"
+  | "matching-pairs"
+  | "tap-word"
+  | "listen-type"
+  | "speaking";
 
 export type ExerciseDifficulty = "intro" | "practice" | "challenge";
 
@@ -95,6 +101,8 @@ export type SessionIntent =
   | "mistakes"
   | "vocabulary"
   | "listening"
+  | "speaking"
+  | "mastery"
   | "checkpoint"
   | "ai-teacher"
   | "chat-tutor";
@@ -165,6 +173,15 @@ export interface ConceptMemoryEntry {
   incorrectCount: number;
   halfLifeDays: number;
   latestRecallScore: number;
+  lastFocusedReviewAt?: number;
+  lastFocusedReviewScore?: number;
+  focusedReviewPassCount?: number;
+}
+
+export interface FocusedConceptReviewInput {
+  conceptIds: string[];
+  score: number;
+  reviewedAt?: number;
 }
 
 export interface DifficultyMemoryEntry {
@@ -175,6 +192,34 @@ export interface DifficultyMemoryEntry {
   incorrectCount: number;
   avgResponseMs: number;
   difficultyScore: number; // 0 easy, 1 hard
+  lastPracticed: number;
+}
+
+export interface PronunciationAttemptInput {
+  exerciseId: string;
+  conceptIds: string[];
+  score: number;
+  accuracy: number;
+  fluency: number;
+  languageId?: string;
+  lessonId?: string;
+  unitId?: string;
+  createdAt?: number;
+}
+
+export interface PronunciationMemoryEntry {
+  id: string;
+  kind: "exercise" | "concept";
+  languageId?: string;
+  lessonId?: string;
+  unitId?: string;
+  attempts: number;
+  avgScore: number;
+  avgAccuracy: number;
+  avgFluency: number;
+  bestScore: number;
+  lastScore: number;
+  lowScoreCount: number;
   lastPracticed: number;
 }
 

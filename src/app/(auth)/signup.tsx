@@ -127,14 +127,9 @@ export default function SignUp() {
 				throw new Error("Sign up not complete. Please check status: " + signUp.status);
 			}
 		} catch (err: unknown) {
-			if (err instanceof Error) {
-				posthog.captureException(err, { flow: "signup", method: "email", step: "verify" });
-				throw err;
-			} else {
-				const newErr = new Error(String(err));
-				posthog.captureException(newErr, { flow: "signup", method: "email", step: "verify" });
-				throw newErr;
-			}
+			const errorInstance = err instanceof Error ? err : new Error(String(err));
+			posthog.captureException(errorInstance, { flow: "signup", method: "email", step: "verify" });
+			throw errorInstance;
 		}
 	};
 

@@ -8,8 +8,13 @@ import type {
 	ConceptMemoryEntry,
 	ExerciseAttempt,
 	Lesson,
+	PronunciationMemoryEntry,
 	Unit,
 } from "@/types/learning";
+import {
+	hasFreshSuccessfulFocusedReview,
+	isAttemptRepairedByFocusedReview,
+} from "@/utils/conceptReview";
 
 export type PracticeHubConcept = {
 	conceptId: string;
@@ -36,13 +41,25 @@ export type PracticeHubLesson = {
 	forgettingScore: number;
 };
 
+export type PracticeHubPronunciationConcept = {
+	conceptId: string;
+	title: string;
+	avgScore: number;
+	lastScore: number;
+	lessonId?: string;
+	lastPracticed: number;
+};
+
 export type PracticeQueueOverview = {
 	focusConceptIds: string[];
 	focusLabel: string;
 	dueConcepts: PracticeHubConcept[];
 	recentMistakes: PracticeHubMistake[];
 	weakLessons: PracticeHubLesson[];
+	pronunciationConcepts: PracticeHubPronunciationConcept[];
 	dueConceptCount: number;
+	duePronunciationConceptCount: number;
+	speakingFocusLabel: string;
 	summary: string;
 	primaryActionTitle: string;
 	allCaughtUp: boolean;
@@ -54,6 +71,7 @@ type PracticeQueueInput = {
 	units: Unit[];
 	recentAttempts: ExerciseAttempt[];
 	conceptMemory: Record<string, ConceptMemoryEntry>;
+	pronunciationConceptMemory?: Record<string, PronunciationMemoryEntry>;
 	explicitFocusConceptIds?: string[];
 	getConceptRecallScore: (conceptId: string) => number;
 	getForgettingScore: (lessonId: string) => number;
@@ -117,6 +135,7 @@ export const getPracticeQueueOverview = ({
 	units,
 	recentAttempts,
 	conceptMemory,
+	pronunciationConceptMemory = {},
 	explicitFocusConceptIds = [],
 	getConceptRecallScore,
 	getForgettingScore,
@@ -129,7 +148,10 @@ export const getPracticeQueueOverview = ({
 	const languageAttemptConceptIds = new Set(
 		languageAttempts.flatMap((attempt) => attempt.conceptIds)
 	);
-	const recentMistakeAttempts = languageAttempts.filter((attempt) => !attempt.correct);
+	const recentMistakeAttempts = languageAttempts.filter(
+		(attempt) =>
+			!attempt.correct && !isAttemptRepairedByFocusedReview(attempt, conceptMemory)
+	);
 	const recentMistakes = recentMistakeAttempts
 		.map((attempt): PracticeHubMistake | null => {
 			const lesson = getLessonForAttempt(attempt, activeLessons, selectedLanguageId);
@@ -163,6 +185,7 @@ export const getPracticeQueueOverview = ({
 				languageAttemptConceptIds
 			)
 		)
+		.filter((entry) => !hasFreshSuccessfulFocusedReview(entry))
 		.map((entry): PracticeHubConcept => {
 			const recallScore = getConceptRecallScore(entry.conceptId);
 			const concept = getCurriculumConceptById(entry.conceptId);
@@ -217,20 +240,45 @@ export const getPracticeQueueOverview = ({
 		.filter((lesson) => lessonIds.has(lesson.lessonId) && lesson.forgettingScore > 0.5)
 		.sort((a, b) => b.forgettingScore - a.forgettingScore)
 		.slice(0, 3);
+	const pronunciationConcepts = Object.values(pronunciationConceptMemory)
+		.filter(
+			(entry) =>
+				entry.languageId === selectedLanguageId &&
+				(entry.avgScore < 75 || entry.lastScore < 70 || entry.lowScoreCount > 0)
+		)
+		.map((entry): PracticeHubPronunciationConcept => ({
+			conceptId: entry.id,
+			title: getConceptTitle(entry.id),
+			avgScore: entry.avgScore,
+			lastScore: entry.lastScore,
+			lessonId: entry.lessonId,
+			lastPracticed: entry.lastPracticed,
+		}))
+		.sort((a, b) => {
+			if (a.avgScore !== b.avgScore) return a.avgScore - b.avgScore;
+			return b.lastPracticed - a.lastPracticed;
+		})
+		.slice(0, 3);
 
 	const focusConceptIds = uniqueIds([
 		...explicitFocusConceptIds,
 		...recentMistakeAttempts.flatMap((attempt) => attempt.conceptIds),
 		...dueConcepts.map((concept) => concept.conceptId),
+		...pronunciationConcepts.map((concept) => concept.conceptId),
 	]).slice(0, 3);
 	const focusLabel = getCurriculumReviewLabel(focusConceptIds);
+	const speakingFocusLabel = getCurriculumReviewLabel(
+		pronunciationConcepts.map((concept) => concept.conceptId).slice(0, 3)
+	);
 	const dueConceptCount = dueConcepts.filter(
 		(concept) => concept.reason !== "weak"
 	).length;
+	const duePronunciationConceptCount = pronunciationConcepts.length;
 	const allCaughtUp =
 		dueConceptCount === 0 &&
 		recentMistakes.length === 0 &&
-		weakLessons.length === 0;
+		weakLessons.length === 0 &&
+		duePronunciationConceptCount === 0;
 	const summary = allCaughtUp
 		? "All caught up. Start a light review to keep memory fresh."
 		: focusLabel
@@ -243,7 +291,10 @@ export const getPracticeQueueOverview = ({
 		dueConcepts,
 		recentMistakes,
 		weakLessons,
+		pronunciationConcepts,
 		dueConceptCount,
+		duePronunciationConceptCount,
+		speakingFocusLabel,
 		summary,
 		primaryActionTitle: allCaughtUp ? "Start Light Review" : "Start Smart Review",
 		allCaughtUp,

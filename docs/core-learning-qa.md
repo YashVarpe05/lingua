@@ -8,6 +8,7 @@ Use this checklist after curriculum or session-engine changes.
 - `npm run lint`
 - `npm run content:check`
 - `npm run curriculum:report`
+- `npm run qa:progress`
 
 ## Curriculum Dashboard
 
@@ -41,6 +42,17 @@ For each lesson:
 - Confirm Japanese and Arabic listen-type exercises show target-script word-bank tiles with pronunciation helpers.
 - Confirm English, Spanish, French, and German still allow typing, with the optional "I need help" word bank available on non-challenge listening exercises.
 - Confirm German and Arabic listen-type exercises use the same play flow as the other core languages.
+
+## Speaking Practice
+
+- Open `/exercise-session?lessonId=en_u1_l1&mode=speaking`.
+- Repeat for one script-heavy language, for example `/exercise-session?lessonId=ja_u1_l1&mode=speaking`.
+- Confirm the phrase autoplays once and the replay button does not overlap audio.
+- Confirm the phrase card shows target text, pronunciation when available, and a helper translation when available.
+- Tap "Try again" and confirm it replays audio without submitting.
+- Tap "I said it", then "CHECK", and confirm the feedback drawer, result score, memory, and XP flow still behave normally.
+- Confirm speaking/listening/vocabulary/mistakes practice earns XP and saves memory without marking the lesson complete or unlocking path progress.
+- Confirm this V1 does not ask for microphone permission or record audio.
 
 ## Session Results
 

@@ -2,51 +2,46 @@ import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getAllLessonsFromData } from "@/data/lessons";
-import { ConceptMemoryEntry, DifficultyMemoryEntry, ExerciseAttempt } from "@/types/learning";
+import {
+	ConceptMemoryEntry,
+	DifficultyMemoryEntry,
+	ExerciseAttempt,
+	FocusedConceptReviewInput,
+	PronunciationAttemptInput,
+	PronunciationMemoryEntry,
+} from "@/types/learning";
+import {
+	FOCUSED_REVIEW_PASS_SCORE,
+	hasFreshSuccessfulFocusedReview,
+} from "@/utils/conceptReview";
+import {
+	applyLearningSessionCompletion,
+	calculateLevel,
+	getTodayStr,
+	getYesterdayStr,
+	type CompleteLearningSessionInput,
+	type LearningSessionResult,
+	type LessonMemoryEntry,
+} from "@/utils/progressSession";
 
-export interface LessonMemoryEntry {
-	lessonId: string;
-	lastPracticed: number;
-	practiceCount: number;
-	avgScore: number;
-}
+export type {
+	CompleteLearningSessionInput,
+	LearningSessionResult,
+	LearningSessionType,
+	LessonMemoryEntry,
+} from "@/utils/progressSession";
 
-export type LearningSessionType =
-	| "lesson"
-	| "daily-challenge"
-	| "review"
-	| "checkpoint"
-	| "mock-lesson"
-	| "mock-checkpoint";
-
-export interface CompleteLearningSessionInput {
-	sessionType: LearningSessionType;
-	xpEarned: number;
+export interface CheckpointRecoveryReview {
+	unitId: string;
+	focusConceptIds: string[];
 	score: number;
-	plannedCorrectCount: number;
-	plannedExerciseCount: number;
-	practicedLessonIds?: string[];
-	completedLessonId?: string;
-	checkpointUnitId?: string;
-	passed?: boolean;
-}
-
-export interface LearningSessionResult {
-	xpEarned: number;
-	newTotalXp: number;
-	newStreak: number;
-	oldLevel: number;
-	newLevel: number;
-	levelledUp: boolean;
-	score: number;
-	passed: boolean;
-	plannedCorrectCount: number;
-	plannedExerciseCount: number;
+	createdAt: number;
 }
 
 export interface ProgressState {
 	completedLessons: string[]; // Keep for backward compatibility
 	completedLessonIds: string[]; // List of completed lesson IDs
+	_hasHydrated: boolean;
 	xp: number;
 	todayXP: number; // XP earned today (resets at midnight)
 	streak: number;
@@ -56,11 +51,15 @@ export interface ProgressState {
 	dailyLessons: Record<string, string[]>;
 	recentMistakes: string[]; // List of exercise IDs the user got incorrect
 	completedCheckpoints: string[]; // List of unit IDs where the checkpoint was passed
+	dismissedCheckpointUnlocks: string[]; // Completed checkpoints whose unlock banner was already seen
+	latestFailedCheckpointReview: CheckpointRecoveryReview | null;
 	lessonMemory: Record<string, LessonMemoryEntry>;
 	recentAttempts: ExerciseAttempt[];
 	conceptMemory: Record<string, ConceptMemoryEntry>;
 	exerciseDifficultyMemory: Record<string, DifficultyMemoryEntry>;
 	conceptDifficultyMemory: Record<string, DifficultyMemoryEntry>;
+	pronunciationExerciseMemory: Record<string, PronunciationMemoryEntry>;
+	pronunciationConceptMemory: Record<string, PronunciationMemoryEntry>;
 	completeLearningSession: (
 		input: CompleteLearningSessionInput
 	) => Promise<LearningSessionResult>;
@@ -78,16 +77,28 @@ export interface ProgressState {
 	}>;
 	addXp: (amount: number) => Promise<void>;
 	checkAndResetDailyXP: () => void;
+	setHasHydrated: (state: boolean) => void;
 	addMistake: (exerciseId: string) => void;
 	removeMistake: (exerciseId: string) => void;
+	dismissCheckpointUnlock: (unitId: string) => void;
+	recordFailedCheckpointReview: (input: Omit<CheckpointRecoveryReview, "createdAt">) => void;
+	clearFailedCheckpointReview: (unitId?: string) => void;
 	completeCheckpoint: (unitId: string) => void;
 	markCheckpointComplete: (unitId: string) => void;
 	recordPractice: (lessonId: string, score: number) => void;
 	recordExerciseAttempt: (attempt: ExerciseAttempt) => void;
+	recordFocusedConceptReview: (input: FocusedConceptReviewInput) => void;
 	getForgettingScore: (lessonId: string) => number;
 	getConceptRecallScore: (conceptId: string) => number;
 	getExerciseDifficultyScore: (exerciseId: string) => number;
 	getConceptDifficultyScore: (conceptId: string) => number;
+	recordPronunciationAttempt: (attempt: PronunciationAttemptInput) => void;
+	getPronunciationScoreForConcept: (conceptId: string) => number;
+	getWeakPronunciationConcepts: (
+		count: number,
+		languageId?: string
+	) => PronunciationMemoryEntry[];
+	getDuePronunciationConceptCount: (languageId?: string) => number;
 	getDueConceptCount: () => number;
 	getWeakConcepts: (count: number) => ConceptMemoryEntry[];
 	getMostUrgentLessons: (count: number) => string[];
@@ -104,9 +115,14 @@ const DEFAULT_DIFFICULTY_SCORE = 0.5;
 const FAST_RESPONSE_MS = 5000;
 const SLOW_RESPONSE_MS = 12000;
 const DIFFICULTY_MEMORY_ALPHA = 0.35;
+const PRONUNCIATION_WEAK_SCORE_THRESHOLD = 70;
+const PRONUNCIATION_DUE_SCORE_THRESHOLD = 75;
 
 const clampDifficultyScore = (score: number) =>
 	Math.min(Math.max(score, 0), 1);
+
+const clampPronunciationScore = (score: number) =>
+	Math.min(Math.max(Math.round(score), 0), 100);
 
 const getAttemptDifficultyTarget = (attempt: ExerciseAttempt) => {
 	if (!attempt.correct) return 0.82;
@@ -149,6 +165,54 @@ const updateDifficultyEntry = (
 	};
 };
 
+const updatePronunciationEntry = (
+	existing: PronunciationMemoryEntry | undefined,
+	id: string,
+	kind: "exercise" | "concept",
+	attempt: PronunciationAttemptInput,
+	createdAt: number
+): PronunciationMemoryEntry => {
+	const score = clampPronunciationScore(attempt.score);
+	const accuracy = clampPronunciationScore(attempt.accuracy);
+	const fluency = clampPronunciationScore(attempt.fluency);
+	const attempts = (existing?.attempts ?? 0) + 1;
+
+	return {
+		id,
+		kind,
+		languageId: attempt.languageId ?? existing?.languageId,
+		lessonId: attempt.lessonId ?? existing?.lessonId,
+		unitId: attempt.unitId ?? existing?.unitId,
+		attempts,
+		avgScore: Math.round(
+			existing ? (existing.avgScore * existing.attempts + score) / attempts : score
+		),
+		avgAccuracy: Math.round(
+			existing
+				? (existing.avgAccuracy * existing.attempts + accuracy) / attempts
+				: accuracy
+		),
+		avgFluency: Math.round(
+			existing ? (existing.avgFluency * existing.attempts + fluency) / attempts : fluency
+		),
+		bestScore: Math.max(existing?.bestScore ?? 0, score),
+		lastScore: score,
+		lowScoreCount:
+			(existing?.lowScoreCount ?? 0) +
+			(score < PRONUNCIATION_WEAK_SCORE_THRESHOLD ? 1 : 0),
+		lastPracticed: createdAt,
+	};
+};
+
+const getPronunciationUrgencyScore = (entry: PronunciationMemoryEntry) => {
+	const lowScoreRatio = entry.attempts > 0 ? entry.lowScoreCount / entry.attempts : 0;
+	const scoreGap = Math.max((PRONUNCIATION_DUE_SCORE_THRESHOLD - entry.avgScore) / 100, 0);
+	const daysSincePractice = Math.max((Date.now() - entry.lastPracticed) / 86400000, 0);
+	const recencyBoost = Math.min(daysSincePractice / 14, 1) * 0.3;
+
+	return scoreGap * 3 + lowScoreRatio + recencyBoost;
+};
+
 const calculateConceptRecallScore = (
 	entry: Pick<ConceptMemoryEntry, "lastPracticed" | "halfLifeDays">,
 	now = Date.now()
@@ -158,36 +222,12 @@ const calculateConceptRecallScore = (
 	return Math.pow(2, -daysSince / halfLifeDays);
 };
 
-const calculateLevel = (xp: number): number => {
-	if (xp >= 900) return 5;
-	if (xp >= 500) return 4;
-	if (xp >= 250) return 3;
-	if (xp >= 100) return 2;
-	return 1;
-};
-
-const clampPercent = (value: number) =>
-	Math.min(Math.max(Math.round(value), 0), 100);
-
-const uniqueIds = (ids: (string | undefined)[]) =>
-	[...new Set(ids.filter((id): id is string => Boolean(id)))];
-
-const getTodayStr = (): string => {
-	const now = new Date();
-	return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
-};
-
-const getYesterdayStr = (): string => {
-	const yesterday = new Date();
-	yesterday.setDate(yesterday.getDate() - 1);
-	return `${yesterday.getFullYear()}-${String(yesterday.getMonth() + 1).padStart(2, "0")}-${String(yesterday.getDate()).padStart(2, "0")}`;
-};
-
 export const useProgressStore = create<ProgressState>()(
 	persist(
 		(set, get) => ({
 			completedLessons: [],
 			completedLessonIds: [],
+			_hasHydrated: false,
 			xp: 0,
 			todayXP: 0,
 			streak: 0,
@@ -197,11 +237,15 @@ export const useProgressStore = create<ProgressState>()(
 			dailyLessons: {},
 			recentMistakes: [],
 			completedCheckpoints: [],
+			dismissedCheckpointUnlocks: [],
+			latestFailedCheckpointReview: null,
 			lessonMemory: {},
 			recentAttempts: [],
 			conceptMemory: {},
 			exerciseDifficultyMemory: {},
 			conceptDifficultyMemory: {},
+			pronunciationExerciseMemory: {},
+			pronunciationConceptMemory: {},
 			addMistake: (exerciseId) => {
 				const { recentMistakes } = get();
 				const mistakes = recentMistakes || [];
@@ -214,18 +258,54 @@ export const useProgressStore = create<ProgressState>()(
 				const mistakes = recentMistakes || [];
 				set({ recentMistakes: mistakes.filter((id) => id !== exerciseId) });
 			},
+			dismissCheckpointUnlock: (unitId) => {
+				const dismissed = get().dismissedCheckpointUnlocks || [];
+				if (!dismissed.includes(unitId)) {
+					set({ dismissedCheckpointUnlocks: [...dismissed, unitId] });
+				}
+			},
+			recordFailedCheckpointReview: (input) => {
+				if (input.focusConceptIds.length === 0) return;
+
+				set({
+					latestFailedCheckpointReview: {
+						...input,
+						focusConceptIds: [...new Set(input.focusConceptIds)].slice(0, 3),
+						createdAt: Date.now(),
+					},
+				});
+			},
+			clearFailedCheckpointReview: (unitId) => {
+				const latest = get().latestFailedCheckpointReview;
+				if (!latest) return;
+				if (unitId && latest.unitId !== unitId) return;
+
+				set({ latestFailedCheckpointReview: null });
+			},
 			completeCheckpoint: (unitId) => {
 				const { completedCheckpoints } = get();
 				const checkpoints = completedCheckpoints || [];
 				if (!checkpoints.includes(unitId)) {
-					set({ completedCheckpoints: [...checkpoints, unitId] });
+					set({
+						completedCheckpoints: [...checkpoints, unitId],
+						latestFailedCheckpointReview:
+							get().latestFailedCheckpointReview?.unitId === unitId
+								? null
+								: get().latestFailedCheckpointReview,
+					});
 				}
 			},
 			markCheckpointComplete: (unitId) => {
 				const { completedCheckpoints } = get();
 				const checkpoints = completedCheckpoints || [];
 				if (!checkpoints.includes(unitId)) {
-					set({ completedCheckpoints: [...checkpoints, unitId] });
+					set({
+						completedCheckpoints: [...checkpoints, unitId],
+						latestFailedCheckpointReview:
+							get().latestFailedCheckpointReview?.unitId === unitId
+								? null
+								: get().latestFailedCheckpointReview,
+					});
 				}
 			},
 			recordPractice: (lessonId, score) => {
@@ -312,6 +392,73 @@ export const useProgressStore = create<ProgressState>()(
 					conceptDifficultyMemory: nextConceptDifficultyMemory,
 				}));
 			},
+			recordFocusedConceptReview: ({ conceptIds, score, reviewedAt }) => {
+				const uniqueConceptIds = [...new Set(conceptIds)].filter(Boolean);
+				if (uniqueConceptIds.length === 0 || score < FOCUSED_REVIEW_PASS_SCORE) return;
+
+				const createdAt = reviewedAt ?? Date.now();
+				const safeScore = Math.min(Math.max(Math.round(score), 0), 100);
+
+				set((state) => {
+					const previousConceptMemory = state.conceptMemory || {};
+					const nextConceptMemory = { ...previousConceptMemory };
+
+					uniqueConceptIds.forEach((conceptId) => {
+						const existing = previousConceptMemory[conceptId];
+						const previousHalfLife = existing?.halfLifeDays ?? 1;
+						const nextHalfLife = Math.min(
+							Math.max(previousHalfLife * 1.35, 2),
+							MAX_HALF_LIFE_DAYS
+						);
+
+						nextConceptMemory[conceptId] = {
+							conceptId,
+							lastPracticed: createdAt,
+							practiceCount: existing?.practiceCount ?? 0,
+							correctCount: existing?.correctCount ?? 0,
+							incorrectCount: existing?.incorrectCount ?? 0,
+							halfLifeDays: nextHalfLife,
+							latestRecallScore: 1,
+							lastFocusedReviewAt: createdAt,
+							lastFocusedReviewScore: safeScore,
+							focusedReviewPassCount: (existing?.focusedReviewPassCount ?? 0) + 1,
+						};
+					});
+
+					return { conceptMemory: nextConceptMemory };
+				});
+			},
+			recordPronunciationAttempt: (attempt) => {
+				const createdAt = attempt.createdAt || Date.now();
+				const conceptIds = attempt.conceptIds.length > 0 ? attempt.conceptIds : [attempt.exerciseId];
+				const previousExerciseMemory = get().pronunciationExerciseMemory || {};
+				const previousConceptMemory = get().pronunciationConceptMemory || {};
+				const nextConceptMemory = { ...previousConceptMemory };
+
+				conceptIds.forEach((conceptId) => {
+					nextConceptMemory[conceptId] = updatePronunciationEntry(
+						previousConceptMemory[conceptId],
+						conceptId,
+						"concept",
+						{ ...attempt, conceptIds },
+						createdAt
+					);
+				});
+
+				set({
+					pronunciationExerciseMemory: {
+						...previousExerciseMemory,
+						[attempt.exerciseId]: updatePronunciationEntry(
+							previousExerciseMemory[attempt.exerciseId],
+							attempt.exerciseId,
+							"exercise",
+							{ ...attempt, conceptIds },
+							createdAt
+						),
+					},
+					pronunciationConceptMemory: nextConceptMemory,
+				});
+			},
 			getForgettingScore: (lessonId) => {
 				const entry = (get().lessonMemory || {})[lessonId];
 				if (!entry) return 999;
@@ -334,10 +481,43 @@ export const useProgressStore = create<ProgressState>()(
 				const entry = (get().conceptDifficultyMemory || {})[conceptId];
 				return entry?.difficultyScore ?? DEFAULT_DIFFICULTY_SCORE;
 			},
+			getPronunciationScoreForConcept: (conceptId) => {
+				const entry = (get().pronunciationConceptMemory || {})[conceptId];
+				return entry?.avgScore ?? 100;
+			},
+			getWeakPronunciationConcepts: (count, languageId) => {
+				const limit = Math.max(count, 0);
+				if (limit === 0) return [];
+
+				return Object.values(get().pronunciationConceptMemory || {})
+					.filter((entry) => !languageId || entry.languageId === languageId)
+					.filter(
+						(entry) =>
+							entry.avgScore < PRONUNCIATION_DUE_SCORE_THRESHOLD ||
+							entry.lastScore < PRONUNCIATION_WEAK_SCORE_THRESHOLD ||
+							entry.lowScoreCount > 0
+					)
+					.sort((a, b) => {
+						const urgencyDiff =
+							getPronunciationUrgencyScore(b) - getPronunciationUrgencyScore(a);
+						if (urgencyDiff !== 0) return urgencyDiff;
+						return b.lastPracticed - a.lastPracticed;
+					})
+					.slice(0, limit);
+			},
+			getDuePronunciationConceptCount: (languageId) =>
+				Object.values(get().pronunciationConceptMemory || {}).filter(
+					(entry) =>
+						(!languageId || entry.languageId === languageId) &&
+						(entry.avgScore < PRONUNCIATION_DUE_SCORE_THRESHOLD ||
+							entry.lastScore < PRONUNCIATION_WEAK_SCORE_THRESHOLD)
+				).length,
 			getDueConceptCount: () => {
 				const conceptMemory = Object.values(get().conceptMemory || {});
 
 				return conceptMemory.filter((entry) => {
+					if (hasFreshSuccessfulFocusedReview(entry)) return false;
+
 					const recallScore = calculateConceptRecallScore(entry);
 					return (
 						recallScore < DUE_CONCEPT_RECALL_THRESHOLD ||
@@ -367,8 +547,9 @@ export const useProgressStore = create<ProgressState>()(
 					})
 					.filter(
 						(item) =>
-							item.recallScore < WEAK_CONCEPT_RECALL_THRESHOLD ||
-							item.incorrectRatio >= WEAK_CONCEPT_INCORRECT_RATIO
+							!hasFreshSuccessfulFocusedReview(item.entry) &&
+							(item.recallScore < WEAK_CONCEPT_RECALL_THRESHOLD ||
+								item.incorrectRatio >= WEAK_CONCEPT_INCORRECT_RATIO)
 					)
 					.sort((a, b) => {
 						if (b.urgencyScore !== a.urgencyScore) {
@@ -398,6 +579,7 @@ export const useProgressStore = create<ProgressState>()(
 				const {
 					xp,
 					todayXP,
+					level,
 					streak,
 					lastActiveDate,
 					completedLessonIds,
@@ -407,98 +589,26 @@ export const useProgressStore = create<ProgressState>()(
 					dailyLessons,
 					lessonMemory,
 				} = get();
-				const todayStr = getTodayStr();
-				const yesterdayStr = getYesterdayStr();
-				const oldLevel = calculateLevel(xp);
-				const xpEarned = Math.max(Math.round(input.xpEarned), 0);
-				const score = clampPercent(input.score);
-				const plannedExerciseCount = Math.max(Math.round(input.plannedExerciseCount), 0);
-				const plannedCorrectCount = Math.min(
-					Math.max(Math.round(input.plannedCorrectCount), 0),
-					plannedExerciseCount
-				);
-				const passed = input.passed ?? score >= 70;
-				const nextXp = xp + xpEarned;
-				const nextTodayXp = (todayXP || 0) + xpEarned;
-				const nextLevel = calculateLevel(nextXp);
-				const levelledUp = nextLevel > oldLevel;
+				const { nextState, result } = applyLearningSessionCompletion({
+					xp,
+					todayXP,
+					level,
+					streak,
+					lastActiveDate,
+					completedLessonIds,
+					completedLessons,
+					completedCheckpoints,
+					dailyChallengeCompletedDate,
+					dailyLessons,
+					lessonMemory,
+				}, input);
 
-				let nextCompletedIds = [...(completedLessonIds || completedLessons || [])];
-				if (input.completedLessonId && !nextCompletedIds.includes(input.completedLessonId)) {
-					nextCompletedIds = [...nextCompletedIds, input.completedLessonId];
+				set(nextState);
+				if (input.checkpointUnitId && result.passed) {
+					get().clearFailedCheckpointReview(input.checkpointUnitId);
 				}
 
-				let nextCompletedCheckpoints = completedCheckpoints || [];
-				if (
-					input.checkpointUnitId &&
-					passed &&
-					!nextCompletedCheckpoints.includes(input.checkpointUnitId)
-				) {
-					nextCompletedCheckpoints = [...nextCompletedCheckpoints, input.checkpointUnitId];
-				}
-
-				let nextStreak = streak;
-				if (lastActiveDate === null) {
-					nextStreak = 1;
-				} else if (lastActiveDate === yesterdayStr) {
-					nextStreak = streak + 1;
-				} else if (lastActiveDate !== todayStr) {
-					nextStreak = 1;
-				}
-
-				const nextDailyLessons = { ...(dailyLessons || {}) };
-				if (input.completedLessonId) {
-					const todayLessons = nextDailyLessons[todayStr] || [];
-					if (!todayLessons.includes(input.completedLessonId)) {
-						nextDailyLessons[todayStr] = [...todayLessons, input.completedLessonId];
-					}
-				}
-
-				const nextLessonMemory = { ...(lessonMemory || {}) };
-				uniqueIds(input.practicedLessonIds ?? []).forEach((lessonId) => {
-					const existing = nextLessonMemory[lessonId];
-					const newCount = (existing?.practiceCount ?? 0) + 1;
-					const newAvg = existing
-						? (existing.avgScore * existing.practiceCount + score) / newCount
-						: score;
-
-					nextLessonMemory[lessonId] = {
-						lessonId,
-						lastPracticed: Date.now(),
-						practiceCount: newCount,
-						avgScore: Math.round(newAvg),
-					};
-				});
-
-				set({
-					xp: nextXp,
-					todayXP: nextTodayXp,
-					level: nextLevel,
-					completedLessons: nextCompletedIds,
-					completedLessonIds: nextCompletedIds,
-					completedCheckpoints: nextCompletedCheckpoints,
-					streak: nextStreak,
-					lastActiveDate: todayStr,
-					dailyChallengeCompletedDate:
-						input.sessionType === "daily-challenge"
-							? todayStr
-							: dailyChallengeCompletedDate,
-					dailyLessons: nextDailyLessons,
-					lessonMemory: nextLessonMemory,
-				});
-
-				return {
-					xpEarned,
-					newTotalXp: nextXp,
-					newStreak: nextStreak,
-					oldLevel,
-					newLevel: nextLevel,
-					levelledUp,
-					score,
-					passed,
-					plannedCorrectCount,
-					plannedExerciseCount,
-				};
+				return result;
 			},
 			completeLesson: async (lessonId, xpReward) => {
 				const { completedLessons, xp, todayXP, streak, lastActiveDate, dailyLessons } = get();
@@ -585,6 +695,9 @@ export const useProgressStore = create<ProgressState>()(
 					set({ todayXP: 0 });
 				}
 			},
+			setHasHydrated: (state) => {
+				set({ _hasHydrated: state });
+			},
 			resetProgress: async () => {
 				set({
 					completedLessons: [],
@@ -598,17 +711,24 @@ export const useProgressStore = create<ProgressState>()(
 					dailyLessons: {},
 					recentMistakes: [],
 					completedCheckpoints: [],
+					dismissedCheckpointUnlocks: [],
+					latestFailedCheckpointReview: null,
 					lessonMemory: {},
 					recentAttempts: [],
 					conceptMemory: {},
 					exerciseDifficultyMemory: {},
 					conceptDifficultyMemory: {},
+					pronunciationExerciseMemory: {},
+					pronunciationConceptMemory: {},
 				});
 			},
 		}),
 		{
 			name: "progress-storage",
 			storage: createJSONStorage(() => AsyncStorage),
+			onRehydrateStorage: () => (state) => {
+				state?.setHasHydrated(true);
+			},
 		}
 	)
 );

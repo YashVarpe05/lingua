@@ -44,11 +44,51 @@ alter table public.leaderboard enable row level security;
 
 revoke all on table public.leaderboard from anon;
 revoke all on table public.leaderboard from authenticated;
-grant select, insert, update on table public.leaderboard to service_role;
+grant select, insert, update, delete on table public.leaderboard to service_role;
+
+drop policy if exists "Service role can read leaderboard" on public.leaderboard;
+create policy "Service role can read leaderboard"
+  on public.leaderboard
+  for select
+  to service_role
+  using (true);
+
+drop policy if exists "Service role can add leaderboard rows" on public.leaderboard;
+create policy "Service role can add leaderboard rows"
+  on public.leaderboard
+  for insert
+  to service_role
+  with check (true);
+
+drop policy if exists "Service role can update leaderboard rows" on public.leaderboard;
+create policy "Service role can update leaderboard rows"
+  on public.leaderboard
+  for update
+  to service_role
+  using (true)
+  with check (true);
+
+drop policy if exists "Service role can delete leaderboard rows" on public.leaderboard;
+create policy "Service role can delete leaderboard rows"
+  on public.leaderboard
+  for delete
+  to service_role
+  using (true);
+
+do $$
+begin
+  if to_regprocedure('public.rls_auto_enable()') is not null then
+    execute 'revoke execute on function public.rls_auto_enable() from public';
+    execute 'revoke execute on function public.rls_auto_enable() from anon';
+    execute 'revoke execute on function public.rls_auto_enable() from authenticated';
+  end if;
+end $$;
 
 comment on table public.leaderboard is
   'Server-managed XP leaderboard rows keyed by verified Clerk user id.';
 ```
+
+This keeps direct mobile Supabase access closed. The Expo API routes use Clerk auth first, then the server-only Supabase service role performs the leaderboard reads and writes.
 
 ## Verification
 
@@ -59,9 +99,13 @@ npm run auth:check
 npm run qa:backend
 ```
 
+If Expo is running somewhere else, set `API_BASE_URL` before running the checks.
+
 Expected behavior:
 
 - Protected API routes return `401` without a Clerk token.
 - `/api/leaderboard/migrate` returns `404`.
+- RLS is enabled and the service-role leaderboard policies exist.
+- If `public.rls_auto_enable()` exists, `PUBLIC`, `anon`, and `authenticated` cannot execute it.
 - The service role can insert, update, select, and delete leaderboard rows.
-- The publishable key cannot directly read leaderboard rows.
+- The publishable key cannot directly read or write leaderboard rows.

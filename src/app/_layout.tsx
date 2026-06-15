@@ -33,10 +33,12 @@ SplashScreen.preventAutoHideAsync();
 function RootLayoutNav() {
 	const { isLoaded: clerkLoaded, isSignedIn } = useAuth();
 	const checkAndResetDailyXP = useProgressStore((state) => state.checkAndResetDailyXP);
+	const progressHasHydrated = useProgressStore((state) => state._hasHydrated);
 
 	useEffect(() => {
+		if (!progressHasHydrated) return;
 		checkAndResetDailyXP();
-	}, [checkAndResetDailyXP]);
+	}, [checkAndResetDailyXP, progressHasHydrated]);
 
 	const [fontsLoaded, fontError] = useFonts(fonts);
 	const router = useRouter();

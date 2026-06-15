@@ -13,7 +13,9 @@
     "content:check": "node ./scripts/check-content-encoding.js",
     "curriculum:report": "node ./scripts/curriculum-report.js",
     "auth:check": "node ./scripts/check-api-auth-hardening.js",
-    "qa:backend": "node ./scripts/check-backend-live.js"
+    "qa:backend": "node ./scripts/check-backend-live.js",
+    "qa:progress": "node ./scripts/check-progress-integrity.js",
+    "qa:api": "node ./scripts/check-api-production-readiness.js"
   },
   "dependencies": {
     "@clerk/backend": "^3.5.0",
@@ -30,6 +32,7 @@
     "@supabase/supabase-js": "^2.107.0",
     "expo": "~55.0.24",
     "expo-application": "~55.0.15",
+    "expo-audio": "~55.0.14",
     "expo-auth-session": "~55.0.16",
     "expo-build-properties": "^56.0.14",
     "expo-constants": "~55.0.16",

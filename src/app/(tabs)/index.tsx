@@ -25,27 +25,32 @@ import { ConceptMemoryEntry, ExerciseAttempt, Lesson } from "@/types/learning";
 import { authFetch } from "@/lib/apiClient";
 import { usePostHog } from "posthog-react-native";
 import { getLanguageUnitsAndLessons } from "@/utils/learning";
+import {
+	hasFreshSuccessfulFocusedReview,
+	isAttemptRepairedByFocusedReview,
+} from "@/utils/conceptReview";
 import Button3D from "@/components/Button3D";
+import { brand, learning, neutral, semantic } from "@/theme/colors";
 
 // Helper function to return dynamic greeting based on selected language
 const getGreeting = (langId: string, name: string) => {
 	switch (langId) {
 		case "es":
-			return `¡Hola, ${name}!`;
+			return `\u00A1Hola, ${name}!`;
 		case "fr":
 			return `Bonjour, ${name}!`;
 		case "ja":
-			return `こんにちは, ${name}!`;
+			return `\u3053\u3093\u306B\u3061\u306F, ${name}!`;
 		case "de":
 			return `Hallo, ${name}!`;
 		case "it":
 			return `Ciao, ${name}!`;
 		case "zh":
-			return `你好, ${name}!`;
+			return `\u4F60\u597D, ${name}!`;
 		case "ko":
-			return `안녕하세요, ${name}!`;
+			return `\uC548\uB155\uD558\uC138\uC694, ${name}!`;
 		case "ar":
-			return `مرحباً ${name}!`;
+			return `\u0645\u0631\u062D\u0628\u0627\u064B ${name}!`;
 		default:
 			return `Hello, ${name}!`;
 	}
@@ -162,6 +167,7 @@ const getDueConceptCountForLanguage = (
 	return [...languageConceptIds].filter((conceptId) => {
 		const entry = conceptMemory[conceptId];
 		if (!entry) return false;
+		if (hasFreshSuccessfulFocusedReview(entry)) return false;
 
 		return (
 			getConceptRecallScore(conceptId) < DUE_CONCEPT_RECALL_THRESHOLD ||
@@ -258,6 +264,12 @@ export default function HomeScreen() {
 	const conceptMemory = useProgressStore((state) => state.conceptMemory) || {};
 	const getConceptRecallScore = useProgressStore((state) => state.getConceptRecallScore);
 	const getWeakConcepts = useProgressStore((state) => state.getWeakConcepts);
+	const getWeakPronunciationConcepts = useProgressStore(
+		(state) => state.getWeakPronunciationConcepts
+	);
+	const getDuePronunciationConceptCount = useProgressStore(
+		(state) => state.getDuePronunciationConceptCount
+	);
 	const completedCheckpoints = useProgressStore((state) => state.completedCheckpoints) || [];
 
 	// Active lesson modal state
@@ -357,15 +369,16 @@ export default function HomeScreen() {
 	
 	// Daily goal calculations (20 XP standard goal, sum of completed lesson XP rewards)
 	const dailyGoalXp = 20;
-	const currentXpProgress = unitLessons
-		.filter((l) => completedLessons.includes(l.id))
-		.reduce((sum, l) => sum + (l.xpReward || 0), 0);
+	const currentXpProgress = Math.min(todayXP, dailyGoalXp);
 	const dailyGoalPercent = Math.min((currentXpProgress / dailyGoalXp) * 100, 100);
 
 	// Find the next uncompleted lesson to recommend
 	const nextLesson = unitLessons.find((l) => !completedLessons.includes(l.id)) || null;
 	const recentMistakeAttempt = recentAttempts.find(
-		(attempt) => !attempt.correct && attempt.languageId === selectedLanguage.id,
+		(attempt) =>
+			!attempt.correct &&
+			attempt.languageId === selectedLanguage.id &&
+			!isAttemptRepairedByFocusedReview(attempt, conceptMemory),
 	);
 	const recentMistakeLesson = getLessonFromAttempt(
 		recentMistakeAttempt,
@@ -384,14 +397,6 @@ export default function HomeScreen() {
 				)
 			)
 			.find((candidate): candidate is Lesson => Boolean(candidate)) ?? null;
-	const weakConceptForLanguage = weakConcepts.find((concept) =>
-		recentAttempts.some(
-			(attempt) =>
-				attempt.languageId === selectedLanguage.id &&
-				attempt.conceptIds.includes(concept.conceptId),
-		)
-	);
-	const weakConceptMetadata = getCurriculumConceptById(weakConceptForLanguage?.conceptId);
 	const urgentLessonId = getMostUrgentLessons(12).find((lessonId) => {
 		const activeLesson = activeLessons.find((lesson) => lesson.id === lessonId);
 		if (activeLesson) return true;
@@ -464,16 +469,45 @@ export default function HomeScreen() {
 		.filter((conceptId): conceptId is string => Boolean(conceptId))
 		.slice(0, 3);
 	const reviewFocusLabel = getCurriculumReviewLabel(reviewFocusConceptIds);
-	const dueReviewReason = recentMistakeConcept
-		? `Why: recent miss in ${recentMistakeConcept.title}`
-		: weakConceptMetadata?.reviewPrompt
-			? `Why: ${weakConceptMetadata.reviewPrompt}`
-			: dueReviewCount > 0
-				? "Why: spaced review keeps older practice from fading"
-				: "Why: no urgent review right now";
-	const dueReviewFocusText = reviewFocusLabel
-		? `Focus: ${reviewFocusLabel}`
-		: dueReviewReason;
+	const weakPronunciationConcepts = getWeakPronunciationConcepts(3, selectedLanguage.id);
+	const duePronunciationConceptCount = getDuePronunciationConceptCount(selectedLanguage.id);
+	const pronunciationFocusConceptIds = weakPronunciationConcepts.map((entry) => entry.id);
+	const pronunciationFocusLabel = getCurriculumReviewLabel(
+		pronunciationFocusConceptIds.slice(0, 3)
+	);
+	const speakingPracticeLessonId =
+		weakPronunciationConcepts
+			.map((entry) => entry.lessonId)
+			.find((lessonId): lessonId is string =>
+				Boolean(lessonId && activeLessons.some((lesson) => lesson.id === lessonId))
+			) ??
+		dailyChallengeLesson?.id ??
+		nextLesson?.id ??
+		activeLessons.find((lesson) => !lesson.isCheckpoint)?.id;
+	const todayFocusTitle = recentMistakeConcept
+		? "Fix a recent mistake"
+		: dueReviewCount > 0
+			? "Review before it fades"
+			: nextLesson
+				? "Continue your path"
+				: "Keep memory warm";
+	const todayFocusSubtitle = recentMistakeConcept
+		? `Practice ${recentMistakeConcept.title} while it is fresh.`
+		: reviewFocusLabel
+			? `Focus: ${reviewFocusLabel}`
+			: nextLesson
+				? `Next up: ${nextLesson.title}`
+				: "Start a light review to protect your streak.";
+	const todayFocusAccent = recentMistakeConcept
+		? learning.correction
+		: dueReviewCount > 0
+			? learning.reward
+			: brand.primary;
+	const todayFocusIcon: keyof typeof Feather.glyphMap = recentMistakeConcept
+		? "alert-circle"
+		: dueReviewCount > 0
+			? "refresh-cw"
+			: "map";
 
 	const handleOpenLesson = (lesson: Lesson) => {
 		posthog.capture("lesson_opened", {
@@ -500,6 +534,24 @@ export default function HomeScreen() {
 			pathname: "/exercise-session",
 			params: { lessonId: dailyChallengeLesson.id, isDailyChallenge: "true" },
 		});
+	};
+
+	const handleOpenSpeakingPractice = () => {
+		if (!speakingPracticeLessonId) return;
+
+		posthog.capture("speaking_practice_recommended_opened", {
+			lesson_id: speakingPracticeLessonId,
+			language_id: selectedLanguageId,
+			due_pronunciation_concepts: duePronunciationConceptCount,
+		});
+		router.push({
+			pathname: "/exercise-session",
+			params: { lessonId: speakingPracticeLessonId, mode: "speaking" },
+		});
+	};
+
+	const handleOpenPracticeHub = () => {
+		router.push("/practice-hub" as Href);
 	};
 
 	const handleCompleteMockLesson = async () => {
@@ -550,176 +602,253 @@ export default function HomeScreen() {
 		}
 	};
 
+	const getLessonIconAsset = (type: string) => {
+		switch (type) {
+			case "video":
+				return images.appIconVideo;
+			case "audio":
+				return images.appIconHeadphones;
+			case "chat":
+				return null;
+			default:
+				return images.appIconBook;
+		}
+	};
+
 	// Determine theme colors based on lesson type
 	const getLessonColors = (type: string) => {
 		switch (type) {
 			case "video":
-				return { bg: "#F0EDFF", text: "#6C4EF5" }; // purple container
+				return { bg: brand.primaryLight, text: brand.primary }; // purple container
 			case "chat":
-				return { bg: "#FFF0ED", text: "#FF4D4F" }; // pink container
+				return { bg: "#FFF0ED", text: semantic.error }; // pink container
 			default:
-				return { bg: "#EBF3FF", text: "#4D8BFF" }; // blue container
+				return { bg: "#EBF3FF", text: brand.blue }; // blue container
+		}
+	};
+
+	const getLessonTypeLabel = (type: string) => {
+		switch (type) {
+			case "video":
+				return "AI Conversation";
+			case "chat":
+				return "New Words";
+			case "audio":
+				return "Audio Lesson";
+			default:
+				return "Lesson Practice";
 		}
 	};
 
 	const displayName = user?.firstName || user?.username || "JavaScript";
+	const userInitial = displayName ? displayName[0].toUpperCase() : "J";
+	const levelProgressMeta = getLevelProgress(xp);
 
 	return (
 		<SafeAreaView style={styles.safeArea} edges={["top"]}>
-			{/* Top Navigation Bar - Matching Spain Spec Screenshot */}
-			<View className="flex-row items-center justify-between px-4 pt-3 pb-2 bg-white border-b border-[#F3F4F6] z-10">
-				{/* Left Stacked Language Picker */}
-				<TouchableOpacity
-					onPress={() => router.push("/languages")}
-					activeOpacity={0.75}
-					style={styles.languageStack}
-				>
-					<Image
-						source={{ uri: selectedLanguage.flag }}
-						style={{ width: 34, height: 34, borderRadius: 17 }}
-						contentFit="cover"
-					/>
-					<Text className="font-poppins-bold text-[14px] text-neutral-primary mt-1 leading-[18px]">
-						{selectedLanguage.name}
-					</Text>
-					<Feather name="chevron-down" size={13} color="#6B7280" style={{ marginTop: 2 }} />
-				</TouchableOpacity>
-
-				{/* Right Stats Badges & Avatar */}
-				<View className="flex-row items-center gap-2">
-					{/* Streak Capsule */}
-					<View className="flex-row items-center bg-[#FFF8F2] border-[1.5px] border-[#FFEAD4] rounded-full px-[11px] py-[7px] gap-1">
-						<Image
-							source={images.streakFire}
-							style={{ width: 14, height: 14 }}
-							contentFit="contain"
-						/>
-						<Text className="font-poppins-bold text-[13px] text-streak">{streak}</Text>
-					</View>
-
-					{/* XP Capsule */}
-					<View className="flex-row items-center bg-[#F0EDFF] border-[1.5px] border-[#E1D9FF] rounded-full px-[11px] py-[7px] gap-1">
-						<Feather name="zap" size={13} color="#6C4EF5" />
-						<Text className="font-poppins-bold text-[13px] text-lingua-purple">{xp} XP</Text>
-					</View>
-
-					{/* Circular Avatar Outline & Letter Inner */}
-					<View className="w-[38px] h-[38px] rounded-full border-[1.5px] border-lingua-purple items-center justify-center">
-						<View className="w-8 h-8 rounded-full bg-[#C2185B] items-center justify-center">
-							<Text className="font-poppins-bold text-[13px] text-white">
-								{displayName ? displayName[0].toUpperCase() : "J"}
-							</Text>
-						</View>
-					</View>
-				</View>
-			</View>
-
 			<ScrollView
 				style={styles.scrollView}
 				contentContainerStyle={styles.scrollContent}
+				contentInsetAdjustmentBehavior="automatic"
 				showsVerticalScrollIndicator={false}
 			>
-				{/* Welcome greeting matching screenshot */}
-				<View className="flex-row items-center justify-between mb-5">
-					<View className="flex-row items-center flex-1 mr-2">
-						<Image
-							source={{ uri: selectedLanguage.flag }}
-							style={{ width: 30, height: 30, borderRadius: 15 }}
-							contentFit="cover"
-						/>
-						<Text className="font-poppins-bold text-[18px] text-neutral-primary ml-2 leading-[22px]">
-							{getGreeting(selectedLanguage.id, displayName)} 👋
-						</Text>
-					</View>
-					
-					<View className="flex-row items-center gap-2.5">
-						<View className="flex-row items-center">
+				<View style={styles.homeContentShell}>
+				<View style={styles.dashboardHeaderCard}>
+					<View className="flex-row items-center justify-between">
+						<TouchableOpacity
+							onPress={() => router.push("/languages")}
+							activeOpacity={0.78}
+							style={styles.languagePill}
+						>
 							<Image
-								source={images.streakFire}
-								style={{ width: 16, height: 16 }}
-								contentFit="contain"
+								source={{ uri: selectedLanguage.flag }}
+								style={styles.languagePillFlag}
+								contentFit="cover"
 							/>
-							<Text className="font-poppins-bold text-[14px] text-[#FF8A00] ml-1">
-								{streak}
+							<View className="ml-2 mr-2">
+								<Text className="font-poppins-semibold text-[10px] text-[#6B7280] uppercase tracking-[0.6px]">
+									Learning
+								</Text>
+								<Text className="font-poppins-bold text-[13px] text-[#111827]">
+									{selectedLanguage.name}
+								</Text>
+							</View>
+							<Feather name="chevron-down" size={14} color="#6B7280" />
+						</TouchableOpacity>
+
+						<View className="flex-row items-center gap-2">
+							<TouchableOpacity activeOpacity={0.75} style={styles.headerIconButton}>
+								<Image
+									source={images.appIconBell}
+									style={styles.topActionIconImage}
+									contentFit="contain"
+								/>
+							</TouchableOpacity>
+							<View style={styles.avatarButton}>
+								<Text className="font-poppins-bold text-[14px] text-white">
+									{userInitial}
+								</Text>
+							</View>
+						</View>
+					</View>
+
+					<Text className="font-poppins-bold text-[28px] text-[#111827] leading-[34px] mt-5">
+						{getGreeting(selectedLanguage.id, displayName)}
+					</Text>
+					<Text className="font-poppins text-[13px] text-[#6B7280] leading-[20px] mt-2">
+						Your next lesson, review, and speaking practice are lined up for today.
+					</Text>
+
+					<View style={styles.dailyGoalPanel}>
+						<View className="flex-1 mr-4">
+							<View className="flex-row items-center">
+								<Image
+									source={images.appIconTarget}
+									style={styles.dailyGoalIcon}
+									contentFit="contain"
+								/>
+								<Text className="font-poppins-bold text-[13px] text-[#111827] ml-2">
+									Daily goal
+								</Text>
+							</View>
+							<Text className="font-poppins-bold text-[22px] text-[#111827] mt-2">
+								{currentXpProgress} <Text className="font-poppins text-[12px] text-[#6B7280]">/ {dailyGoalXp} XP</Text>
 							</Text>
+							<View style={styles.dailyGoalTrack}>
+								<View style={[styles.dailyGoalFill, { width: `${dailyGoalPercent}%` }]} />
+							</View>
 						</View>
-						<View className="p-1">
-							<Feather name="bell" size={18} color="#0D132B" />
-						</View>
+						<Image
+							source={images.treasure}
+							style={styles.dailyGoalTreasure}
+							contentFit="contain"
+						/>
 					</View>
 				</View>
 
-				{/* Daily Goal Card */}
-				<View className="bg-[#FFF8F2] border-[1.5px] border-[#FFEAD4] rounded-[20px] p-4 flex-row items-center justify-between mb-4">
-					<View className="flex-1 mr-4">
-						<Text className="font-poppins-medium text-[13px] text-neutral-secondary">
-							Daily goal
-						</Text>
-						<Text className="font-poppins-bold text-[24px] text-neutral-primary mt-1">
-							{currentXpProgress} <Text className="font-poppins text-[13px] text-neutral-secondary">/ {dailyGoalXp} XP</Text>
-						</Text>
-						<View className="h-2 bg-[#EBF0F3] rounded-full w-[180px] mt-2 overflow-hidden">
-							<View
-								style={{ width: `${dailyGoalPercent}%` }}
-								className="h-full bg-streak rounded-full"
+				<View style={styles.statStrip}>
+					<View style={styles.statCard}>
+						<View style={[styles.statIconBubble, styles.statIconBubbleOrange]}>
+							<Image
+								source={images.streakFire}
+								style={styles.statImageIcon}
+								contentFit="contain"
 							/>
 						</View>
+						<Text className="font-poppins-bold text-[18px] text-[#111827] mt-2">
+							{streak}
+						</Text>
+						<Text className="font-poppins-semibold text-[10px] text-[#6B7280] text-center">
+							Streak
+						</Text>
+					</View>
+					<View style={styles.statCard}>
+						<View style={[styles.statIconBubble, styles.statIconBubblePurple]}>
+							<Image
+								source={images.appIconLightning}
+								style={styles.statImageIcon}
+								contentFit="contain"
+							/>
+						</View>
+						<Text className="font-poppins-bold text-[18px] text-[#111827] mt-2">
+							{xp}
+						</Text>
+						<Text className="font-poppins-semibold text-[10px] text-[#6B7280] text-center">
+							Total XP
+						</Text>
+					</View>
+					<View style={styles.statCardWide}>
+						<View className="flex-row items-center justify-between">
+							<View>
+								<Text className="font-poppins-bold text-[13px] text-[#5537D2]">
+									Level {level}
+								</Text>
+								<Text className="font-poppins-semibold text-[10px] text-[#6B7280] mt-0.5">
+									+{todayXP} XP today
+								</Text>
+							</View>
+							<View style={styles.levelIconBubble}>
+								<Image
+									source={images.appIconStar}
+									style={styles.statImageIcon}
+									contentFit="contain"
+								/>
+							</View>
+						</View>
+						<View style={styles.levelTrack}>
+							<View style={[styles.levelFill, { width: `${levelProgressMeta.progress}%` }]} />
+						</View>
+						<Text className="font-poppins text-[9px] text-[#6B7280] text-right mt-1">
+							{levelProgressMeta.label}
+						</Text>
+					</View>
+				</View>
+
+				{/* Continue learning primary card */}
+				<View style={styles.continueLearningCard}>
+					<View className="flex-1 mr-4">
+						<Text className="font-poppins-semibold text-[11px] text-lingua-purple-light uppercase tracking-[0.5px]">
+							Continue learning
+						</Text>
+						<Text className="font-poppins-bold text-[22px] text-white mt-1 leading-[28px]">
+							{nextLesson?.title ?? selectedLanguage.name}
+						</Text>
+						<Text className="font-poppins text-[12px] text-lingua-purple-light mt-1 leading-[17px]">
+							{currentUnit.title}
+						</Text>
+						{nextLesson ? (
+							<TouchableOpacity
+								style={styles.continueBtn}
+								activeOpacity={0.85}
+								onPress={() => handleOpenLesson(nextLesson)}
+							>
+								<Text className="font-poppins-bold text-[13px] text-lingua-purple">
+									Start next lesson
+								</Text>
+							</TouchableOpacity>
+						) : (
+							<View className="mt-4 bg-success rounded-xl py-2 px-3 self-start flex-row items-center">
+								<Image
+									source={images.appIconStar}
+									style={styles.smallInlineIconImage}
+									contentFit="contain"
+								/>
+								<Text className="font-poppins-bold text-[11px] text-white ml-1.5">
+									Unit Completed!
+								</Text>
+							</View>
+						)}
 					</View>
 					<Image
-						source={images.treasure}
-						style={{ width: 68, height: 68 }}
+						source={images.palace}
+						style={styles.continueLearningImage}
 						contentFit="contain"
 					/>
 				</View>
 
-				{/* Gamification Stats Cards Row */}
-				<View className="flex-row gap-3 mb-4">
-					{/* Streak Card */}
-					<View className="flex-1 bg-[#FFF8F2] border-[1.5px] border-[#FFEAD4] rounded-[20px] p-4 items-center justify-center min-h-[90px]">
-						<View className="flex-row items-center gap-1.5">
-							<Image
-								source={images.streakFire}
-								style={{ width: 24, height: 24 }}
-								contentFit="contain"
-							/>
-							<Text className="font-poppins-bold text-[22px] text-streak">
-								{streak}
-							</Text>
-						</View>
-						<Text className="font-poppins-semibold text-[11px] text-[#A25700] mt-1 text-center leading-[15px]">
-							{streak > 0 ? `${streak} day streak` : "Start your streak today!"}
+				{/* Today's focus card */}
+				<View style={styles.todayFocusCard}>
+					<View style={[styles.todayFocusIcon, { backgroundColor: todayFocusAccent }]}>
+						<Feather name={todayFocusIcon} size={18} color="#FFFFFF" />
+					</View>
+					<View className="flex-1 mr-3">
+						<Text className="font-poppins-semibold text-[10px] text-neutral-secondary uppercase tracking-[0.5px]">
+							Today&apos;s focus
+						</Text>
+						<Text className="font-poppins-bold text-[16px] text-neutral-primary mt-0.5">
+							{todayFocusTitle}
+						</Text>
+						<Text className="font-poppins text-[12px] text-neutral-secondary mt-0.5 leading-[17px]">
+							{todayFocusSubtitle}
 						</Text>
 					</View>
-
-					{/* XP / Level Card */}
-					<View className="flex-1 bg-[#F0EDFF] border-[1.5px] border-[#E1D9FF] rounded-[20px] p-4 min-h-[90px] justify-center">
-						<View className="flex-row justify-between items-center mb-1">
-							<Text className="font-poppins-bold text-[14px] text-lingua-purple">
-								Level {level}
-							</Text>
-							<Text className="font-poppins-semibold text-[9px] text-[#6C4EF5] bg-white border border-[#E1D9FF] px-1.5 py-0.5 rounded-md">
-								+{todayXP} XP today
-							</Text>
-						</View>
-						
-						{/* Progress Bar toward next level */}
-						{(() => {
-							const { progress, label } = getLevelProgress(xp);
-							return (
-								<View className="mt-1">
-									<View className="h-1.5 bg-[#E1D9FF] rounded-full overflow-hidden mb-0.5">
-										<View
-											style={{ width: `${progress}%` }}
-											className="h-full bg-lingua-purple rounded-full"
-										/>
-									</View>
-									<Text className="font-poppins text-[9px] text-neutral-secondary text-right">
-										{label}
-									</Text>
-								</View>
-							);
-						})()}
-					</View>
+					<TouchableOpacity
+						onPress={handleOpenPracticeHub}
+						activeOpacity={0.8}
+						style={styles.todayFocusAction}
+					>
+						<Feather name="arrow-right" size={18} color={brand.primary} />
+					</TouchableOpacity>
 				</View>
 
 				{/* Daily Challenge Card */}
@@ -744,11 +873,12 @@ export default function HomeScreen() {
 							onPress={isDailyCompletedToday ? undefined : handleOpenDailyChallenge}
 							disabled={isDailyCompletedToday}
 							activeOpacity={0.8}
-							className={`border-[1.5px] rounded-[20px] p-4 flex-row items-center justify-between mb-4 shadow-sm ${
+							style={[
+								styles.homeLearningCard,
 								isDailyCompletedToday
-									? "bg-[#F3F4F6] border-[#E5E7EB]"
-									: "bg-[#EBF3FF] border-[#D0E5FF]"
-							}`}
+									? styles.homeLearningCardDisabled
+									: styles.dailyChallengeCard,
+							]}
 						>
 							<View className="flex-1 mr-4">
 								<Text className={`font-poppins-semibold text-[11px] uppercase tracking-[0.5px] ${
@@ -770,9 +900,14 @@ export default function HomeScreen() {
 									{dailyChallengeSubtitle}
 								</Text>
 							</View>
-							<View className={`w-12 h-12 rounded-full items-center justify-center ${
-								isDailyCompletedToday ? "bg-[#21C16B]" : "bg-[#4D8BFF]"
-							}`}>
+							<View
+								style={[
+									styles.cardActionCircle,
+									isDailyCompletedToday
+										? styles.cardDoneCircle
+										: styles.dailyActionCircle,
+								]}
+							>
 								{isDailyCompletedToday ? (
 									<Feather name="check" size={20} color="#FFFFFF" />
 								) : (
@@ -783,36 +918,96 @@ export default function HomeScreen() {
 					);
 				})()}
 
-				{/* Review & Remember Card */}
-				<View className="bg-[#FFF3CC] border-l-[3px] border-l-[#FFC800] rounded-[20px] p-4 flex-row items-center justify-between mb-4">
-					<View className="flex-1 mr-4">
-						<Text className="font-poppins-bold text-[16px] text-neutral-primary">
-							{"Review & Remember \u{1F9E0}"}
+				{/* Smart practice grid */}
+				<View style={styles.sectionHeaderRow}>
+					<Text className="font-poppins-bold text-[17px] text-neutral-primary">
+						Smart practice
+					</Text>
+					<Text className="font-poppins-semibold text-[12px] text-neutral-secondary">
+						2 quick paths
+					</Text>
+				</View>
+
+				<View style={styles.quickPracticeGrid}>
+					<TouchableOpacity
+						onPress={handleOpenPracticeHub}
+						activeOpacity={0.82}
+						style={[styles.quickPracticeCard, styles.reviewQuickCard]}
+					>
+						<View style={styles.quickPracticeTopRow}>
+							<View style={[styles.quickPracticeIcon, styles.reviewQuickIcon]}>
+								<Feather name="refresh-cw" size={18} color={learning.rewardDark} />
+							</View>
+							<View style={styles.quickPracticeArrow}>
+								<Feather name="arrow-up-right" size={16} color={learning.rewardDark} />
+							</View>
+						</View>
+
+						<Text className="font-poppins-bold text-[16px] text-neutral-primary mt-4">
+							Practice Hub
 						</Text>
-						<Text className="font-poppins text-[13px] text-neutral-secondary mt-1">
+						<Text
+							className="font-poppins text-[12px] text-neutral-secondary mt-1 leading-[17px]"
+							numberOfLines={2}
+						>
 							{dueReviewCount > 0
 								? dueReviewLabel
-								: "All caught up! \u{2728}"}
+								: "Mistakes, words, listening, and speaking"}
 						</Text>
-						<Text className="font-poppins text-[11px] text-[#A97800] mt-0.5">
-							{dueReviewFocusText}
+						<View style={styles.quickPracticeMetaPill}>
+							<Text style={styles.reviewQuickMetaText} numberOfLines={1}>
+								{reviewFocusLabel ? `Focus: ${reviewFocusLabel}` : "Review mix"}
+							</Text>
+						</View>
+					</TouchableOpacity>
+
+					<TouchableOpacity
+						onPress={handleOpenSpeakingPractice}
+						disabled={!speakingPracticeLessonId}
+						activeOpacity={0.82}
+						style={[
+							styles.quickPracticeCard,
+							styles.speakingQuickCard,
+							!speakingPracticeLessonId ? styles.quickPracticeCardDisabled : null,
+						]}
+					>
+						<View style={styles.quickPracticeTopRow}>
+							<View style={[styles.quickPracticeIcon, styles.speakingQuickIcon]}>
+								<Image
+									source={images.appIconMicrophone}
+									style={styles.quickPracticeImageIcon}
+									contentFit="contain"
+								/>
+							</View>
+							<View style={[styles.quickPracticeArrow, styles.speakingQuickArrow]}>
+								<Feather name="arrow-up-right" size={16} color={learning.actionDark} />
+							</View>
+						</View>
+
+						<Text className="font-poppins-bold text-[16px] text-neutral-primary mt-4">
+							Speaking
 						</Text>
-					</View>
-					<Button3D
-						onPress={() => router.push("/practice-hub" as Href)}
-						variant="secondary"
-						size="sm"
-						title="Review"
-						fullWidth={false}
-						style={{ minWidth: 92 }}
-					/>
+						<Text
+							className="font-poppins text-[12px] text-neutral-secondary mt-1 leading-[17px]"
+							numberOfLines={2}
+						>
+							{duePronunciationConceptCount > 0
+								? `${duePronunciationConceptCount} pronunciation ${duePronunciationConceptCount === 1 ? "concept" : "concepts"} due`
+								: "Keep your speaking confidence warm"}
+						</Text>
+						<View style={[styles.quickPracticeMetaPill, styles.speakingQuickMetaPill]}>
+							<Text style={styles.speakingQuickMetaText} numberOfLines={1}>
+								{pronunciationFocusLabel || "Voice scoring"}
+							</Text>
+						</View>
+					</TouchableOpacity>
 				</View>
 
 				{/* League Card */}
 				<TouchableOpacity
 					onPress={() => router.push("/league")}
 					activeOpacity={0.8}
-					className="bg-[#FFFBE6] border-[1.5px] border-[#FFE58F] rounded-[20px] p-4 flex-row items-center justify-between mb-4 shadow-sm"
+					style={[styles.homeLearningCard, styles.leagueCard]}
 				>
 					<View className="flex-1 mr-4">
 						<Text className="font-poppins-semibold text-[11px] text-[#B78F00] uppercase tracking-[0.5px]">
@@ -829,72 +1024,40 @@ export default function HomeScreen() {
 								: "Complete a lesson to join the league"}
 						</Text>
 					</View>
-					<View className="w-12 h-12 rounded-full bg-[#FFD700] items-center justify-center">
-						<Text className="text-[22px]">🏆</Text>
+					<View style={[styles.cardActionCircle, styles.leagueActionCircle]}>
+						<Image
+							source={images.appIconStar}
+							style={styles.cardActionIconImage}
+							contentFit="contain"
+						/>
 					</View>
 				</TouchableOpacity>
-
-				{/* Continue learning purple card */}
-				<View className="bg-lingua-purple rounded-[24px] p-5 flex-row items-center justify-between mb-5">
-					<View className="flex-1 mr-4">
-						<Text className="font-poppins-semibold text-[11px] text-[#F0EDFF] uppercase tracking-[0.5px]">
-							Continue learning
-						</Text>
-						<Text className="font-poppins-bold text-[22px] text-white mt-1">
-							{selectedLanguage.name}
-						</Text>
-						<Text className="font-poppins text-[12px] text-[#F0EDFF] mt-0.5">
-							A1 • Unit 1
-						</Text>
-						{nextLesson ? (
-							<TouchableOpacity
-								style={styles.continueBtn}
-								activeOpacity={0.85}
-								onPress={() => handleOpenLesson(nextLesson)}
-							>
-								<Text className="font-poppins-bold text-[13px] text-lingua-purple">
-									Continue
-								</Text>
-							</TouchableOpacity>
-						) : (
-							<View className="mt-4 bg-[#21C16B] rounded-xl py-2 px-3 self-start flex-row items-center">
-								<Feather name="award" size={14} color="#FFFFFF" />
-								<Text className="font-poppins-bold text-[11px] text-white ml-1.5">
-									Unit Completed!
-								</Text>
-							</View>
-						)}
-					</View>
-					<Image
-						source={images.palace}
-						style={{ width: 88, height: 88 }}
-						contentFit="contain"
-					/>
-				</View>
 
 				{/* Today's plan header */}
 				<View className="flex-row items-center justify-between mb-3">
 					<Text className="font-poppins-bold text-[17px] text-neutral-primary">
 						Today&apos;s plan
 					</Text>
-					<View>
+					<TouchableOpacity
+						onPress={handleOpenPracticeHub}
+						activeOpacity={0.75}
+					>
 						<Text className="font-poppins-semibold text-[13px] text-lingua-blue">
 							View all
 						</Text>
-					</View>
+					</TouchableOpacity>
 				</View>
 
 				{/* Today's Plan list of lessons */}
-				<View className="mb-4">
+				<View style={styles.planList}>
 					{unitLessons.map((item, index) => {
 						const isCompleted = completedLessons.includes(item.id);
+						const isCurrent = nextLesson?.id === item.id;
 						const iconName = getLessonIcon(item.type);
+						const iconAsset = getLessonIconAsset(item.type);
 						const colors = getLessonColors(item.type);
-
-						// Match titles like 'Lesson', 'AI Conversation', or 'New words' from screen
-						let itemDisplayTitle = "Lesson";
-						if (item.type === "video") itemDisplayTitle = "AI Conversation";
-						if (item.type === "chat") itemDisplayTitle = "New words";
+						const lessonTypeLabel = getLessonTypeLabel(item.type);
+						const statusLabel = isCompleted ? "Done" : isCurrent ? "Next" : "Queued";
 
 						return (
 							<TouchableOpacity
@@ -903,37 +1066,93 @@ export default function HomeScreen() {
 								activeOpacity={0.8}
 								style={[
 									styles.planCard,
-									{
-										borderColor: "#F0F0F0",
-									},
+									isCompleted ? styles.planCardCompleted : null,
+									isCurrent ? styles.planCardCurrent : null,
 								]}
 							>
-								{/* Type indicator icon container */}
-								<View
-									style={{ backgroundColor: colors.bg }}
-									className="w-[38px] h-[38px] rounded-full items-center justify-center"
-								>
-									<Feather name={iconName} size={18} color={colors.text} />
-								</View>
-
-								{/* Lesson titles */}
-								<View className="flex-1 ml-3.5 mr-2">
-									<Text className="font-poppins-bold text-[14px] text-neutral-primary">
-										{itemDisplayTitle}
-									</Text>
-									<Text className="font-poppins text-[11px] text-neutral-secondary mt-0.5">
-										{item.title}
-									</Text>
-								</View>
-
-								{/* Completion check outline/solid status */}
-								{isCompleted ? (
-									<View className="w-[22px] h-[22px] rounded-full bg-lingua-blue items-center justify-center">
-										<Feather name="check" size={12} color="#FFFFFF" />
+								<View style={styles.planIconWrap}>
+									<View
+										style={[styles.planIconInner, { backgroundColor: colors.bg }]}
+									>
+										{iconAsset ? (
+											<Image
+												source={iconAsset}
+												style={styles.planIconImage}
+												contentFit="contain"
+											/>
+										) : (
+											<Feather name={iconName} size={18} color={colors.text} />
+										)}
 									</View>
-								) : (
-									<View className="w-[22px] h-[22px] rounded-full border-[1.5px] border-neutral-border bg-white" />
-								)}
+									<View style={styles.planOrderBadge}>
+										<Text className="font-poppins-bold text-[9px] text-neutral-secondary">
+											{index + 1}
+										</Text>
+									</View>
+								</View>
+
+								<View style={styles.planCardBody}>
+									<View className="flex-row items-center justify-between gap-2">
+										<Text className="font-poppins-bold text-[14px] text-neutral-primary flex-1">
+											{item.title}
+										</Text>
+										<View
+											style={[
+												styles.planStatusPill,
+												isCompleted ? styles.planStatusDone : null,
+												isCurrent ? styles.planStatusCurrent : null,
+											]}
+										>
+											<Text
+												style={[
+													styles.planStatusText,
+													isCompleted ? styles.planStatusDoneText : null,
+													isCurrent ? styles.planStatusCurrentText : null,
+												]}
+											>
+												{statusLabel}
+											</Text>
+										</View>
+									</View>
+
+									<Text className="font-poppins-semibold text-[11px] text-neutral-secondary mt-0.5">
+										{lessonTypeLabel}
+									</Text>
+
+									<View style={styles.planMetaRow}>
+										<Image
+											source={images.appIconTimer}
+											style={styles.planMetaIconImage}
+											contentFit="contain"
+										/>
+										<Text className="font-poppins-semibold text-[11px] text-neutral-secondary">
+											{item.durationMinutes} min
+										</Text>
+										<View style={styles.planMetaDot} />
+										<Image
+											source={images.appIconLightning}
+											style={styles.planMetaIconImage}
+											contentFit="contain"
+										/>
+										<Text className="font-poppins-semibold text-[11px] text-neutral-secondary">
+											{item.xpReward} XP
+										</Text>
+									</View>
+								</View>
+
+								<View
+									style={[
+										styles.planActionCircle,
+										isCompleted ? styles.planActionDone : null,
+										isCurrent ? styles.planActionCurrent : null,
+									]}
+								>
+									<Feather
+										name={isCompleted ? "check" : isCurrent ? "play" : "circle"}
+										size={isCurrent ? 13 : 12}
+										color={isCompleted || isCurrent ? "#FFFFFF" : neutral.textSecondary}
+									/>
+								</View>
 							</TouchableOpacity>
 						);
 					})}
@@ -968,6 +1187,7 @@ export default function HomeScreen() {
 						</TouchableOpacity>
 					</View>
 				</View>
+				</View>
 			</ScrollView>
 
 			{/* Interactive Lesson details modal */}
@@ -985,6 +1205,8 @@ export default function HomeScreen() {
 						style={styles.modalContent}
 						onPress={(e) => e.stopPropagation()}
 					>
+						<View style={styles.modalHandle} />
+
 						{/* Close button */}
 						<TouchableOpacity
 							onPress={() => setModalVisible(false)}
@@ -996,77 +1218,146 @@ export default function HomeScreen() {
 
 						{selectedLesson && (
 							<View>
-								<Image
-									source={{ uri: `https://picsum.photos/seed/${selectedLesson.id}/400/200` }}
-									className="w-full h-[140px] rounded-[14px] mb-3.5"
-									contentFit="cover"
-								/>
+								{(() => {
+									const selectedLessonIconAsset = getLessonIconAsset(selectedLesson.type);
+									const selectedLessonColors = getLessonColors(selectedLesson.type);
 
-								<View className="flex-row items-center gap-2 mb-2">
-									<View
-										style={{
-											width: 28,
-											height: 28,
-											borderRadius: 14,
-											backgroundColor: getLessonColors(selectedLesson.type).bg,
-										}}
-										className="items-center justify-center"
-									>
-										<Feather
-											name={getLessonIcon(selectedLesson.type)}
-											size={13}
-											color={getLessonColors(selectedLesson.type).text}
-										/>
+									return (
+								<View style={styles.modalHero}>
+									<View style={styles.modalHeroCopy}>
+										<View className="flex-row items-center gap-2">
+											<View style={styles.modalReadyDot} />
+											<Text className="font-poppins-bold text-[11px] uppercase tracking-[0.5px] text-[#5537D2]">
+												Ready to learn
+											</Text>
+										</View>
+
+										<Text className="font-poppins-bold text-[24px] text-neutral-primary leading-[30px] mt-3">
+											{selectedLesson.title}
+										</Text>
+										<Text className="font-poppins text-[13px] text-neutral-secondary leading-[19px] mt-2">
+											{selectedLesson.description}
+										</Text>
+
+										<View style={styles.modalLessonPill}>
+											<View
+												style={[
+													styles.modalLessonIcon,
+													{ backgroundColor: selectedLessonColors.bg },
+												]}
+											>
+												{selectedLessonIconAsset ? (
+													<Image
+														source={selectedLessonIconAsset}
+														style={styles.modalLessonIconImage}
+														contentFit="contain"
+													/>
+												) : (
+													<Feather
+														name={getLessonIcon(selectedLesson.type)}
+														size={13}
+														color={selectedLessonColors.text}
+													/>
+												)}
+											</View>
+											<Text className="font-poppins-bold text-[11px] uppercase tracking-[0.5px] text-neutral-secondary">
+												{getLessonTypeLabel(selectedLesson.type)}
+											</Text>
+										</View>
 									</View>
-									<Text className="font-poppins-bold text-[11px] text-neutral-secondary uppercase tracking-[0.5px]">
-										{selectedLesson.type} Lesson
-									</Text>
+									<Image
+										source={images.mascotWelcome}
+										style={styles.modalHeroMascot}
+										contentFit="contain"
+									/>
 								</View>
-
-								<Text className="font-poppins-bold text-[20px] text-neutral-primary leading-[25px] mb-1.5">
-									{selectedLesson.title}
-								</Text>
-								<Text className="font-poppins text-[13px] text-neutral-secondary leading-[19px] mb-4">
-									{selectedLesson.description}
-								</Text>
+									);
+								})()}
 
 								{/* Details metadata */}
-								<View className="flex-row bg-neutral-surface border border-neutral-border rounded-xl p-3 mb-4 justify-around">
-									<View className="items-center">
-										<Feather name="clock" size={15} color="#6B7280" />
-										<Text className="font-poppins-bold text-[13px] text-neutral-primary mt-0.5">
-											{selectedLesson.durationMinutes} mins
-										</Text>
-										<Text className="font-poppins text-[10px] text-neutral-secondary">
-											Duration
-										</Text>
+								<View style={styles.modalStatsCard}>
+									<View style={styles.modalStatItem}>
+										<View style={styles.modalStatIcon}>
+											<Image
+												source={images.appIconTimer}
+												style={styles.modalStatIconImage}
+												contentFit="contain"
+											/>
+										</View>
+										<View>
+											<Text className="font-poppins-bold text-[13px] text-neutral-primary">
+												{selectedLesson.durationMinutes} mins
+											</Text>
+											<Text className="font-poppins text-[10px] text-neutral-secondary">
+												Duration
+											</Text>
+										</View>
 									</View>
-									<View style={{ width: 1, backgroundColor: "#E5E7EB" }} />
-									<View className="items-center">
-										<Feather name="zap" size={15} color="#FF8A00" />
-										<Text className="font-poppins-bold text-[13px] text-neutral-primary mt-0.5">
-											{selectedLesson.xpReward} XP
-										</Text>
-										<Text className="font-poppins text-[10px] text-neutral-secondary">
-											XP Reward
-										</Text>
+									<View style={styles.modalStatItem}>
+										<View style={[styles.modalStatIcon, styles.modalStatIconXp]}>
+											<Image
+												source={images.appIconLightning}
+												style={styles.modalStatIconImage}
+												contentFit="contain"
+											/>
+										</View>
+										<View>
+											<Text className="font-poppins-bold text-[13px] text-neutral-primary">
+												{selectedLesson.xpReward} XP
+											</Text>
+											<Text className="font-poppins text-[10px] text-neutral-secondary">
+												Reward
+											</Text>
+										</View>
 									</View>
+									<View style={styles.modalStatItem}>
+										<View style={[styles.modalStatIcon, styles.modalStatIconLevel]}>
+											<Image
+												source={images.appIconTarget}
+												style={styles.modalStatIconImage}
+												contentFit="contain"
+											/>
+										</View>
+										<View>
+											<Text className="font-poppins-bold text-[13px] text-neutral-primary">
+												A1
+											</Text>
+											<Text className="font-poppins text-[10px] text-neutral-secondary">
+												Level
+											</Text>
+										</View>
+									</View>
+								</View>
+
+								<View style={styles.modalPrepCard}>
+									<View style={styles.modalPrepIcon}>
+										<Image
+											source={images.appIconStar}
+											style={styles.modalPrepIconImage}
+											contentFit="contain"
+										/>
+									</View>
+									<Text className="font-poppins-semibold text-[12px] text-neutral-primary flex-1 leading-[17px]">
+										Practice a short set of questions, then review mistakes right away.
+									</Text>
 								</View>
 
 								{/* Goals */}
 								{selectedLesson.goals && selectedLesson.goals.length > 0 && (
-									<View className="mb-5">
-										<Text className="font-poppins-bold text-[13px] text-neutral-primary mb-2">
-											Learning Goals
-										</Text>
+									<View style={styles.modalGoalsCard}>
+										<View className="flex-row items-center justify-between mb-2">
+											<Text className="font-poppins-bold text-[13px] text-neutral-primary">
+												Learning Goals
+											</Text>
+											<Text className="font-poppins-bold text-[10px] text-neutral-secondary uppercase tracking-[0.4px]">
+												{selectedLesson.goals.length} goals
+											</Text>
+										</View>
 										{selectedLesson.goals.map((goal, idx) => (
-											<View key={idx} className="flex-row items-start mb-1.5">
-												<Feather
-													name="check-circle"
-													size={14}
-													color="#21C16B"
-													style={{ marginTop: 2 }}
-												/>
+											<View key={idx} style={styles.modalGoalRow}>
+												<View style={styles.modalGoalIcon}>
+													<Feather name="check" size={12} color="#FFFFFF" />
+												</View>
 												<Text className="font-poppins text-[12px] text-neutral-primary ml-2 flex-1 leading-[16px]">
 													{goal}
 												</Text>
@@ -1076,8 +1367,8 @@ export default function HomeScreen() {
 								)}
 
 								{/* CTA Actions */}
-								<View className="gap-2.5">
-									<TouchableOpacity
+								<View style={styles.modalButtonStack}>
+									<Button3D
 										onPress={() => {
 											posthog.capture("lesson_started", {
 												lesson_id: selectedLesson.id,
@@ -1091,24 +1382,19 @@ export default function HomeScreen() {
 												params: { id: selectedLesson.id },
 											});
 										}}
-										style={[styles.modalStartBtn, { backgroundColor: "#6C4EF5" }]}
-										activeOpacity={0.85}
-									>
-										<Text className="font-poppins-bold text-[15px] text-white">
-											Start Lesson
-										</Text>
-									</TouchableOpacity>
+										variant="brand"
+										title="START LESSON"
+										fullWidth
+									/>
 
-									<TouchableOpacity
-										onPress={handleCompleteMockLesson}
-										style={styles.modalMockBtn}
-										activeOpacity={0.7}
-									>
-										<Feather name="check" size={14} color="#6C4EF5" />
-										<Text className="font-poppins-semibold text-[13px] text-lingua-purple ml-1.5">
-											Mock Complete (Earn XP)
-										</Text>
-									</TouchableOpacity>
+									{__DEV__ ? (
+										<Button3D
+											onPress={handleCompleteMockLesson}
+											variant="ghost"
+											title="MOCK COMPLETE"
+											fullWidth
+										/>
+									) : null}
 								</View>
 							</View>
 						)}
@@ -1122,39 +1408,546 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
 	safeArea: {
 		flex: 1,
-		backgroundColor: "#FFFFFF",
+		backgroundColor: "#F7FAFC",
 	},
 	languageStack: {
 		alignItems: "flex-start",
 		justifyContent: "center",
+	},
+	topBarIconImage: {
+		width: 15,
+		height: 15,
+	},
+	topActionIconImage: {
+		width: 20,
+		height: 20,
 	},
 	scrollView: {
 		flex: 1,
 	},
 	scrollContent: {
 		flexGrow: 1,
-		paddingHorizontal: 16,
-		paddingTop: 16,
+		alignItems: "center",
+		paddingHorizontal: 18,
+		paddingTop: 14,
 		paddingBottom: 28,
+	},
+	homeContentShell: {
+		width: "100%",
+		maxWidth: 460,
+	},
+	dashboardHeaderCard: {
+		backgroundColor: "#FFFFFF",
+		borderRadius: 30,
+		borderWidth: 1,
+		borderColor: "#E8EAF0",
+		padding: 16,
+		marginBottom: 14,
+		shadowColor: neutral.textPrimary,
+		shadowOffset: { width: 0, height: 10 },
+		shadowOpacity: 0.07,
+		shadowRadius: 18,
+		elevation: 4,
+	},
+	languagePill: {
+		minHeight: 46,
+		borderRadius: 23,
+		backgroundColor: "#F7FAFC",
+		borderWidth: 1,
+		borderColor: "#E8EAF0",
+		paddingHorizontal: 10,
+		paddingVertical: 7,
+		flexDirection: "row",
+		alignItems: "center",
+	},
+	languagePillFlag: {
+		width: 30,
+		height: 30,
+		borderRadius: 15,
+	},
+	headerIconButton: {
+		width: 42,
+		height: 42,
+		borderRadius: 21,
+		backgroundColor: "#F7FAFC",
+		borderWidth: 1,
+		borderColor: "#E8EAF0",
+		alignItems: "center",
+		justifyContent: "center",
+	},
+	avatarButton: {
+		width: 42,
+		height: 42,
+		borderRadius: 21,
+		backgroundColor: brand.primary,
+		alignItems: "center",
+		justifyContent: "center",
+	},
+	dailyGoalPanel: {
+		marginTop: 16,
+		borderRadius: 24,
+		borderWidth: 1,
+		borderColor: "#FFEAD4",
+		backgroundColor: "#FFF8F2",
+		padding: 14,
+		flexDirection: "row",
+		alignItems: "center",
+		justifyContent: "space-between",
+	},
+	dailyGoalIcon: {
+		width: 20,
+		height: 20,
+	},
+	dailyGoalTrack: {
+		height: 8,
+		borderRadius: 4,
+		backgroundColor: "#EBF0F3",
+		marginTop: 10,
+		overflow: "hidden",
+	},
+	dailyGoalFill: {
+		height: 8,
+		borderRadius: 4,
+		backgroundColor: learning.streak,
+	},
+	dailyGoalTreasure: {
+		width: 64,
+		height: 64,
+	},
+	statStrip: {
+		flexDirection: "row",
+		gap: 10,
+		marginBottom: 16,
+	},
+	statCard: {
+		flex: 1,
+		minHeight: 96,
+		borderRadius: 22,
+		borderWidth: 1,
+		borderColor: "#E8EAF0",
+		backgroundColor: "#FFFFFF",
+		padding: 12,
+		alignItems: "center",
+		justifyContent: "center",
+		shadowColor: neutral.textPrimary,
+		shadowOffset: { width: 0, height: 4 },
+		shadowOpacity: 0.05,
+		shadowRadius: 9,
+		elevation: 2,
+	},
+	statCardWide: {
+		flex: 1.35,
+		minHeight: 96,
+		borderRadius: 22,
+		borderWidth: 1,
+		borderColor: "#E8EAF0",
+		backgroundColor: "#FFFFFF",
+		padding: 12,
+		justifyContent: "center",
+		shadowColor: neutral.textPrimary,
+		shadowOffset: { width: 0, height: 4 },
+		shadowOpacity: 0.05,
+		shadowRadius: 9,
+		elevation: 2,
+	},
+	statIconBubble: {
+		width: 34,
+		height: 34,
+		borderRadius: 17,
+		alignItems: "center",
+		justifyContent: "center",
+		borderWidth: 1,
+	},
+	statIconBubbleOrange: {
+		backgroundColor: "#FFF8F2",
+		borderColor: "#FFEAD4",
+	},
+	statIconBubblePurple: {
+		backgroundColor: brand.primaryLight,
+		borderColor: brand.primaryBorder,
+	},
+	statImageIcon: {
+		width: 20,
+		height: 20,
+	},
+	levelIconBubble: {
+		width: 34,
+		height: 34,
+		borderRadius: 17,
+		backgroundColor: learning.rewardLight,
+		borderWidth: 1,
+		borderColor: "#FFE58F",
+		alignItems: "center",
+		justifyContent: "center",
+	},
+	levelTrack: {
+		height: 7,
+		borderRadius: 4,
+		backgroundColor: brand.primaryBorder,
+		marginTop: 10,
+		overflow: "hidden",
+	},
+	levelFill: {
+		height: 7,
+		borderRadius: 4,
+		backgroundColor: brand.primary,
+	},
+	homeLearningCard: {
+		flexDirection: "row",
+		alignItems: "center",
+		justifyContent: "space-between",
+		borderWidth: 1.5,
+		borderRadius: 20,
+		padding: 16,
+		marginBottom: 16,
+		shadowColor: neutral.textPrimary,
+		shadowOffset: { width: 0, height: 3 },
+		shadowOpacity: 0.06,
+		shadowRadius: 8,
+		elevation: 2,
+	},
+	dailyChallengeCard: {
+		backgroundColor: learning.selectedLight,
+		borderColor: "#B9E8FF",
+	},
+	homeLearningCardDisabled: {
+		backgroundColor: neutral.surface,
+		borderColor: neutral.border,
+	},
+	reviewRememberCard: {
+		backgroundColor: learning.rewardLight,
+		borderColor: "#FFE58F",
+		borderLeftWidth: 4,
+		borderLeftColor: learning.reward,
+	},
+	reviewIcon: {
+		width: 36,
+		height: 36,
+		borderRadius: 18,
+		backgroundColor: "#FFF8E1",
+		alignItems: "center",
+		justifyContent: "center",
+		marginRight: 12,
+	},
+	reviewFocusText: {
+		color: "#A97800",
+	},
+	sectionHeaderRow: {
+		flexDirection: "row",
+		alignItems: "center",
+		justifyContent: "space-between",
+		marginBottom: 10,
+	},
+	quickPracticeGrid: {
+		flexDirection: "row",
+		gap: 12,
+		marginBottom: 16,
+	},
+	quickPracticeCard: {
+		flex: 1,
+		minHeight: 166,
+		borderRadius: 24,
+		borderWidth: 1.5,
+		padding: 14,
+		shadowColor: neutral.textPrimary,
+		shadowOffset: { width: 0, height: 4 },
+		shadowOpacity: 0.06,
+		shadowRadius: 10,
+		elevation: 2,
+	},
+	quickPracticeCardDisabled: {
+		opacity: 0.58,
+	},
+	reviewQuickCard: {
+		backgroundColor: learning.rewardLight,
+		borderColor: "#FFE58F",
+	},
+	speakingQuickCard: {
+		backgroundColor: "#E8F9EE",
+		borderColor: "#BDEFBF",
+	},
+	quickPracticeTopRow: {
+		flexDirection: "row",
+		alignItems: "center",
+		justifyContent: "space-between",
+	},
+	quickPracticeIcon: {
+		width: 42,
+		height: 42,
+		borderRadius: 21,
+		alignItems: "center",
+		justifyContent: "center",
+		borderWidth: 1,
+	},
+	reviewQuickIcon: {
+		backgroundColor: "#FFF8E1",
+		borderColor: "#FFE58F",
+	},
+	speakingQuickIcon: {
+		backgroundColor: "#F3FFE9",
+		borderColor: "#BDEFBF",
+	},
+	quickPracticeImageIcon: {
+		width: 22,
+		height: 22,
+	},
+	quickPracticeArrow: {
+		width: 30,
+		height: 30,
+		borderRadius: 15,
+		backgroundColor: "rgba(255,255,255,0.78)",
+		borderWidth: 1,
+		borderColor: "rgba(229,160,0,0.18)",
+		alignItems: "center",
+		justifyContent: "center",
+	},
+	speakingQuickArrow: {
+		borderColor: "rgba(88,204,2,0.18)",
+	},
+	quickPracticeMetaPill: {
+		alignSelf: "flex-start",
+		maxWidth: "100%",
+		marginTop: 12,
+		borderRadius: 999,
+		backgroundColor: "rgba(255,255,255,0.76)",
+		borderWidth: 1,
+		borderColor: "rgba(229,160,0,0.16)",
+		paddingHorizontal: 10,
+		paddingVertical: 5,
+	},
+	speakingQuickMetaPill: {
+		borderColor: "rgba(88,204,2,0.16)",
+	},
+	reviewQuickMetaText: {
+		fontFamily: "Poppins-Bold",
+		fontSize: 10,
+		lineHeight: 14,
+		color: "#A97800",
+	},
+	speakingQuickMetaText: {
+		fontFamily: "Poppins-Bold",
+		fontSize: 10,
+		lineHeight: 14,
+		color: "#2F8C00",
+	},
+	leagueCard: {
+		backgroundColor: "#FFFBE6",
+		borderColor: "#FFE58F",
+	},
+	cardActionCircle: {
+		width: 52,
+		height: 52,
+		borderRadius: 26,
+		alignItems: "center",
+		justifyContent: "center",
+	},
+	dailyActionCircle: {
+		backgroundColor: learning.selected,
+	},
+	cardDoneCircle: {
+		backgroundColor: learning.action,
+	},
+	leagueActionCircle: {
+		backgroundColor: learning.reward,
+	},
+	cardActionIconImage: {
+		width: 28,
+		height: 28,
+	},
+	smallInlineIconImage: {
+		width: 15,
+		height: 15,
+	},
+	continueLearningCard: {
+		backgroundColor: brand.primary,
+		borderRadius: 24,
+		padding: 20,
+		flexDirection: "row",
+		alignItems: "center",
+		justifyContent: "space-between",
+		marginBottom: 20,
+		shadowColor: brand.primary,
+		shadowOffset: { width: 0, height: 8 },
+		shadowOpacity: 0.18,
+		shadowRadius: 12,
+		elevation: 4,
+		overflow: "hidden",
+	},
+	continueLearningImage: {
+		width: 88,
+		height: 88,
 	},
 	continueBtn: {
 		backgroundColor: "#FFFFFF",
 		borderRadius: 14,
-		paddingHorizontal: 22,
+		paddingHorizontal: 18,
 		paddingVertical: 8,
 		alignSelf: "flex-start",
 		marginTop: 14,
 		alignItems: "center",
 		justifyContent: "center",
 	},
+	todayFocusCard: {
+		flexDirection: "row",
+		alignItems: "center",
+		backgroundColor: "#FFFFFF",
+		borderWidth: 1.5,
+		borderColor: neutral.border,
+		borderRadius: 20,
+		padding: 14,
+		marginBottom: 16,
+		shadowColor: neutral.textPrimary,
+		shadowOffset: { width: 0, height: 2 },
+		shadowOpacity: 0.05,
+		shadowRadius: 6,
+		elevation: 1,
+	},
+	todayFocusIcon: {
+		width: 42,
+		height: 42,
+		borderRadius: 21,
+		alignItems: "center",
+		justifyContent: "center",
+		marginRight: 12,
+	},
+	todayFocusAction: {
+		width: 34,
+		height: 34,
+		borderRadius: 17,
+		backgroundColor: brand.primaryLight,
+		borderWidth: 1,
+		borderColor: brand.primaryBorder,
+		alignItems: "center",
+		justifyContent: "center",
+	},
+	planList: {
+		marginBottom: 16,
+		gap: 10,
+	},
 	planCard: {
 		flexDirection: "row",
 		alignItems: "center",
-		borderRadius: 18,
-		padding: 14,
-		marginBottom: 10,
+		borderRadius: 20,
+		paddingHorizontal: 14,
+		paddingVertical: 13,
 		borderWidth: 1.5,
+		borderBottomWidth: 4,
+		borderColor: neutral.border,
+		borderBottomColor: "#D7DAE0",
 		backgroundColor: "#FFFFFF",
+		shadowColor: neutral.textPrimary,
+		shadowOffset: { width: 0, height: 2 },
+		shadowOpacity: 0.04,
+		shadowRadius: 4,
+		elevation: 1,
+	},
+	planCardCurrent: {
+		backgroundColor: learning.selectedLight,
+		borderColor: "#7DD7FF",
+		borderBottomColor: learning.selected,
+	},
+	planCardCompleted: {
+		backgroundColor: "#F5FFE8",
+		borderColor: "#B7EF8D",
+		borderBottomColor: learning.action,
+	},
+	planIconWrap: {
+		width: 46,
+		height: 48,
+		alignItems: "center",
+		justifyContent: "center",
+		marginRight: 12,
+	},
+	planIconInner: {
+		width: 40,
+		height: 40,
+		borderRadius: 20,
+		alignItems: "center",
+		justifyContent: "center",
+	},
+	planIconImage: {
+		width: 24,
+		height: 24,
+	},
+	planOrderBadge: {
+		position: "absolute",
+		right: 0,
+		bottom: 0,
+		width: 18,
+		height: 18,
+		borderRadius: 9,
+		backgroundColor: "#FFFFFF",
+		borderWidth: 1,
+		borderColor: neutral.border,
+		alignItems: "center",
+		justifyContent: "center",
+	},
+	planCardBody: {
+		flex: 1,
+		marginRight: 10,
+	},
+	planMetaRow: {
+		flexDirection: "row",
+		alignItems: "center",
+		gap: 5,
+		marginTop: 7,
+	},
+	planMetaIconImage: {
+		width: 13,
+		height: 13,
+	},
+	planMetaDot: {
+		width: 4,
+		height: 4,
+		borderRadius: 2,
+		backgroundColor: neutral.border,
+		marginHorizontal: 2,
+	},
+	planStatusPill: {
+		borderRadius: 999,
+		backgroundColor: neutral.surface,
+		borderWidth: 1,
+		borderColor: neutral.border,
+		paddingHorizontal: 8,
+		paddingVertical: 3,
+	},
+	planStatusCurrent: {
+		backgroundColor: "#FFFFFF",
+		borderColor: learning.selected,
+	},
+	planStatusDone: {
+		backgroundColor: learning.action,
+		borderColor: learning.actionDark,
+	},
+	planStatusText: {
+		color: neutral.textSecondary,
+		fontFamily: "Poppins-Bold",
+		fontSize: 10,
+		lineHeight: 14,
+	},
+	planStatusCurrentText: {
+		color: learning.selectedDark,
+	},
+	planStatusDoneText: {
+		color: "#FFFFFF",
+	},
+	planActionCircle: {
+		width: 30,
+		height: 30,
+		borderRadius: 15,
+		borderWidth: 1.5,
+		borderColor: neutral.border,
+		backgroundColor: "#FFFFFF",
+		alignItems: "center",
+		justifyContent: "center",
+	},
+	planActionCurrent: {
+		borderColor: learning.selected,
+		backgroundColor: learning.selected,
+	},
+	planActionDone: {
+		borderColor: learning.action,
+		backgroundColor: learning.action,
 	},
 	devButton: {
 		flexDirection: "row",
@@ -1179,6 +1972,14 @@ const styles = StyleSheet.create({
 		paddingBottom: Platform.OS === "ios" ? 36 : 20,
 		maxHeight: "85%",
 	},
+	modalHandle: {
+		width: 44,
+		height: 5,
+		borderRadius: 999,
+		backgroundColor: neutral.border,
+		alignSelf: "center",
+		marginBottom: 14,
+	},
 	modalCloseButton: {
 		position: "absolute",
 		right: 16,
@@ -1188,22 +1989,145 @@ const styles = StyleSheet.create({
 		borderRadius: 9999,
 		zIndex: 10,
 	},
-	modalStartBtn: {
-		borderRadius: 14,
-		height: 50,
-		alignItems: "center",
-		justifyContent: "center",
-		width: "100%",
-	},
-	modalMockBtn: {
+	modalHero: {
 		flexDirection: "row",
 		alignItems: "center",
-		justifyContent: "center",
-		borderRadius: 14,
-		height: 46,
+		backgroundColor: "#F0EDFF",
+		borderRadius: 20,
+		padding: 16,
+		marginBottom: 16,
+		overflow: "hidden",
+	},
+	modalHeroCopy: {
+		flex: 1,
+		paddingRight: 8,
+	},
+	modalReadyDot: {
+		width: 9,
+		height: 9,
+		borderRadius: 5,
+		backgroundColor: learning.action,
+		borderWidth: 2,
+		borderColor: "#FFFFFF",
+	},
+	modalHeroMascot: {
+		width: 112,
+		height: 112,
+		marginRight: -10,
+		marginBottom: -8,
+		alignSelf: "flex-end",
+	},
+	modalLessonPill: {
+		flexDirection: "row",
+		alignItems: "center",
+		alignSelf: "flex-start",
+		backgroundColor: "#FFFFFF",
 		borderWidth: 1.5,
-		borderColor: "#6C4EF5",
-		backgroundColor: "#FBFBFF",
-		width: "100%",
+		borderColor: "#E1D9FF",
+		borderRadius: 999,
+		paddingVertical: 5,
+		paddingHorizontal: 8,
+		marginTop: 12,
+	},
+	modalLessonIcon: {
+		width: 26,
+		height: 26,
+		borderRadius: 13,
+		alignItems: "center",
+		justifyContent: "center",
+		marginRight: 7,
+	},
+	modalLessonIconImage: {
+		width: 16,
+		height: 16,
+	},
+	modalStatsCard: {
+		flexDirection: "row",
+		gap: 8,
+		marginBottom: 12,
+	},
+	modalStatItem: {
+		flex: 1,
+		minHeight: 64,
+		flexDirection: "row",
+		alignItems: "center",
+		backgroundColor: "#FFFFFF",
+		borderWidth: 1,
+		borderColor: neutral.border,
+		borderRadius: 16,
+		paddingHorizontal: 10,
+		paddingVertical: 10,
+	},
+	modalStatIcon: {
+		width: 30,
+		height: 30,
+		borderRadius: 15,
+		backgroundColor: learning.selectedLight,
+		alignItems: "center",
+		justifyContent: "center",
+		marginRight: 8,
+	},
+	modalStatIconImage: {
+		width: 18,
+		height: 18,
+	},
+	modalStatIconXp: {
+		backgroundColor: learning.rewardLight,
+	},
+	modalStatIconLevel: {
+		backgroundColor: learning.actionLight,
+	},
+	modalPrepCard: {
+		flexDirection: "row",
+		alignItems: "center",
+		backgroundColor: "#FFF8E1",
+		borderWidth: 1,
+		borderColor: "#FFE58F",
+		borderRadius: 16,
+		padding: 12,
+		marginBottom: 12,
+	},
+	modalPrepIcon: {
+		width: 34,
+		height: 34,
+		borderRadius: 17,
+		backgroundColor: "#FFFFFF",
+		alignItems: "center",
+		justifyContent: "center",
+		marginRight: 10,
+	},
+	modalPrepIconImage: {
+		width: 19,
+		height: 19,
+	},
+	modalGoalsCard: {
+		backgroundColor: neutral.surface,
+		borderWidth: 1,
+		borderColor: neutral.border,
+		borderRadius: 18,
+		padding: 12,
+		marginBottom: 16,
+	},
+	modalGoalRow: {
+		flexDirection: "row",
+		alignItems: "flex-start",
+		backgroundColor: "#FFFFFF",
+		borderWidth: 1,
+		borderColor: neutral.border,
+		borderRadius: 12,
+		padding: 10,
+		marginBottom: 8,
+	},
+	modalGoalIcon: {
+		width: 20,
+		height: 20,
+		borderRadius: 10,
+		backgroundColor: learning.action,
+		alignItems: "center",
+		justifyContent: "center",
+		marginTop: -1,
+	},
+	modalButtonStack: {
+		gap: 10,
 	},
 });

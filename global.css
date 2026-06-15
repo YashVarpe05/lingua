@@ -2,11 +2,9 @@
 @import "tailwindcss/preflight.css" layer(base);
 @import "tailwindcss/utilities.css";
 
-/* ═══════════════════════════════════════════════════════════════════════
-   Lingua Design System — Tailwind CSS v4 Theme
-   ═══════════════════════════════════════════════════════════════════════ */
+/* Lingua Design System - Tailwind CSS v4 theme */
 
-/* ─── Platform-specific font families ─────────────────────────────── */
+/* Platform-specific font families */
 @media android {
   :root {
     --font-mono: monospace;
@@ -25,30 +23,56 @@
   }
 }
 
-/* ─── Design Tokens ───────────────────────────────────────────────── */
 @layer theme {
   @theme {
-    /* ── Primary Brand Colors ───────────────────────────────────── */
+    /* Lingua brand colors */
     --color-lingua-purple: #6C4EF5;
+    --color-lingua-purple-light: #F0EDFF;
+    --color-lingua-purple-border: #E1D9FF;
     --color-lingua-deep-purple: #5B3BF6;
     --color-lingua-blue: #4D8BFF;
     --color-lingua-green: #21C16B;
+    --color-brand-primary: #6C4EF5;
+    --color-brand-primary-dark: #5537D2;
+    --color-brand-primary-light: #F0EDFF;
+    --color-brand-blue: #4D8BFF;
+    --color-brand-green: #21C16B;
 
-    /* ── Semantic Colors ────────────────────────────────────────── */
+    /* App semantic colors */
     --color-success: #21C16B;
     --color-warning: #FFC800;
     --color-streak: #FF8A00;
     --color-error: #FF4D4F;
     --color-info: #4D8BFF;
 
-    /* ── Neutral Colors ─────────────────────────────────────────── */
+    /* Neutral colors */
     --color-neutral-primary: #0D132B;
     --color-neutral-secondary: #6B7280;
     --color-neutral-border: #E5E7EB;
     --color-neutral-surface: #F6F7FB;
     --color-neutral-bg: #FFFFFF;
 
-    /* ── Duolingo Design System Colors ──────────────────────────── */
+    /* Learning-state colors inspired by playful language apps */
+    --color-learning-action: #58CC02;
+    --color-learning-action-dark: #58A700;
+    --color-learning-action-light: #D7FFB8;
+    --color-learning-selected: #1CB0F6;
+    --color-learning-selected-dark: #0D90D0;
+    --color-learning-selected-light: #DDF4FF;
+    --color-learning-correction: #FF4B4B;
+    --color-learning-correction-dark: #EA2B2B;
+    --color-learning-correction-light: #FFDFE0;
+    --color-learning-reward: #FFC800;
+    --color-learning-reward-dark: #E5A000;
+    --color-learning-reward-light: #FFF3CC;
+    --color-learning-streak: #FF9600;
+    --color-learning-streak-light: #FFF8E6;
+    --color-learning-surface: #F7F7F7;
+    --color-learning-border: #E5E5E5;
+    --color-learning-text: #3C3C3C;
+    --color-learning-muted: #777777;
+
+    /* Backward-compatible Duo token names used in current screens */
     --color-duo-green: #58CC02;
     --color-duo-green-dark: #58A700;
     --color-duo-green-light: #D7FFB8;
@@ -66,13 +90,13 @@
     --color-duo-text: #3C3C3C;
     --color-duo-muted: #777777;
 
-    /* ── Font Family — Poppins ──────────────────────────────────── */
+    /* Poppins font family */
     --font-poppins: "Poppins-Regular";
     --font-poppins-medium: "Poppins-Medium";
     --font-poppins-semibold: "Poppins-SemiBold";
     --font-poppins-bold: "Poppins-Bold";
 
-    /* ── Custom Font Sizes (with line-height) ───────────────────── */
+    /* Type scale */
     --text-h1: 32px;
     --text-h1--line-height: 1.2;
     --text-h2: 24px;
@@ -90,7 +114,7 @@
     --text-caption: 11px;
     --text-caption--line-height: 1.4;
 
-    /* ── Border Radius ──────────────────────────────────────────── */
+    /* Radius scale */
     --radius-card: 16px;
     --radius-button: 12px;
     --radius-input: 12px;
@@ -98,12 +122,7 @@
   }
 }
 
-/* ═══════════════════════════════════════════════════════════════════════
-   Global CSS Utilities
-   ═══════════════════════════════════════════════════════════════════════ */
-
 @layer base {
-  /* ── Default body text uses Poppins Regular ───────────────────── */
   * {
     font-family: "Poppins-Regular", sans-serif;
     color: #0D132B;
@@ -111,10 +130,7 @@
 }
 
 @layer utilities {
-  /* Pair typography utilities with text color classes, like text-lingua-purple. */
-  /* ── Typography Utilities ─────────────────────────────────────── */
-
-  /* Heading 1 — Page / Screen Title */
+  /* Typography utilities pair with text color classes, like text-lingua-purple. */
   .h1 {
     font-family: "Poppins-Bold", sans-serif;
     font-size: 32px;
@@ -122,7 +138,6 @@
     font-weight: 700;
   }
 
-  /* Heading 2 — Section Title */
   .h2 {
     font-family: "Poppins-SemiBold", sans-serif;
     font-size: 24px;
@@ -130,7 +145,6 @@
     font-weight: 600;
   }
 
-  /* Heading 3 — Card / Module Title */
   .h3 {
     font-family: "Poppins-SemiBold", sans-serif;
     font-size: 20px;
@@ -138,7 +152,6 @@
     font-weight: 600;
   }
 
-  /* Heading 4 — Subheading */
   .h4 {
     font-family: "Poppins-Medium", sans-serif;
     font-size: 16px;
@@ -146,7 +159,6 @@
     font-weight: 500;
   }
 
-  /* Body Large — Important content */
   .body-lg {
     font-family: "Poppins-Regular", sans-serif;
     font-size: 16px;
@@ -154,7 +166,6 @@
     font-weight: 400;
   }
 
-  /* Body Medium — Body text */
   .body-md {
     font-family: "Poppins-Regular", sans-serif;
     font-size: 14px;
@@ -162,7 +173,6 @@
     font-weight: 400;
   }
 
-  /* Body Small — Supporting text */
   .body-sm {
     font-family: "Poppins-Regular", sans-serif;
     font-size: 13px;
@@ -170,7 +180,6 @@
     font-weight: 400;
   }
 
-  /* Caption — Labels, meta text */
   .caption {
     font-family: "Poppins-Regular", sans-serif;
     font-size: 11px;
@@ -178,9 +187,7 @@
     font-weight: 400;
   }
 
-  /* ── Surface & Card Utilities ─────────────────────────────────── */
-
-  /* Standard card surface */
+  /* Surface and card utilities */
   .surface-card {
     background-color: #FFFFFF;
     border-radius: 16px;
@@ -188,19 +195,48 @@
     border-color: #E5E7EB;
   }
 
-  /* Elevated card with shadow */
   .surface-card-elevated {
     background-color: #FFFFFF;
     border-radius: 16px;
   }
 
-  /* Neutral surface background */
   .surface-neutral {
     background-color: #F6F7FB;
   }
 
-  /* ── 3D Card / Element Utilities ──────────────────────────────── */
-  
+  /* Learning card utility with semantic modifiers */
+  .learning-card {
+    background-color: #FFFFFF;
+    border-width: 1.5px;
+    border-color: #E5E5E5;
+    border-radius: 16px;
+  }
+
+  .learning-card--success {
+    background-color: #D7FFB8;
+    border-color: #58CC02;
+  }
+
+  .learning-card--info {
+    background-color: #DDF4FF;
+    border-color: #1CB0F6;
+  }
+
+  .learning-card--review {
+    background-color: #FFF3CC;
+    border-color: #FFC800;
+  }
+
+  .learning-card--danger {
+    background-color: #FFDFE0;
+    border-color: #FF4B4B;
+  }
+
+  .learning-card--memory {
+    background-color: #F0EDFF;
+    border-color: #6C4EF5;
+  }
+
   /* 3D card with raised bottom border */
   .card-3d {
     border-width: 2px;
@@ -211,30 +247,25 @@
     background-color: #FFFFFF;
   }
 
-  /* Active / Selected state */
   .card-3d-active {
     border-color: #1CB0F6;
     border-bottom-color: #0D90D0;
     background-color: #DDF4FF;
   }
 
-  /* Correct answer state */
   .card-3d-correct {
     border-color: #58CC02;
     border-bottom-color: #46A302;
     background-color: #D7FFB8;
   }
 
-  /* Incorrect answer state */
   .card-3d-incorrect {
     border-color: #FF4B4B;
     border-bottom-color: #EA2B2B;
     background-color: #FFDFE0;
   }
 
-  /* ── Button Utilities ─────────────────────────────────────────── */
-
-  /* Primary button base */
+  /* Button utilities for simple NativeWind-only buttons */
   .btn-primary {
     background-color: #6C4EF5;
     border-radius: 12px;
@@ -246,7 +277,6 @@
     justify-content: center;
   }
 
-  /* Primary button text */
   .btn-primary-text {
     font-family: "Poppins-SemiBold", sans-serif;
     font-size: 16px;
@@ -254,7 +284,6 @@
     color: #FFFFFF;
   }
 
-  /* Secondary / outline button */
   .btn-secondary {
     background-color: transparent;
     border-radius: 12px;
@@ -268,7 +297,6 @@
     justify-content: center;
   }
 
-  /* Secondary button text */
   .btn-secondary-text {
     font-family: "Poppins-SemiBold", sans-serif;
     font-size: 16px;
@@ -276,7 +304,6 @@
     color: #6C4EF5;
   }
 
-  /* Ghost button */
   .btn-ghost {
     background-color: transparent;
     border-radius: 12px;
@@ -288,7 +315,6 @@
     justify-content: center;
   }
 
-  /* Ghost button text */
   .btn-ghost-text {
     font-family: "Poppins-Medium", sans-serif;
     font-size: 16px;
@@ -296,8 +322,7 @@
     color: #6C4EF5;
   }
 
-  /* ── Input Utilities ──────────────────────────────────────────── */
-
+  /* Form utilities */
   .input-field {
     font-family: "Poppins-Regular", sans-serif;
     font-size: 14px;
@@ -325,8 +350,7 @@
     margin-bottom: 6px;
   }
 
-  /* ── Badge Utilities ──────────────────────────────────────────── */
-
+  /* Badge utilities */
   .badge {
     border-radius: 20px;
     padding-top: 4px;
@@ -363,15 +387,11 @@
     color: #FFFFFF;
   }
 
-  /* ── Divider ──────────────────────────────────────────────────── */
-
   .divider {
     height: 1px;
     background-color: #E5E7EB;
     width: 100%;
   }
-
-  /* ── Screen Container ─────────────────────────────────────────── */
 
   .screen-container {
     flex: 1;
@@ -382,8 +402,6 @@
     flex: 1;
     background-color: #F6F7FB;
   }
-
-  /* ── Common Layout Utilities ──────────────────────────────────── */
 
   .row-between {
     flex-direction: row;

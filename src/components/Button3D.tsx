@@ -8,13 +8,24 @@ import {
 	ActivityIndicator,
 } from "react-native";
 import { Text } from "@/tw";
+import { brand, learning, neutral } from "@/theme/colors";
 import * as Haptics from "expo-haptics";
+
+type Button3DVariant =
+	| "primary"
+	| "secondary"
+	| "warning"
+	| "accent"
+	| "brand"
+	| "danger"
+	| "gray"
+	| "ghost";
 
 interface Button3DProps {
 	onPress?: () => void;
 	disabled?: boolean;
 	loading?: boolean;
-	variant?: "primary" | "secondary" | "warning" | "accent" | "danger" | "gray" | "ghost";
+	variant?: Button3DVariant;
 	children?: React.ReactNode;
 	title?: string;
 	style?: ViewStyle;
@@ -22,6 +33,57 @@ interface Button3DProps {
 	size?: "sm" | "md" | "lg";
 	fullWidth?: boolean;
 }
+
+const buttonColors: Record<Button3DVariant, { bg: string; shadow: string; text: string; border: string }> = {
+	primary: {
+		bg: learning.action,
+		shadow: learning.actionDark,
+		text: "#FFFFFF",
+		border: "rgba(255, 255, 255, 0.18)",
+	},
+	secondary: {
+		bg: learning.selected,
+		shadow: learning.selectedDark,
+		text: "#FFFFFF",
+		border: "rgba(255, 255, 255, 0.18)",
+	},
+	warning: {
+		bg: learning.reward,
+		shadow: learning.rewardDark,
+		text: learning.text,
+		border: "rgba(255, 255, 255, 0.28)",
+	},
+	accent: {
+		bg: brand.primary,
+		shadow: brand.primaryDark,
+		text: "#FFFFFF",
+		border: "rgba(255, 255, 255, 0.18)",
+	},
+	brand: {
+		bg: brand.primary,
+		shadow: brand.primaryDark,
+		text: "#FFFFFF",
+		border: "rgba(255, 255, 255, 0.18)",
+	},
+	danger: {
+		bg: learning.correction,
+		shadow: learning.correctionDark,
+		text: "#FFFFFF",
+		border: "rgba(255, 255, 255, 0.18)",
+	},
+	gray: {
+		bg: neutral.border,
+		shadow: "#C5C7CB",
+		text: "#9CA3AF",
+		border: "rgba(255, 255, 255, 0.18)",
+	},
+	ghost: {
+		bg: "#FFFFFF",
+		shadow: neutral.border,
+		text: learning.selected,
+		border: neutral.border,
+	},
+};
 
 export default function Button3D({
 	onPress,
@@ -61,19 +123,9 @@ export default function Button3D({
 		}).start();
 	};
 
-	const colors = {
-		primary: { bg: "#58CC02", shadow: "#58A700", text: "#FFFFFF" }, // duo green / green dark
-		secondary: { bg: "#1CB0F6", shadow: "#0D90D0", text: "#FFFFFF" }, // duo blue / blue dark
-		warning: { bg: "#FFC800", shadow: "#E5A000", text: "#FFFFFF" }, // duo yellow / yellow dark
-		accent: { bg: "#6C4EF5", shadow: "#5537D2", text: "#FFFFFF" }, // purple / deep purple
-		danger: { bg: "#FF4B4B", shadow: "#EA2B2B", text: "#FFFFFF" }, // duo red / red dark
-		gray: { bg: "#E5E7EB", shadow: "#C5C7CB", text: "#9CA3AF" }, // disabled / neutral gray
-		ghost: { bg: "#FFFFFF", shadow: "#E5E7EB", text: "#1CB0F6" }, // white bg, gray border/shadow, blue/primary text
-	};
-
 	const isButtonDisabled = disabled || loading;
 	const activeVariant = isButtonDisabled ? "gray" : variant;
-	const selectedColors = colors[activeVariant];
+	const selectedColors = buttonColors[activeVariant];
 
 	// Translate button surface downwards by 4px when pressed, simulating mechanical press
 	const translateY = pressedAnim.interpolate({
@@ -91,9 +143,13 @@ export default function Button3D({
 
 	return (
 		<Pressable
+			accessibilityRole="button"
+			accessibilityState={{ disabled: isButtonDisabled, busy: loading }}
+			disabled={isButtonDisabled}
+			hitSlop={4}
 			onPressIn={handlePressIn}
 			onPressOut={handlePressOut}
-			onPress={isButtonDisabled ? undefined : onPress}
+			onPress={onPress}
 			style={[
 				styles.container,
 				{
@@ -111,6 +167,7 @@ export default function Button3D({
 						backgroundColor: selectedColors.bg,
 						transform: [{ translateY }],
 						borderRadius: 16,
+						borderColor: selectedColors.border,
 						paddingVertical: paddingSettings.py,
 						paddingHorizontal: paddingSettings.px,
 					},
@@ -141,17 +198,16 @@ export default function Button3D({
 const styles = StyleSheet.create({
 	container: {
 		position: "relative",
-		marginTop: 4, // Compensation for translation offset
+		marginTop: 4,
 	},
 	surface: {
 		width: "100%",
+		minHeight: 44,
 		alignItems: "center",
 		justifyContent: "center",
 		borderWidth: 1.5,
-		borderColor: "rgba(255, 255, 255, 0.18)",
 	},
 	text: {
 		textAlign: "center",
 	},
 });
-

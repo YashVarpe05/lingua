@@ -1,7 +1,6 @@
 const fs = require("fs");
 const path = require("path");
-const vm = require("vm");
-const ts = require("typescript");
+const { loadTsExports } = require("./lib/ts-loader");
 
 const ROOT = process.cwd();
 const SCAN_ROOTS = [
@@ -56,6 +55,7 @@ const EXERCISE_TYPES = new Set([
 	"matching-pairs",
 	"tap-word",
 	"listen-type",
+	"speaking",
 ]);
 
 const REQUIRED_LESSON_EXERCISE_TYPES = new Set([
@@ -115,50 +115,6 @@ const addIssue = (issues, file, type, value, line) => {
 
 const isNonEmptyString = (value) =>
 	typeof value === "string" && value.trim().length > 0;
-
-const tsModuleCache = new Map();
-
-const resolveTsImport = (fromFile, moduleName) => {
-	if (moduleName.startsWith("@/")) {
-		return path.join("src", `${moduleName.slice(2)}.ts`);
-	}
-	if (moduleName.startsWith(".")) {
-		const resolved = path.resolve(path.dirname(fromFile), moduleName);
-		return path.relative(ROOT, `${resolved}.ts`);
-	}
-	return undefined;
-};
-
-const loadTsExports = (relativeFile) => {
-	const normalizedRelativeFile = relativeFile.replace(/\\/g, "/");
-	if (tsModuleCache.has(normalizedRelativeFile)) {
-		return tsModuleCache.get(normalizedRelativeFile).exports;
-	}
-
-	const filePath = path.join(ROOT, normalizedRelativeFile);
-	const source = fs.readFileSync(filePath, "utf8");
-	const output = ts.transpileModule(source, {
-		compilerOptions: {
-			module: ts.ModuleKind.CommonJS,
-			target: ts.ScriptTarget.ES2020,
-		},
-		fileName: filePath,
-	}).outputText;
-	const module = { exports: {} };
-	tsModuleCache.set(normalizedRelativeFile, module);
-	const sandbox = {
-		exports: module.exports,
-		module,
-		require: (moduleName) => {
-			const resolved = resolveTsImport(filePath, moduleName);
-			if (resolved) return loadTsExports(resolved);
-			throw new Error(`Unexpected runtime import in ${normalizedRelativeFile}: ${moduleName}`);
-		},
-	};
-
-	vm.runInNewContext(output, sandbox, { filename: normalizedRelativeFile });
-	return module.exports;
-};
 
 const assertArray = (issues, file, name, value) => {
 	if (Array.isArray(value)) return true;
@@ -286,10 +242,11 @@ const validateExplicitWordBank = (issues, file, exercise, label) => {
 };
 
 const validateExercise = (issues, file, exercise, context) => {
-	const label = `${context}:${exercise?.id ?? "missing-id"}`;
+	const contextLabel = context.toString();
+	const label = `${contextLabel}:${exercise?.id ?? "missing-id"}`;
 
 	if (!isNonEmptyString(exercise?.id)) {
-		addIssue(issues, file, "exercise missing id", context);
+		addIssue(issues, file, "exercise missing id", contextLabel);
 	}
 	if (!EXERCISE_TYPES.has(exercise?.type)) {
 		addIssue(issues, file, "invalid exercise type", label);
@@ -603,6 +560,7 @@ const validateDataGraph = (issues) => {
 						lessonId: undefined,
 						unitId: unit.id,
 						languageId: unit.languageId,
+						requireExplicitWordBank: false,
 						toString: () => label,
 					});
 					if (coreUnit) {
@@ -730,7 +688,7 @@ const validateDataGraph = (issues) => {
 				unitId: lesson.unitId,
 				languageId: unit?.languageId,
 				requireExplicitWordBank: !lesson.isCheckpoint,
-					toString: () => label,
+				toString: () => label,
 				});
 			if (coreLesson) {
 				if (!Array.isArray(exercise?.conceptIds) || exercise.conceptIds.length === 0) {

@@ -2,8 +2,10 @@ import React from "react";
 import { StyleSheet } from "react-native";
 import { View } from "@/tw";
 
+export type PathConnectorState = "completed" | "active" | "checkpoint" | "locked";
+
 interface PathConnectorProps {
-	completed: boolean;
+	state: PathConnectorState;
 	unitColor: string;
 	currentX: number;
 	nextX: number;
@@ -11,15 +13,35 @@ interface PathConnectorProps {
 	nodeSize?: number;
 }
 
+const withAlpha = (color: string, alpha: string, fallback: string) => {
+	if (/^#[0-9A-Fa-f]{6}$/.test(color)) {
+		return `${color}${alpha}`;
+	}
+	return fallback;
+};
+
+const getConnectorVisual = (state: PathConnectorState, unitColor: string) => {
+	if (state === "active") {
+		return { color: "#CE82FF", width: 4 };
+	}
+	if (state === "checkpoint") {
+		return { color: "#FFC800", width: 4 };
+	}
+	if (state === "completed") {
+		return { color: withAlpha(unitColor, "99", "#58CC0299"), width: 3 };
+	}
+	return { color: "#E5E5E5", width: 3 };
+};
+
 export default function PathConnector({
-	completed,
+	state,
 	unitColor,
 	currentX,
 	nextX,
 	currentY,
 	nodeSize = 64,
 }: PathConnectorProps) {
-	const color = completed ? unitColor + "99" : "#E5E5E5";
+	const connectorVisual = getConnectorVisual(state, unitColor);
 
 	// Spacing between node tops is 96px
 	const dy = 96;
@@ -40,7 +62,9 @@ export default function PathConnector({
 				styles.connector,
 				{
 					height: length,
-					borderLeftColor: color,
+					width: connectorVisual.width,
+					borderLeftWidth: connectorVisual.width,
+					borderLeftColor: connectorVisual.color,
 					position: "absolute",
 					left: midX,
 					top: midY,

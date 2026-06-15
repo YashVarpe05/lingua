@@ -3,7 +3,7 @@ const path = require("path");
 
 const root = path.resolve(__dirname, "..");
 const envPath = path.join(root, ".env");
-const baseUrl = process.env.API_BASE_URL || "http://127.0.0.1:8081";
+const baseUrl = process.env.API_BASE_URL || "http://localhost:8081";
 
 const parseEnvFile = () => {
 	if (!fs.existsSync(envPath)) return {};
@@ -105,6 +105,18 @@ const checks = [
 			correctAnswer: "hola",
 			isCorrect: false,
 			languageId: "es",
+		},
+		expectedStatuses: [401],
+	},
+	{
+		name: "pronunciation score requires auth",
+		path: "/api/pronunciation-score",
+		method: "POST",
+		body: {
+			expectedText: "hola",
+			languageId: "es",
+			audioBase64: "AAAA",
+			mimeType: "audio/webm",
 		},
 		expectedStatuses: [401],
 	},

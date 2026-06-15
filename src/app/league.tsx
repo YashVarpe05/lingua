@@ -34,6 +34,7 @@ export default function LeagueScreen() {
 	const { getToken } = useAuth();
 	const { user } = useUser();
 	const getTokenRef = useRef(getToken);
+	const leaderboardRequestIdRef = useRef(0);
 	const [activeTab, setActiveTab] = useState<"weekly" | "alltime" | "friends">("weekly");
 	const [loading, setLoading] = useState<boolean>(true);
 	const [leaderboardRows, setLeaderboardRows] = useState<LeaderboardRow[]>([]);
@@ -45,6 +46,10 @@ export default function LeagueScreen() {
 	}, [getToken]);
 
 	const fetchLeaderboard = useCallback(async () => {
+		const requestId = leaderboardRequestIdRef.current + 1;
+		leaderboardRequestIdRef.current = requestId;
+		const isLatestRequest = () => requestId === leaderboardRequestIdRef.current;
+
 		setLoading(true);
 		setErrorMessage(null);
 		try {
@@ -60,6 +65,8 @@ export default function LeagueScreen() {
 			if (!res.ok || data.error) {
 				throw new Error(data.error || "Leaderboard request failed");
 			}
+
+			if (!isLatestRequest()) return;
 			
 			if (data.rows) {
 				setLeaderboardRows(data.rows);
@@ -70,6 +77,8 @@ export default function LeagueScreen() {
 				setCurrentUserRow(null);
 			}
 		} catch (err) {
+			if (!isLatestRequest()) return;
+
 			setLeaderboardRows([]);
 			setCurrentUserRow(null);
 			setErrorMessage(
@@ -78,15 +87,15 @@ export default function LeagueScreen() {
 					: "Leaderboard is unavailable right now."
 			);
 		} finally {
-			setLoading(false);
+			if (isLatestRequest()) {
+				setLoading(false);
+			}
 		}
 	}, [activeTab]);
 
 	useEffect(() => {
-		if (activeTab !== "friends") {
-			fetchLeaderboard();
-		}
-	}, [activeTab, fetchLeaderboard]);
+		fetchLeaderboard();
+	}, [fetchLeaderboard]);
 
 	const handleInviteFriends = async () => {
 		try {
@@ -347,9 +356,9 @@ const styles = StyleSheet.create({
 			android: {
 				elevation: 2,
 			},
-			web: {
+			default: {
 				boxShadow: "0px 2px 4px rgba(13, 19, 43, 0.08)",
-			} as any,
+			},
 		}),
 	},
 });

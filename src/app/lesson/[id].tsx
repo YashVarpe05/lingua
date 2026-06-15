@@ -18,13 +18,33 @@ import { getLanguageUnitsAndLessons } from "@/utils/learning";
 import { authFetch } from "@/lib/apiClient";
 import { usePostHog } from "posthog-react-native";
 import { useAuth, useUser } from "@clerk/expo";
+import type { Lesson } from "@/types/learning";
+import type {
+	Call,
+	StreamVideoClient as StreamVideoClientInstance,
+	StreamVideoParticipant,
+} from "@stream-io/video-client";
+import type { StreamVideoProps } from "@stream-io/video-react-bindings";
+
+type ClerkUser = ReturnType<typeof useUser>["user"];
+type StreamCallComponent = React.ComponentType<
+	React.PropsWithChildren<{ call: Call }>
+>;
+type StreamVideoComponent = React.ComponentType<
+	React.PropsWithChildren<StreamVideoProps>
+>;
+type StreamVideoClientConstructor =
+	typeof import("@stream-io/video-client").StreamVideoClient;
+type UseCallStateHooks =
+	typeof import("@stream-io/video-react-bindings").useCallStateHooks;
+type CallingStateObject = typeof import("@stream-io/video-client").CallingState;
 
 // Dynamically require Stream Video SDK to prevent crash in Expo Go / Web
-let StreamCall: any = null;
-let StreamVideo: any = null;
-let StreamVideoClient: any = null;
-let useCallStateHooks: any = null;
-let CallingStateEnum: any = null;
+let StreamCall: StreamCallComponent | null = null;
+let StreamVideo: StreamVideoComponent | null = null;
+let StreamVideoClient: StreamVideoClientConstructor | null = null;
+let useCallStateHooks: UseCallStateHooks | null = null;
+let CallingStateEnum: CallingStateObject | null = null;
 let hasNativeSDK = false;
 
 /* eslint-disable @typescript-eslint/no-require-imports */
@@ -53,6 +73,9 @@ const LocalCallingState = {
 };
 
 const CallingState = CallingStateEnum || LocalCallingState;
+type CallingStateValue =
+	| (typeof LocalCallingState)[keyof typeof LocalCallingState]
+	| "connecting";
 
 // Localized phrases for lesson info overlay
 const getLocalizedPhrases = (langId: string): string[] => {
@@ -107,7 +130,7 @@ export default function AudioLessonScreen() {
 	const lesson = activeLessons.find((l) => l.id === id);
 
 	// Fallback UI / Mock States (used when hasNativeSDK is false)
-	const [callingStateMock, setCallingStateMock] = useState<string>("connecting");
+	const [callingStateMock, setCallingStateMock] = useState<CallingStateValue>("connecting");
 	const [isMutedMock, setIsMutedMock] = useState(false);
 
 	// Shared States
@@ -124,8 +147,8 @@ export default function AudioLessonScreen() {
 	const [grammarRating, setGrammarRating] = useState("Listening...");
 
 	// Stream client & call instances
-	const [client, setClient] = useState<any>(null);
-	const [call, setCall] = useState<any>(null);
+	const [client, setClient] = useState<StreamVideoClientInstance | null>(null);
+	const [call, setCall] = useState<Call | null>(null);
 	const [initError, setInitError] = useState<string | null>(null);
 
 	// Simulates live AI evaluation updates
@@ -172,7 +195,7 @@ export default function AudioLessonScreen() {
 			return;
 		}
 
-		const timers: any[] = [];
+		const timers: ReturnType<typeof setTimeout>[] = [];
 
 		// 1. Teacher starts lesson
 		timers.push(setTimeout(() => {
@@ -230,8 +253,8 @@ export default function AudioLessonScreen() {
 		if (!hasNativeSDK) return;
 
 		let active = true;
-		let clientInstance: any = null;
-		let callInstance: any = null;
+		let clientInstance: StreamVideoClientInstance | null = null;
+		let callInstance: Call | null = null;
 
 		async function initCall() {
 			try {
@@ -269,6 +292,10 @@ export default function AudioLessonScreen() {
 				};
 
 				// Setup video client locally
+				if (!StreamVideoClient) {
+					throw new Error("Stream Video SDK client is unavailable");
+				}
+
 				clientInstance = new StreamVideoClient({
 					apiKey: data.apiKey,
 					user: streamUser,
@@ -294,10 +321,14 @@ export default function AudioLessonScreen() {
 					setClient(clientInstance);
 					setCall(callInstance);
 				}
-			} catch (err: any) {
+			} catch (err: unknown) {
 				console.error("Stream init error:", err);
 				if (active) {
-					setInitError(err.message || "Failed to establish AI calling connection");
+					setInitError(
+						err instanceof Error
+							? err.message
+							: "Failed to establish AI calling connection"
+					);
 				}
 			}
 		}
@@ -309,10 +340,10 @@ export default function AudioLessonScreen() {
 			// Clean up asynchronously with 50ms delay
 			setTimeout(() => {
 				if (callInstance) {
-					callInstance.leave().catch((e: any) => console.log("Error leaving call:", e));
+					callInstance.leave().catch((e: unknown) => console.log("Error leaving call:", e));
 				}
 				if (clientInstance) {
-					clientInstance.disconnectUser().catch((e: any) => console.log("Error disconnecting user:", e));
+					clientInstance.disconnectUser().catch((e: unknown) => console.log("Error disconnecting user:", e));
 				}
 			}, 50);
 		};
@@ -462,10 +493,30 @@ export default function AudioLessonScreen() {
 		);
 	}
 
+	const ActiveStreamVideo = StreamVideo;
+	const ActiveStreamCall = StreamCall;
+	if (!ActiveStreamVideo || !ActiveStreamCall || !client || !call) {
+		return (
+			<SafeAreaView style={styles.safeArea}>
+				<View className="flex-1 items-center justify-center p-6 bg-white">
+					<Text className="font-poppins-bold text-[18px] text-neutral-primary mb-2 text-center">
+						Calling SDK is unavailable
+					</Text>
+					<TouchableOpacity
+						onPress={() => router.replace("/(tabs)")}
+						className="bg-lingua-purple px-6 py-2.5 rounded-full"
+					>
+						<Text className="font-poppins-semibold text-white">Go Back</Text>
+					</TouchableOpacity>
+				</View>
+			</SafeAreaView>
+		);
+	}
+
 	// Render real SDK connection
 	return (
-		<StreamVideo client={client}>
-			<StreamCall call={call}>
+		<ActiveStreamVideo client={client}>
+			<ActiveStreamCall call={call}>
 				<AudioLessonContentWrapper
 					call={call}
 					lesson={lesson}
@@ -487,15 +538,25 @@ export default function AudioLessonScreen() {
 					grammarRating={grammarRating}
 					user={user}
 				/>
-			</StreamCall>
-		</StreamVideo>
+			</ActiveStreamCall>
+		</ActiveStreamVideo>
 	);
 }
 
 // Wrapper for AudioLessonContent when using active Stream SDK Call Context
-function AudioLessonContentWrapper(props: any) {
+function AudioLessonContentWrapper(
+	props: Omit<
+		AudioLessonContentProps,
+		"isMute" | "toggleMute" | "callingState" | "useActiveTimer" | "agentStatus" | "captions"
+	> & { call: Call }
+) {
 	const { getToken } = useAuth();
-	const { useCallCallingState, useMicrophoneState, useParticipants, useCallClosedCaptions } = useCallStateHooks();
+	const {
+		useCallCallingState,
+		useMicrophoneState,
+		useParticipants,
+		useCallClosedCaptions,
+	} = useCallStateHooks!();
 	const callingState = useCallCallingState();
 	const { microphone, isMute } = useMicrophoneState();
 	const participants = useParticipants();
@@ -506,7 +567,7 @@ function AudioLessonContentWrapper(props: any) {
 	const [agentStatus, setAgentStatus] = useState<"idle" | "connecting" | "connected" | "failed">("idle");
 	const [activeCaption, setActiveCaption] = useState<{ speakerName: string; text: string } | null>(null);
 
-	const isTeacherJoined = participants && participants.some((p: any) => p.userId === "teacher");
+	const isTeacherJoined = participants.some((p: StreamVideoParticipant) => p.userId === "teacher");
 
 	const latestCaption = closedCaptions && closedCaptions.length > 0 ? closedCaptions[closedCaptions.length - 1] : null;
 
@@ -539,6 +600,23 @@ function AudioLessonContentWrapper(props: any) {
 
 		let active = true;
 		let spawnedSessionId: string | null = null;
+		let stopRequested = false;
+
+		const stopAgentSession = (sessionId: string) => {
+			void authFetch(getToken, "/api/agent/stop", {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+				},
+				body: JSON.stringify({
+					callId: call.id,
+					lessonId,
+					sessionId,
+				}),
+			}).catch((err) => {
+				console.warn("Failed to stop agent session on unmount:", err);
+			});
+		};
 
 		async function startAgent() {
 			try {
@@ -563,9 +641,12 @@ function AudioLessonContentWrapper(props: any) {
 					throw new Error("Failed to start agent via proxy");
 				}
 
-				const data = await response.json();
-				if (data.session_id) {
+				const data = (await response.json()) as { session_id?: unknown };
+				if (typeof data.session_id === "string") {
 					spawnedSessionId = data.session_id;
+					if (stopRequested) {
+						stopAgentSession(spawnedSessionId);
+					}
 				} else {
 					throw new Error("No session_id returned from agent start");
 				}
@@ -581,24 +662,9 @@ function AudioLessonContentWrapper(props: any) {
 
 		return () => {
 			active = false;
+			stopRequested = true;
 			if (spawnedSessionId) {
-				void (async () => {
-					if (!lessonId) return;
-
-					await authFetch(getToken, "/api/agent/stop", {
-						method: "POST",
-						headers: {
-							"Content-Type": "application/json",
-						},
-						body: JSON.stringify({
-							callId: call.id,
-							lessonId,
-							sessionId: spawnedSessionId,
-						}),
-					});
-				})().catch((err) => {
-					console.warn("Failed to stop agent session on unmount:", err);
-				});
+				stopAgentSession(spawnedSessionId);
 			}
 		};
 		// eslint-disable-next-line react-hooks/exhaustive-deps
@@ -632,7 +698,7 @@ function AudioLessonContentWrapper(props: any) {
 }
 
 interface AudioLessonContentProps {
-	lesson: any;
+	lesson: Lesson;
 	selectedLanguageId: string | null;
 	elapsedSeconds: number;
 	setElapsedSeconds: React.Dispatch<React.SetStateAction<number>>;
@@ -649,10 +715,10 @@ interface AudioLessonContentProps {
 	speakingRating: string;
 	pronunciationRating: string;
 	grammarRating: string;
-	user: any;
+	user: ClerkUser;
 	isMute: boolean;
 	toggleMute: () => void;
-	callingState: string;
+	callingState: CallingStateValue;
 	useActiveTimer?: boolean;
 	agentStatus: "idle" | "connecting" | "connected" | "failed";
 	captions: { speakerName: string; text: string } | null;

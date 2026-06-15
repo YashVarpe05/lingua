@@ -5,6 +5,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { Feather } from "@expo/vector-icons";
 import { Text, View, ScrollView, TouchableOpacity } from "@/tw";
 import Button3D from "@/components/Button3D";
+import { brand, learning } from "@/theme/colors";
 import { languages } from "@/data/languages";
 import { useLanguageStore } from "@/store/useLanguageStore";
 import { useProgressStore } from "@/store/useProgressStore";
@@ -24,24 +25,24 @@ const getReasonLabel = (reason: PracticeHubConcept["reason"]) => {
 const getReasonColor = (reason: PracticeHubConcept["reason"]) => {
 	if (reason === "recent-mistake") {
 		return {
-			bg: "bg-[#FFF8E6]",
-			text: "text-[#FF9600]",
-			icon: "#FF9600",
+			bg: "bg-learning-streak-light",
+			text: "text-learning-streak",
+			icon: learning.streak,
 		};
 	}
 
 	if (reason === "due") {
 		return {
-			bg: "bg-[#FFDFE0]",
-			text: "text-[#FF4B4B]",
-			icon: "#FF4B4B",
+			bg: "bg-learning-correction-light",
+			text: "text-learning-correction",
+			icon: learning.correction,
 		};
 	}
 
 	return {
-		bg: "bg-[#F0EDFF]",
-		text: "text-[#6C4EF5]",
-		icon: "#6C4EF5",
+		bg: "bg-lingua-purple-light",
+		text: "text-lingua-purple",
+		icon: brand.primary,
 	};
 };
 
@@ -54,6 +55,13 @@ export default function PracticeHubScreen() {
 	const selectedLanguageId = useLanguageStore((state) => state.selectedLanguageId);
 	const recentAttempts = useProgressStore((state) => state.recentAttempts);
 	const conceptMemory = useProgressStore((state) => state.conceptMemory);
+	const pronunciationConceptMemory = useProgressStore(
+		(state) => state.pronunciationConceptMemory
+	);
+	const latestFailedCheckpointReview = useProgressStore(
+		(state) => state.latestFailedCheckpointReview
+	);
+	const completedCheckpoints = useProgressStore((state) => state.completedCheckpoints) || [];
 	const getConceptRecallScore = useProgressStore((state) => state.getConceptRecallScore);
 	const getForgettingScore = useProgressStore((state) => state.getForgettingScore);
 	const activeLanguageId = selectedLanguageId || "es";
@@ -74,6 +82,7 @@ export default function PracticeHubScreen() {
 				units,
 				recentAttempts,
 				conceptMemory,
+				pronunciationConceptMemory,
 				explicitFocusConceptIds,
 				getConceptRecallScore,
 				getForgettingScore,
@@ -85,10 +94,53 @@ export default function PracticeHubScreen() {
 			getConceptRecallScore,
 			getForgettingScore,
 			lessons,
+			pronunciationConceptMemory,
 			recentAttempts,
 			units,
 		]
 	);
+	const firstPracticeLesson = lessons.find((lesson) => !lesson.isCheckpoint);
+	const checkpointRecoveryUnit =
+		latestFailedCheckpointReview &&
+		!completedCheckpoints.includes(latestFailedCheckpointReview.unitId)
+			? units.find((unit) => unit.id === latestFailedCheckpointReview.unitId)
+			: undefined;
+	const checkpointRecoveryFocusLabel = latestFailedCheckpointReview
+		? overview.focusLabel ||
+			getPracticeQueueOverview({
+				selectedLanguageId: activeLanguageId,
+				lessons,
+				units,
+				recentAttempts,
+				conceptMemory,
+				pronunciationConceptMemory,
+				explicitFocusConceptIds: latestFailedCheckpointReview.focusConceptIds,
+				getConceptRecallScore,
+				getForgettingScore,
+			}).focusLabel
+		: "";
+
+	const startModePractice = (
+		mode: "mistakes" | "vocabulary" | "listening" | "speaking"
+	) => {
+		const targetLessonId =
+			mode === "speaking"
+				? overview.pronunciationConcepts
+						.map((concept) => concept.lessonId)
+						.find((lessonId): lessonId is string => Boolean(lessonId)) ??
+					firstPracticeLesson?.id
+				: firstPracticeLesson?.id;
+
+		if (!targetLessonId) return;
+
+		router.push({
+			pathname: "/exercise-session",
+			params: {
+				lessonId: targetLessonId,
+				mode,
+			},
+		});
+	};
 
 	const handleStartReview = () => {
 		router.push({
@@ -99,6 +151,113 @@ export default function PracticeHubScreen() {
 			},
 		});
 	};
+	const handleStartSpeakingPractice = () => {
+		startModePractice("speaking");
+	};
+	const handleCheckpointPrep = () => {
+		if (!latestFailedCheckpointReview || !checkpointRecoveryUnit) return;
+
+		router.push({
+			pathname: "/review-session",
+			params: {
+				focusConceptIds: latestFailedCheckpointReview.focusConceptIds.join(","),
+				source: "checkpoint-fail",
+				unitId: checkpointRecoveryUnit.id,
+			},
+		});
+	};
+
+	const smartCards = [
+		checkpointRecoveryUnit && latestFailedCheckpointReview
+			? {
+					key: "checkpoint-prep",
+					icon: "award" as const,
+					title: "Checkpoint Prep",
+					subtitle: `Unit ${checkpointRecoveryUnit.order} checkpoint needs a focused review.`,
+					meta: checkpointRecoveryFocusLabel
+						? `Focus: ${checkpointRecoveryFocusLabel}`
+						: `Last score ${latestFailedCheckpointReview.score}%`,
+					accent: "#FF9600",
+					bg: "bg-[#FFF3CC]",
+					border: "border-[#FFE8B3]",
+					button: "Review",
+					onPress: handleCheckpointPrep,
+				}
+			: null,
+		{
+			key: "mistakes",
+			icon: "alert-circle" as const,
+			title: "Fix Mistakes",
+			subtitle:
+				overview.recentMistakes.length > 0
+					? `${overview.recentMistakes.length} recent ${overview.recentMistakes.length === 1 ? "miss" : "misses"} to repair.`
+					: "No fresh mistakes. Start a light repair round anytime.",
+			meta: overview.recentMistakes[0]?.conceptTitle ?? "Mistake repair",
+			accent: learning.correction,
+			bg: "bg-learning-correction-light",
+			border: "border-[#FFD1D1]",
+			button: "Fix",
+			onPress: () => startModePractice("mistakes"),
+		},
+		{
+			key: "weak-skills",
+			icon: "target" as const,
+			title: "Review Weak Skills",
+			subtitle:
+				overview.dueConceptCount > 0
+					? `${overview.dueConceptCount} ${overview.dueConceptCount === 1 ? "concept is" : "concepts are"} due.`
+					: "Smart review will keep older material active.",
+			meta: overview.focusLabel ? `Focus: ${overview.focusLabel}` : "Smart mix",
+			accent: brand.primary,
+			bg: "bg-lingua-purple-light",
+			border: "border-[#E1D9FF]",
+			button: "Review",
+			onPress: handleStartReview,
+		},
+		{
+			key: "speaking",
+			icon: "mic" as const,
+			title: "Speaking Practice",
+			subtitle:
+				overview.duePronunciationConceptCount > 0
+					? `${overview.duePronunciationConceptCount} pronunciation ${overview.duePronunciationConceptCount === 1 ? "concept needs" : "concepts need"} practice.`
+					: "Keep pronunciation warm with a short round.",
+			meta: overview.speakingFocusLabel
+				? `Focus: ${overview.speakingFocusLabel}`
+				: "Pronunciation",
+			accent: learning.action,
+			bg: "bg-[#E8F9EE]",
+			border: "border-[#CFF4D5]",
+			button: "Speak",
+			onPress: handleStartSpeakingPractice,
+		},
+		{
+			key: "listening",
+			icon: "volume-2" as const,
+			title: "Listening Practice",
+			subtitle: "Train your ear with audio-first exercises.",
+			meta: `${selectedLanguage?.name ?? "Language"} listening`,
+			accent: learning.selected,
+			bg: "bg-learning-selected-light",
+			border: "border-[#BDEBFF]",
+			button: "Listen",
+			onPress: () => startModePractice("listening"),
+		},
+		{
+			key: "vocabulary",
+			icon: "book-open" as const,
+			title: "Vocabulary Practice",
+			subtitle: "Refresh useful words and phrases from your path.",
+			meta:
+				overview.weakLessons[0]?.title ??
+				`${selectedLanguage?.name ?? "Language"} words`,
+			accent: "#FFC800",
+			bg: "bg-learning-reward-light",
+			border: "border-[#FFE8B3]",
+			button: "Words",
+			onPress: () => startModePractice("vocabulary"),
+		},
+	].filter((card): card is NonNullable<typeof card> => Boolean(card));
 
 	return (
 		<SafeAreaView style={styles.safeArea}>
@@ -122,12 +281,17 @@ export default function PracticeHubScreen() {
 					</View>
 				</View>
 
-				<View className="bg-[#FFF3CC] border border-[#FFE8B3] rounded-[24px] p-5 mb-4">
+				<View className="bg-learning-reward-light border border-[#FFE8B3] rounded-[24px] p-5 mb-4">
 					<View className="flex-row items-start">
-						<View className="w-12 h-12 rounded-full bg-[#FFC800] items-center justify-center mr-3">
+						<View className="w-12 h-12 rounded-full bg-learning-reward items-center justify-center mr-3">
 							<Feather name="refresh-cw" size={22} color="#FFFFFF" />
 						</View>
 						<View className="flex-1">
+							<View className="self-start px-2.5 py-1 rounded-full bg-white/80 border border-[#FFE8B3] mb-2">
+								<Text className="font-poppins-bold text-[10px] text-[#8A6500] uppercase tracking-[0.6px]">
+									Skill practice
+								</Text>
+							</View>
 							<Text className="font-poppins-bold text-[24px] text-neutral-primary leading-[30px]">
 								Practice Hub
 							</Text>
@@ -139,24 +303,33 @@ export default function PracticeHubScreen() {
 				</View>
 
 				<View className="flex-row gap-2 mb-4">
-					<View className="flex-1 bg-white border border-neutral-border rounded-2xl p-3 items-center">
-						<Text className="font-poppins-bold text-[20px] text-[#FF9600]">
+					<View
+						className="flex-1 bg-white border border-neutral-border rounded-2xl p-3 items-center"
+						style={styles.statCard}
+					>
+						<Text className="font-poppins-bold text-[20px] text-learning-streak">
 							{overview.dueConceptCount}
 						</Text>
 						<Text className="font-poppins-semibold text-[10px] text-neutral-secondary uppercase tracking-[0.4px] text-center">
 							Due Concepts
 						</Text>
 					</View>
-					<View className="flex-1 bg-white border border-neutral-border rounded-2xl p-3 items-center">
-						<Text className="font-poppins-bold text-[20px] text-[#FF4B4B]">
+					<View
+						className="flex-1 bg-white border border-neutral-border rounded-2xl p-3 items-center"
+						style={styles.statCard}
+					>
+						<Text className="font-poppins-bold text-[20px] text-learning-correction">
 							{overview.recentMistakes.length}
 						</Text>
 						<Text className="font-poppins-semibold text-[10px] text-neutral-secondary uppercase tracking-[0.4px] text-center">
 							Recent Misses
 						</Text>
 					</View>
-					<View className="flex-1 bg-white border border-neutral-border rounded-2xl p-3 items-center">
-						<Text className="font-poppins-bold text-[20px] text-[#1CB0F6]">
+					<View
+						className="flex-1 bg-white border border-neutral-border rounded-2xl p-3 items-center"
+						style={styles.statCard}
+					>
+						<Text className="font-poppins-bold text-[20px] text-learning-selected">
 							{overview.weakLessons.length}
 						</Text>
 						<Text className="font-poppins-semibold text-[10px] text-neutral-secondary uppercase tracking-[0.4px] text-center">
@@ -165,13 +338,109 @@ export default function PracticeHubScreen() {
 					</View>
 				</View>
 
+				<View className="mb-4">
+					<View className="flex-row items-center justify-between mb-3">
+						<Text className="font-poppins-bold text-[16px] text-neutral-primary">
+							Recommended Practice
+						</Text>
+						<View className="px-2.5 py-1 rounded-full bg-white border border-neutral-border">
+							<Text className="font-poppins-bold text-[11px] text-neutral-secondary">
+								Smart picks
+							</Text>
+						</View>
+					</View>
+
+					<View className="gap-3">
+						{smartCards.map((card, index) => {
+							const isTopPick = index === 0;
+							const buttonVariant =
+								isTopPick ? "primary" : card.key === "mistakes" ? "danger" : "secondary";
+
+							return (
+								<View
+									key={card.key}
+									className={`border rounded-[22px] p-4 ${card.bg} ${card.border}`}
+									style={[
+										styles.practiceCard,
+										{
+											borderBottomColor: card.accent,
+										},
+									]}
+								>
+									<View className="flex-row items-center justify-between mb-3">
+										<View className="flex-row items-center">
+											<View
+												className="w-2 h-2 rounded-full mr-2"
+												style={{ backgroundColor: card.accent }}
+											/>
+											<Text
+												className="font-poppins-bold text-[10px] uppercase tracking-[0.6px]"
+												style={{ color: card.accent }}
+											>
+												{isTopPick ? "Best next" : "Practice mode"}
+											</Text>
+										</View>
+										<View className="flex-row gap-1.5">
+											<View
+												className="w-1.5 h-1.5 rounded-full"
+												style={{ backgroundColor: card.accent }}
+											/>
+											<View className="w-1.5 h-1.5 rounded-full bg-white/80" />
+											<View className="w-1.5 h-1.5 rounded-full bg-white/80" />
+										</View>
+									</View>
+
+									<View className="flex-row items-center justify-between gap-3">
+										<View className="flex-row items-start flex-1">
+											<View
+												className="w-12 h-12 rounded-2xl bg-white items-center justify-center mr-3 border border-white/90"
+												style={{ borderBottomWidth: 3, borderBottomColor: card.accent }}
+											>
+												<View
+													className="w-8 h-8 rounded-full items-center justify-center"
+													style={{ backgroundColor: card.accent }}
+												>
+													<Feather name={card.icon} size={17} color="#FFFFFF" />
+												</View>
+											</View>
+											<View className="flex-1">
+												<Text className="font-poppins-bold text-[16px] text-neutral-primary">
+													{card.title}
+												</Text>
+												<Text className="font-poppins text-[12px] text-neutral-secondary leading-[18px] mt-1">
+													{card.subtitle}
+												</Text>
+												<Text
+													className="font-poppins-bold text-[11px] mt-1"
+													style={{ color: card.accent }}
+													numberOfLines={1}
+												>
+													{card.meta}
+												</Text>
+											</View>
+										</View>
+										<Button3D
+											onPress={card.onPress}
+											variant={buttonVariant}
+											size="sm"
+											title={card.button}
+											fullWidth={false}
+											style={{ minWidth: 86 }}
+										/>
+									</View>
+								</View>
+							);
+						})}
+					</View>
+				</View>
+
 				<View className="bg-white border border-neutral-border rounded-[22px] p-4 mb-4">
 					<View className="flex-row items-center justify-between mb-3">
 						<Text className="font-poppins-bold text-[16px] text-neutral-primary">
 							Review Queue
 						</Text>
-						<View className="px-2.5 py-1 rounded-full bg-[#F0EDFF]">
-							<Text className="font-poppins-bold text-[11px] text-[#6C4EF5]">
+						<View className="px-2.5 py-1 rounded-full bg-lingua-purple-light">
+							<Text className="font-poppins-bold text-[11px] text-lingua-purple">
 								{overview.focusLabel || "Smart mix"}
 							</Text>
 						</View>
@@ -206,9 +475,9 @@ export default function PracticeHubScreen() {
 												<Text className="font-poppins text-[12px] text-neutral-secondary leading-[18px] mt-1">
 													{concept.description}
 												</Text>
-												<View className="h-2 bg-[#E5E5E5] rounded-full overflow-hidden mt-3">
+												<View className="h-2 bg-learning-border rounded-full overflow-hidden mt-3">
 													<View
-														className="h-2 bg-[#58CC02] rounded-full"
+														className="h-2 bg-learning-action rounded-full"
 														style={{ width: `${Math.max(recallPercent, 8)}%` }}
 													/>
 												</View>
@@ -222,13 +491,18 @@ export default function PracticeHubScreen() {
 							})}
 						</View>
 					) : (
-						<View className="bg-[#F0FFE8] border border-[#D7FFB8] rounded-2xl p-4">
-							<Text className="font-poppins-bold text-[14px] text-[#58CC02]">
-								All caught up
-							</Text>
-							<Text className="font-poppins text-[12px] text-neutral-secondary leading-[18px] mt-1">
-								No urgent concept needs repair. A short review will keep older phrases active.
-							</Text>
+						<View className="learning-card learning-card--success p-4 flex-row items-start">
+							<View className="w-10 h-10 rounded-full bg-white items-center justify-center mr-3">
+								<Feather name="check-circle" size={18} color={learning.action} />
+							</View>
+							<View className="flex-1">
+								<Text className="font-poppins-bold text-[14px] text-learning-action">
+									All caught up
+								</Text>
+								<Text className="font-poppins text-[12px] text-neutral-secondary leading-[18px] mt-1">
+									No urgent concept needs repair. A short review will keep older phrases active.
+								</Text>
+							</View>
 						</View>
 					)}
 				</View>
@@ -241,24 +515,34 @@ export default function PracticeHubScreen() {
 						<View className="gap-3">
 							{overview.recentMistakes.map((mistake) => (
 								<View key={mistake.exerciseId} className="flex-row items-start">
-									<View className="w-9 h-9 rounded-full bg-[#FFDFE0] items-center justify-center mr-3">
-										<Feather name="alert-circle" size={16} color="#FF4B4B" />
+									<View className="w-9 h-9 rounded-full bg-learning-correction-light items-center justify-center mr-3">
+										<Feather name="alert-circle" size={16} color={learning.correction} />
 									</View>
 									<View className="flex-1">
 										<Text className="font-poppins-bold text-[13px] text-neutral-primary">
 											{mistake.conceptTitle}
 										</Text>
 										<Text className="font-poppins text-[12px] text-neutral-secondary leading-[18px]">
-											{mistake.lessonTitle} • {mistake.question}
+											{mistake.lessonTitle} - {mistake.question}
 										</Text>
 									</View>
 								</View>
 							))}
 						</View>
 					) : (
-						<Text className="font-poppins text-[12px] text-neutral-secondary leading-[18px]">
-							No fresh mistakes in this language. Nice and tidy.
-						</Text>
+						<View className="bg-learning-action-light border border-[#B7EF9B] rounded-2xl p-4 flex-row items-start">
+							<View className="w-9 h-9 rounded-full bg-white items-center justify-center mr-3">
+								<Feather name="smile" size={17} color={learning.action} />
+							</View>
+							<View className="flex-1">
+								<Text className="font-poppins-bold text-[13px] text-learning-action">
+									No mistakes to fix
+								</Text>
+								<Text className="font-poppins text-[12px] text-neutral-secondary leading-[18px] mt-1">
+									Practice any mode below to keep your memory fresh.
+								</Text>
+							</View>
+						</View>
 					)}
 				</View>
 
@@ -270,8 +554,8 @@ export default function PracticeHubScreen() {
 						<View className="gap-3">
 							{overview.weakLessons.map((lesson) => (
 								<View key={lesson.lessonId} className="flex-row items-center">
-									<View className="w-9 h-9 rounded-full bg-[#DDF4FF] items-center justify-center mr-3">
-										<Feather name="book-open" size={16} color="#1CB0F6" />
+									<View className="w-9 h-9 rounded-full bg-learning-selected-light items-center justify-center mr-3">
+										<Feather name="book-open" size={16} color={learning.selected} />
 									</View>
 									<View className="flex-1">
 										<Text className="font-poppins-bold text-[13px] text-neutral-primary">
@@ -281,16 +565,26 @@ export default function PracticeHubScreen() {
 											{lesson.unitTitle}
 										</Text>
 									</View>
-									<Text className="font-poppins-bold text-[12px] text-[#1CB0F6]">
+									<Text className="font-poppins-bold text-[12px] text-learning-selected">
 										{lesson.forgettingScore > 1 ? "Due" : "Soon"}
 									</Text>
 								</View>
 							))}
 						</View>
 					) : (
-						<Text className="font-poppins text-[12px] text-neutral-secondary leading-[18px]">
-							No older lesson is urgent yet. Smart review will use a balanced warm-up.
-						</Text>
+						<View className="bg-learning-selected-light border border-[#BDEBFF] rounded-2xl p-4 flex-row items-start">
+							<View className="w-9 h-9 rounded-full bg-white items-center justify-center mr-3">
+								<Feather name="clock" size={17} color={learning.selected} />
+							</View>
+							<View className="flex-1">
+								<Text className="font-poppins-bold text-[13px] text-learning-selected">
+									Review is balanced
+								</Text>
+								<Text className="font-poppins text-[12px] text-neutral-secondary leading-[18px] mt-1">
+									No older lesson is urgent yet. Smart review will use a gentle warm-up.
+								</Text>
+							</View>
+						</View>
 					)}
 				</View>
 
@@ -314,5 +608,12 @@ const styles = StyleSheet.create({
 		paddingHorizontal: 20,
 		paddingTop: 16,
 		paddingBottom: 36,
+	},
+	statCard: {
+		boxShadow: "0px 2px 6px rgba(13, 19, 43, 0.05)",
+	},
+	practiceCard: {
+		borderBottomWidth: 4,
+		boxShadow: "0px 3px 8px rgba(13, 19, 43, 0.06)",
 	},
 });

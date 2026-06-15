@@ -4,7 +4,7 @@ const { Client } = require("pg");
 const { createClient } = require("@supabase/supabase-js");
 
 const root = path.resolve(__dirname, "..");
-const baseUrl = process.env.API_BASE_URL || "http://127.0.0.1:8081";
+const baseUrl = process.env.API_BASE_URL || "http://localhost:8081";
 const envFiles = [".env", ".env.local"];
 
 const requiredEnvKeys = [
@@ -97,6 +97,156 @@ const requestWithTimeout = async (url, init = {}) => {
 	}
 };
 
+const getPolicyRoles = (roles) => {
+	if (Array.isArray(roles)) return roles;
+
+	return String(roles || "")
+		.replace(/[{}"]/g, "")
+		.split(",")
+		.map((role) => role.trim())
+		.filter(Boolean);
+};
+
+const isTrueExpression = (value) =>
+	String(value || "")
+		.replace(/[()]/g, "")
+		.trim()
+		.toLowerCase() === "true";
+
+const checkLeaderboardSecurity = async (client) => {
+	const securityResult = await client.query(`
+		select
+			c.relrowsecurity as rls_enabled,
+			has_table_privilege('anon', 'public.leaderboard', 'select') as anon_select,
+			has_table_privilege('anon', 'public.leaderboard', 'insert') as anon_insert,
+			has_table_privilege('anon', 'public.leaderboard', 'update') as anon_update,
+			has_table_privilege('anon', 'public.leaderboard', 'delete') as anon_delete,
+			has_table_privilege('authenticated', 'public.leaderboard', 'select') as authenticated_select,
+			has_table_privilege('authenticated', 'public.leaderboard', 'insert') as authenticated_insert,
+			has_table_privilege('authenticated', 'public.leaderboard', 'update') as authenticated_update,
+			has_table_privilege('authenticated', 'public.leaderboard', 'delete') as authenticated_delete,
+			has_table_privilege('service_role', 'public.leaderboard', 'select') as service_role_select,
+			has_table_privilege('service_role', 'public.leaderboard', 'insert') as service_role_insert,
+			has_table_privilege('service_role', 'public.leaderboard', 'update') as service_role_update,
+			has_table_privilege('service_role', 'public.leaderboard', 'delete') as service_role_delete
+		from pg_class c
+		join pg_namespace n on n.oid = c.relnamespace
+		where n.nspname = 'public'
+			and c.relname = 'leaderboard'
+			and c.relkind = 'r'
+	`);
+	const security = securityResult.rows[0];
+
+	if (!security?.rls_enabled) {
+		throw new Error("public.leaderboard must have row level security enabled");
+	}
+
+	for (const role of ["anon", "authenticated"]) {
+		for (const privilege of ["select", "insert", "update", "delete"]) {
+			if (security[`${role}_${privilege}`]) {
+				throw new Error(`${role} still has ${privilege.toUpperCase()} on public.leaderboard`);
+			}
+		}
+	}
+
+	for (const privilege of ["select", "insert", "update", "delete"]) {
+		if (!security[`service_role_${privilege}`]) {
+			throw new Error(`service_role is missing ${privilege.toUpperCase()} on public.leaderboard`);
+		}
+	}
+
+	const policyResult = await client.query(`
+		select policyname, cmd, roles, qual, with_check
+		from pg_policies
+		where schemaname = 'public'
+			and tablename = 'leaderboard'
+	`);
+	const policies = policyResult.rows;
+	const clientPolicy = policies.find((item) =>
+		getPolicyRoles(item.roles).some((role) => ["anon", "authenticated", "public"].includes(role))
+	);
+
+	if (clientPolicy) {
+		throw new Error(`leaderboard should not have a direct client RLS policy: ${clientPolicy.policyname}`);
+	}
+
+	const expectedPolicies = [
+		{
+			name: "Service role can read leaderboard",
+			cmd: "SELECT",
+			qual: true,
+			withCheck: false,
+		},
+		{
+			name: "Service role can add leaderboard rows",
+			cmd: "INSERT",
+			qual: false,
+			withCheck: true,
+		},
+		{
+			name: "Service role can update leaderboard rows",
+			cmd: "UPDATE",
+			qual: true,
+			withCheck: true,
+		},
+		{
+			name: "Service role can delete leaderboard rows",
+			cmd: "DELETE",
+			qual: true,
+			withCheck: false,
+		},
+	];
+
+	for (const expected of expectedPolicies) {
+		const policy = policies.find((item) => {
+			const roles = getPolicyRoles(item.roles);
+			return item.policyname === expected.name && item.cmd === expected.cmd && roles.includes("service_role");
+		});
+
+		if (!policy) {
+			throw new Error(`missing leaderboard RLS policy: ${expected.name}`);
+		}
+
+		if (expected.qual && !isTrueExpression(policy.qual)) {
+			throw new Error(`leaderboard RLS policy ${expected.name} must use true`);
+		}
+
+		if (expected.withCheck && !isTrueExpression(policy.with_check)) {
+			throw new Error(`leaderboard RLS policy ${expected.name} must check true`);
+		}
+	}
+
+	const functionResult = await client.query(`
+		select
+			count(distinct p.oid)::int as function_count,
+			coalesce(bool_or(acl.grantee = 0 and acl.privilege_type = 'EXECUTE'), false) as public_execute,
+			coalesce(bool_or(r.rolname = 'anon' and acl.privilege_type = 'EXECUTE'), false) as anon_execute,
+			coalesce(bool_or(r.rolname = 'authenticated' and acl.privilege_type = 'EXECUTE'), false) as authenticated_execute
+		from pg_proc p
+		join pg_namespace n on n.oid = p.pronamespace
+		left join lateral aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) acl on true
+		left join pg_roles r on r.oid = acl.grantee
+		where n.nspname = 'public'
+			and p.proname = 'rls_auto_enable'
+			and p.pronargs = 0
+	`);
+	const functionAccess = functionResult.rows[0];
+
+	if (
+		functionAccess.public_execute ||
+		functionAccess.anon_execute ||
+		functionAccess.authenticated_execute
+	) {
+		throw new Error("public.rls_auto_enable() is executable by PUBLIC, anon, or authenticated");
+	}
+
+	console.log(
+		`PASS leaderboard RLS policies and rls_auto_enable execute grants are hardened${
+			functionAccess.function_count > 0 ? "" : " (function absent)"
+		}`
+	);
+};
+
 const checkDatabaseUrl = async () => {
 	const databaseUrl = requireEnv("DATABASE_URL");
 	const parsed = new URL(databaseUrl);
@@ -118,6 +268,8 @@ const checkDatabaseUrl = async () => {
 			throw new Error("public.leaderboard table is missing");
 		}
 
+		await checkLeaderboardSecurity(client);
+
 		console.log("PASS DATABASE_URL connects and leaderboard exists");
 	} finally {
 		await client.end().catch(() => {});
@@ -129,6 +281,7 @@ const checkSupabaseAdmin = async () => {
 	const serviceKey = requireEnv("SUPABASE_SERVICE_ROLE_KEY");
 	const anonKey = requireEnv("EXPO_PUBLIC_SUPABASE_ANON_KEY");
 	const qaId = `qa_backend_${Date.now()}`;
+	const blockedPublicId = `${qaId}_public`;
 	const admin = createClient(supabaseUrl, serviceKey, {
 		auth: {
 			persistSession: false,
@@ -142,40 +295,56 @@ const checkSupabaseAdmin = async () => {
 		},
 	});
 
-	const insert = await admin
-		.from("leaderboard")
-		.insert({
-			clerk_user_id: qaId,
-			display_name: "Backend QA",
-			weekly_xp: 10,
-			total_xp: 10,
-		})
-		.select("clerk_user_id, weekly_xp, total_xp")
-		.single();
+	try {
+		const insert = await admin
+			.from("leaderboard")
+			.insert({
+				clerk_user_id: qaId,
+				display_name: "Backend QA",
+				weekly_xp: 10,
+				total_xp: 10,
+			})
+			.select("clerk_user_id, weekly_xp, total_xp")
+			.single();
 
-	if (insert.error) throw new Error(`service-role insert failed: ${insert.error.message}`);
+		if (insert.error) throw new Error(`service-role insert failed: ${insert.error.message}`);
 
-	const update = await admin
-		.from("leaderboard")
-		.update({ weekly_xp: 15, total_xp: 15 })
-		.eq("clerk_user_id", qaId)
-		.select("weekly_xp, total_xp")
-		.single();
+		const update = await admin
+			.from("leaderboard")
+			.update({ weekly_xp: 15, total_xp: 15 })
+			.eq("clerk_user_id", qaId)
+			.select("weekly_xp, total_xp")
+			.single();
 
-	if (update.error) throw new Error(`service-role update failed: ${update.error.message}`);
-	if (update.data?.weekly_xp !== 15 || update.data?.total_xp !== 15) {
-		throw new Error("service-role update returned unexpected XP values");
+		if (update.error) throw new Error(`service-role update failed: ${update.error.message}`);
+		if (update.data?.weekly_xp !== 15 || update.data?.total_xp !== 15) {
+			throw new Error("service-role update returned unexpected XP values");
+		}
+
+		const publicRead = await publicClient.from("leaderboard").select("id").limit(1);
+		if (!publicRead.error) {
+			throw new Error("publishable key can read leaderboard directly; expected RLS/grants to block it");
+		}
+
+		const publicWrite = await publicClient
+			.from("leaderboard")
+			.insert({
+				clerk_user_id: blockedPublicId,
+				display_name: "Blocked Public QA",
+				weekly_xp: 1,
+				total_xp: 1,
+			});
+
+		if (!publicWrite.error) {
+			await admin.from("leaderboard").delete().eq("clerk_user_id", blockedPublicId);
+			throw new Error("publishable key can write leaderboard directly; expected RLS/grants to block it");
+		}
+	} finally {
+		const cleanup = await admin.from("leaderboard").delete().eq("clerk_user_id", qaId);
+		if (cleanup.error) throw new Error(`service-role cleanup failed: ${cleanup.error.message}`);
 	}
 
-	const publicRead = await publicClient.from("leaderboard").select("id").limit(1);
-	if (!publicRead.error) {
-		throw new Error("publishable key can read leaderboard directly; expected RLS/grants to block it");
-	}
-
-	const cleanup = await admin.from("leaderboard").delete().eq("clerk_user_id", qaId);
-	if (cleanup.error) throw new Error(`service-role cleanup failed: ${cleanup.error.message}`);
-
-	console.log("PASS Supabase service role writes and publishable key direct read is blocked");
+	console.log("PASS Supabase service role writes and publishable key direct access is blocked");
 };
 
 const checkProtectedRoutes = async () => {
@@ -228,6 +397,18 @@ const checkProtectedRoutes = async () => {
 				correctAnswer: "hola",
 				isCorrect: false,
 				languageId: "es",
+			},
+			expectedStatus: 401,
+		},
+		{
+			name: "pronunciation-score requires auth",
+			path: "/api/pronunciation-score",
+			method: "POST",
+			body: {
+				expectedText: "hola",
+				languageId: "es",
+				audioBase64: "AAAA",
+				mimeType: "audio/webm",
 			},
 			expectedStatus: 401,
 		},

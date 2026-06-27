@@ -11,7 +11,7 @@ import { languages } from "@/data/languages";
 import { getLessonById } from "@/data/lessons";
 import { units } from "@/data/units";
 import { useLanguageStore } from "@/store/useLanguageStore";
-import { useProgressStore } from "@/store/useProgressStore";
+import { useProgressStore, type LessonMemoryEntry } from "@/store/useProgressStore";
 import { Lesson } from "@/types/learning";
 import { getLanguageUnitsAndLessons } from "@/utils/learning";
 import { brand, learning, neutral } from "@/theme/colors";
@@ -34,8 +34,79 @@ const getLessonMeta = (lesson: Lesson) => {
 	};
 };
 
+type LessonHistoryItem = {
+	lesson: Lesson;
+	memory: LessonMemoryEntry;
+	meta: ReturnType<typeof getLessonMeta>;
+	isCompleted: boolean;
+};
+
 const clampPercent = (value: number) => Math.min(Math.max(value, 0), 100);
+const dayMs = 24 * 60 * 60 * 1000;
+const shortMonths = [
+	"Jan",
+	"Feb",
+	"Mar",
+	"Apr",
+	"May",
+	"Jun",
+	"Jul",
+	"Aug",
+	"Sep",
+	"Oct",
+	"Nov",
+	"Dec",
+];
 const weekDays = ["S", "M", "T", "W", "T", "F", "S"];
+
+const formatPracticeDate = (timestamp: number) => {
+	const practiceDate = new Date(timestamp);
+	const today = new Date();
+	const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
+	const practiceStart = new Date(
+		practiceDate.getFullYear(),
+		practiceDate.getMonth(),
+		practiceDate.getDate()
+	).getTime();
+	const dayDiff = Math.round((todayStart - practiceStart) / dayMs);
+
+	if (dayDiff === 0) return "Today";
+	if (dayDiff === 1) return "Yesterday";
+
+	const dateLabel = `${shortMonths[practiceDate.getMonth()]} ${practiceDate.getDate()}`;
+	return practiceDate.getFullYear() === today.getFullYear()
+		? dateLabel
+		: `${dateLabel}, ${practiceDate.getFullYear()}`;
+};
+
+const formatPracticeCount = (count: number) =>
+	count === 1 ? "1 practice" : `${count} practices`;
+
+const getScoreTone = (score: number) => {
+	const safeScore = Math.round(clampPercent(score));
+
+	if (safeScore >= 80) {
+		return {
+			label: `${safeScore}%`,
+			backgroundColor: learning.actionLight,
+			color: learning.actionDark,
+		};
+	}
+
+	if (safeScore >= 60) {
+		return {
+			label: `${safeScore}%`,
+			backgroundColor: learning.rewardLight,
+			color: "#B86E00",
+		};
+	}
+
+	return {
+		label: `${safeScore}%`,
+		backgroundColor: learning.correctionLight,
+		color: learning.correctionDark,
+	};
+};
 
 export default function ProfileScreen() {
 	const router = useRouter();
@@ -45,6 +116,7 @@ export default function ProfileScreen() {
 	const selectedLanguageId = useLanguageStore((state) => state.selectedLanguageId);
 	const completedLessonIds = useProgressStore((state) => state.completedLessonIds) || [];
 	const completedCheckpoints = useProgressStore((state) => state.completedCheckpoints) || [];
+	const lessonMemory = useProgressStore((state) => state.lessonMemory) || {};
 	const streak = useProgressStore((state) => state.streak) || 0;
 	const xp = useProgressStore((state) => state.xp) || 0;
 	const todayXP = useProgressStore((state) => state.todayXP) || 0;
@@ -59,11 +131,21 @@ export default function ProfileScreen() {
 	const displayName = user?.fullName ?? user?.username ?? "Learner";
 	const email = user?.primaryEmailAddress?.emailAddress ?? "";
 	const initial = displayName.charAt(0).toUpperCase();
-	const completedLessons = [...completedLessonIds]
-		.reverse()
-		.map((lessonId) => getLessonById(lessonId))
-		.filter((lesson): lesson is Lesson => Boolean(lesson))
-		.slice(0, 10);
+	const recentLessonHistory = Object.values(lessonMemory)
+		.map((memory): LessonHistoryItem | null => {
+			const lesson = getLessonById(memory.lessonId);
+			if (!lesson) return null;
+
+			return {
+				lesson,
+				memory,
+				meta: getLessonMeta(lesson),
+				isCompleted: completedLessonIds.includes(lesson.id),
+			};
+		})
+		.filter((item): item is LessonHistoryItem => Boolean(item))
+		.sort((a, b) => b.memory.lastPracticed - a.memory.lastPracticed)
+		.slice(0, 6);
 	const levelProgress = getLevelProgress(xp);
 	const earnedProgressWidth = `${clampPercent(levelProgress.progress)}%` as `${number}%`;
 	const selectedWeakConcepts = getWeakConcepts(24).filter(
@@ -114,6 +196,13 @@ export default function ProfileScreen() {
 	const planSummary = selectedLanguage
 		? `${completedLanguageLessons} of ${activeLessons.length} lessons completed`
 		: "Choose a language to build your plan";
+
+	const handlePracticeLesson = (lessonId: string) => {
+		router.push({
+			pathname: "/exercise-session",
+			params: { lessonId, mode: "review" },
+		});
+	};
 
 	const handleSignOut = async () => {
 		try {
@@ -489,22 +578,22 @@ export default function ProfileScreen() {
 
 				<View className="mb-6">
 					<Text className="font-poppins-bold text-[16px] text-neutral-primary mb-3">
-						Completed Lessons
+						Lesson History
 					</Text>
-					{completedLessons.length === 0 ? (
+					{recentLessonHistory.length === 0 ? (
 						<View style={styles.emptyLessonsCard}>
 							<Image source={images.appIconBook} style={styles.emptyLessonsIcon} contentFit="contain" />
 							<Text className="font-poppins-bold text-[14px] text-neutral-primary text-center">
-								No lessons completed yet
+								No practice history yet
 							</Text>
 							<Text className="font-poppins text-[12px] text-neutral-secondary text-center mt-1 leading-[18px]">
-								Start a lesson and your recent wins will appear here.
+								Complete a lesson or review session and your recent work will appear here.
 							</Text>
 						</View>
 					) : (
 						<View className="gap-2.5">
-							{completedLessons.map((lesson) => {
-								const meta = getLessonMeta(lesson);
+							{recentLessonHistory.map(({ lesson, memory, meta, isCompleted }) => {
+								const scoreTone = getScoreTone(memory.avgScore);
 
 								return (
 									<View key={lesson.id} style={styles.completedLessonCard}>
@@ -518,10 +607,57 @@ export default function ProfileScreen() {
 											<Text className="font-poppins text-[12px] text-neutral-secondary mt-1" numberOfLines={1}>
 												{meta.languageName} - {meta.unitName}
 											</Text>
+											<View style={styles.historyMetaRow}>
+												<Text className="font-poppins-semibold text-[11px] text-neutral-secondary">
+													{formatPracticeDate(memory.lastPracticed)}
+												</Text>
+												<View style={styles.historyMetaDot} />
+												<Text className="font-poppins-semibold text-[11px] text-neutral-secondary">
+													{formatPracticeCount(memory.practiceCount)}
+												</Text>
+											</View>
+											<View style={styles.historyBadgeRow}>
+												<View
+													style={[
+														styles.scoreBadge,
+														{ backgroundColor: scoreTone.backgroundColor },
+													]}
+												>
+													<Text
+														className="font-poppins-bold text-[11px]"
+														style={[styles.scoreBadgeText, { color: scoreTone.color }]}
+													>
+														{scoreTone.label}
+													</Text>
+												</View>
+												<View
+													style={[
+														styles.statusBadge,
+														isCompleted ? styles.statusBadgeDone : styles.statusBadgePractice,
+													]}
+												>
+													<Text
+														className="font-poppins-bold text-[11px]"
+														style={[
+															styles.statusBadgeText,
+															{ color: isCompleted ? learning.actionDark : brand.primaryDark },
+														]}
+													>
+														{isCompleted ? "Completed" : "Practiced"}
+													</Text>
+												</View>
+											</View>
 										</View>
-										<View className="w-8 h-8 rounded-full bg-learning-action-light items-center justify-center">
-											<Feather name="check" size={16} color={learning.action} />
-										</View>
+										<TouchableOpacity
+											activeOpacity={0.8}
+											onPress={() => handlePracticeLesson(lesson.id)}
+											style={styles.practiceAgainButton}
+										>
+											<Feather name="refresh-cw" size={15} color={brand.primary} />
+											<Text className="font-poppins-bold text-[11px]" style={styles.practiceAgainText}>
+												Practice
+											</Text>
+										</TouchableOpacity>
 									</View>
 								);
 							})}
@@ -870,6 +1006,75 @@ const styles = StyleSheet.create({
 	completedLessonIconImage: {
 		width: 22,
 		height: 22,
+	},
+	historyMetaRow: {
+		flexDirection: "row",
+		alignItems: "center",
+		flexWrap: "wrap",
+		gap: 6,
+		marginTop: 7,
+	},
+	historyMetaDot: {
+		width: 4,
+		height: 4,
+		borderRadius: 2,
+		backgroundColor: "#C8CBD3",
+	},
+	historyBadgeRow: {
+		flexDirection: "row",
+		alignItems: "center",
+		flexWrap: "wrap",
+		gap: 6,
+		marginTop: 8,
+	},
+	scoreBadge: {
+		minHeight: 23,
+		borderRadius: 12,
+		paddingHorizontal: 8,
+		alignItems: "center",
+		justifyContent: "center",
+	},
+	scoreBadgeText: {
+		fontSize: 11,
+		fontWeight: "700",
+	},
+	statusBadge: {
+		minHeight: 23,
+		borderRadius: 12,
+		paddingHorizontal: 8,
+		alignItems: "center",
+		justifyContent: "center",
+		borderWidth: 1,
+	},
+	statusBadgeDone: {
+		backgroundColor: "#F2FFE8",
+		borderColor: learning.actionLight,
+	},
+	statusBadgePractice: {
+		backgroundColor: brand.primaryLight,
+		borderColor: brand.primaryBorder,
+	},
+	statusBadgeText: {
+		fontSize: 11,
+		fontWeight: "700",
+	},
+	practiceAgainButton: {
+		minWidth: 86,
+		height: 36,
+		borderRadius: 18,
+		backgroundColor: brand.primaryLight,
+		borderWidth: 1,
+		borderColor: brand.primaryBorder,
+		alignItems: "center",
+		justifyContent: "center",
+		flexDirection: "row",
+		paddingHorizontal: 10,
+	},
+	practiceAgainText: {
+		color: brand.primary,
+		fontSize: 11,
+		fontWeight: "700",
+		marginLeft: 5,
 	},
 	signOutButton: {
 		width: "100%",

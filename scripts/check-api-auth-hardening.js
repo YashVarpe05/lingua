@@ -2,10 +2,11 @@ const fs = require("fs");
 const path = require("path");
 
 const root = path.resolve(__dirname, "..");
-const envPath = path.join(root, ".env");
+const envFiles = [".env", ".env.local"];
 const baseUrl = process.env.API_BASE_URL || "http://localhost:8081";
 
-const parseEnvFile = () => {
+const parseEnvFile = (relativePath) => {
+	const envPath = path.join(root, relativePath);
 	if (!fs.existsSync(envPath)) return {};
 
 	return fs
@@ -25,9 +26,26 @@ const parseEnvFile = () => {
 		}, {});
 };
 
-const envValues = parseEnvFile();
+const envValues = {
+	...Object.assign({}, ...envFiles.map((file) => parseEnvFile(file))),
+	...process.env,
+};
 
 const getEnvValue = (key) => process.env[key] || envValues[key] || "";
+
+const getAuthorizedParties = () =>
+	getEnvValue("CLERK_AUTHORIZED_PARTIES")
+		.split(",")
+		.map((party) => party.trim())
+		.filter(Boolean);
+
+const getBaseOrigin = () => {
+	try {
+		return new URL(baseUrl).origin;
+	} catch {
+		throw new Error(`API_BASE_URL is not a valid URL: ${baseUrl}`);
+	}
+};
 
 const printEnvStatus = () => {
 	const clerkSecret = getEnvValue("CLERK_SECRET_KEY");
@@ -39,6 +57,21 @@ const printEnvStatus = () => {
 
 	if (!clerkSecret) {
 		console.log("  Add your real Clerk secret key to .env before authenticated browser QA.");
+	}
+};
+
+const validateAuthorizedParties = () => {
+	const authorizedParties = getAuthorizedParties();
+	const baseOrigin = getBaseOrigin();
+
+	if (authorizedParties.length === 0) {
+		throw new Error("CLERK_AUTHORIZED_PARTIES must include the API origin.");
+	}
+
+	if (!authorizedParties.includes(baseOrigin)) {
+		throw new Error(
+			`CLERK_AUTHORIZED_PARTIES must include ${baseOrigin} for signed-in API calls.`
+		);
 	}
 };
 
@@ -133,6 +166,15 @@ const run = async () => {
 	console.log(`\nChecking API base: ${baseUrl}\n`);
 
 	let failures = 0;
+
+	try {
+		validateAuthorizedParties();
+		console.log(`PASS Clerk authorized parties include ${getBaseOrigin()}`);
+	} catch (error) {
+		failures += 1;
+		const message = error instanceof Error ? error.message : String(error);
+		console.log(`FAIL Clerk authorized parties match API base -> ${message}`);
+	}
 
 	for (const check of checks) {
 		const init = {

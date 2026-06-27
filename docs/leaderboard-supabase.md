@@ -11,9 +11,21 @@ EXPO_PUBLIC_SUPABASE_URL=https://your-project-ref.supabase.co
 EXPO_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_your_publishable_key_here
 SUPABASE_SERVICE_ROLE_KEY=sb_secret_your_service_role_key_here
 DATABASE_URL=postgresql://postgres.your-project-ref:your-db-password@aws-1-your-region.pooler.supabase.com:5432/postgres
+# Recommended for strict backend QA TLS verification:
+# DATABASE_SSL_CA_PATH=./certs/supabase-ca.pem
 ```
 
 Never expose `SUPABASE_SERVICE_ROLE_KEY` or `DATABASE_URL` in client code.
+If local `npm run qa:backend` fails with a certificate-chain error, download
+your Supabase database CA certificate and set `DATABASE_SSL_CA_PATH`,
+`DATABASE_SSL_CA`, or `PGSSLROOTCERT`. As a local-only fallback,
+`DATABASE_SSL_REJECT_UNAUTHORIZED=false` can unblock QA on that machine, but it
+must not be used when `API_BASE_URL` points at a deployed app.
+
+If the Supabase project URL does not resolve, open the Supabase dashboard and
+make sure the project is active. Paused or inactive projects can make both
+`https://<project-ref>.supabase.co` and the pooler connection reject otherwise
+well-formed environment values.
 
 ## SQL
 
@@ -100,6 +112,8 @@ npm run qa:backend
 ```
 
 If Expo is running somewhere else, set `API_BASE_URL` before running the checks.
+Make sure the same origin is listed in `CLERK_AUTHORIZED_PARTIES`, otherwise
+signed-in API calls can be rejected even though the app appears signed in.
 
 Expected behavior:
 

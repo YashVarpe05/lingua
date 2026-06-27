@@ -65,6 +65,19 @@ VISION_AGENT_BASE_URL
 EXPO_UNSTABLE_DEPLOY_SERVER
 ```
 
+`CLERK_AUTHORIZED_PARTIES` must include the exact API/web origins that will
+send Clerk tokens. For local web QA this usually includes
+`http://localhost:8081`, `http://127.0.0.1:8081`, and `http://[::1]:8081`.
+For deployment, add the deployed HTTPS origin, for example
+`https://your-deployment-url.example`. If you test on another local port, add
+that origin too before expecting signed-in API calls to pass.
+
+Backend QA connects directly to Supabase Postgres using `DATABASE_URL`. Keep
+TLS verification strict in deployed QA by configuring Supabase's database CA
+certificate with `DATABASE_SSL_CA_PATH`, `DATABASE_SSL_CA`, or `PGSSLROOTCERT`.
+`DATABASE_SSL_REJECT_UNAUTHORIZED=false` is only a local machine workaround for
+certificate-chain issues and should not be used with a deployed `API_BASE_URL`.
+
 Use EAS environment variables or the Expo dashboard for production. Never expose
 `CLERK_SECRET_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `DATABASE_URL`,
 `GEMINI_API_KEY`, or `STREAM_API_SECRET` in client code.

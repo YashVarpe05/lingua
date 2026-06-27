@@ -1,5 +1,6 @@
 const fs = require("fs");
 const path = require("path");
+const dns = require("dns").promises;
 const { Client } = require("pg");
 const { createClient } = require("@supabase/supabase-js");
 
@@ -49,6 +50,113 @@ const envValues = {
 
 const isPlaceholder = (value) =>
 	!value || /your_|placeholder|example|\[your|YOUR-/i.test(value);
+
+const getAuthorizedParties = () =>
+	(envValues.CLERK_AUTHORIZED_PARTIES || "")
+		.split(",")
+		.map((party) => party.trim())
+		.filter(Boolean);
+
+const getBaseOrigin = () => {
+	try {
+		return new URL(baseUrl).origin;
+	} catch {
+		throw new Error(`API_BASE_URL is not a valid URL: ${baseUrl}`);
+	}
+};
+
+const isLocalApiBase = () => {
+	const hostname = new URL(getBaseOrigin()).hostname;
+	return (
+		hostname === "localhost" ||
+		hostname === "127.0.0.1" ||
+		hostname === "::1" ||
+		hostname === "[::1]"
+	);
+};
+
+const isExplicitFalse = (value) =>
+	["0", "false", "no", "off"].includes(String(value || "").trim().toLowerCase());
+
+const readDatabaseCa = () => {
+	const caInline = envValues.DATABASE_SSL_CA || "";
+	if (caInline) {
+		return caInline.replace(/\\n/g, "\n");
+	}
+
+	const caPath = envValues.DATABASE_SSL_CA_PATH || envValues.PGSSLROOTCERT || "";
+	if (!caPath) return null;
+
+	const resolvedPath = path.isAbsolute(caPath) ? caPath : path.join(root, caPath);
+	if (!fs.existsSync(resolvedPath)) {
+		throw new Error(`Database SSL CA file does not exist: ${resolvedPath}`);
+	}
+
+	return fs.readFileSync(resolvedPath, "utf8");
+};
+
+const getDatabaseSsl = () => {
+	const ca = readDatabaseCa();
+	if (ca) {
+		return {
+			label: "strict verification with configured CA",
+			config: { rejectUnauthorized: true, ca },
+		};
+	}
+
+	if (isExplicitFalse(envValues.DATABASE_SSL_REJECT_UNAUTHORIZED)) {
+		if (!isLocalApiBase()) {
+			throw new Error(
+				"DATABASE_SSL_REJECT_UNAUTHORIZED=false is only allowed with a local API_BASE_URL. Configure DATABASE_SSL_CA_PATH or DATABASE_SSL_CA for deployed QA."
+			);
+		}
+
+		return {
+			label: "local trust fallback",
+			config: { rejectUnauthorized: false },
+		};
+	}
+
+	return {
+		label: "strict verification with system trust store",
+		config: { rejectUnauthorized: true },
+	};
+};
+
+const checkAuthorizedParties = () => {
+	const authorizedParties = getAuthorizedParties();
+	const baseOrigin = getBaseOrigin();
+
+	if (authorizedParties.length === 0) {
+		throw new Error("CLERK_AUTHORIZED_PARTIES must include the API origin.");
+	}
+
+	if (!authorizedParties.includes(baseOrigin)) {
+		throw new Error(
+			`CLERK_AUTHORIZED_PARTIES must include ${baseOrigin} for signed-in API calls.`
+		);
+	}
+
+	console.log(`PASS Clerk authorized parties include ${baseOrigin}`);
+};
+
+const checkSupabaseProjectHost = async () => {
+	const supabaseUrl = requireEnv("EXPO_PUBLIC_SUPABASE_URL");
+	const hostname = new URL(supabaseUrl).hostname;
+
+	try {
+		await dns.lookup(hostname);
+	} catch (error) {
+		const code = error && typeof error === "object" && "code" in error
+			? ` (${error.code})`
+			: "";
+		throw new Error(
+			`EXPO_PUBLIC_SUPABASE_URL host does not resolve${code}: ${hostname}. Check that your Supabase project is active and that the project ref in your environment variables is current.`
+		);
+	}
+
+	console.log(`PASS Supabase project host resolves: ${hostname}`);
+};
 
 const printEnvStatus = () => {
 	console.log("Backend env status:");
@@ -255,9 +363,10 @@ const checkDatabaseUrl = async () => {
 		throw new Error("DATABASE_URL should use the Supabase pooler host for local IPv4 compatibility");
 	}
 
+	const ssl = getDatabaseSsl();
 	const client = new Client({
 		connectionString: databaseUrl,
-		ssl: { rejectUnauthorized: true },
+		ssl: ssl.config,
 		connectionTimeoutMillis: 10000,
 	});
 
@@ -270,7 +379,7 @@ const checkDatabaseUrl = async () => {
 
 		await checkLeaderboardSecurity(client);
 
-		console.log("PASS DATABASE_URL connects and leaderboard exists");
+		console.log(`PASS DATABASE_URL connects and leaderboard exists (${ssl.label})`);
 	} finally {
 		await client.end().catch(() => {});
 	}
@@ -441,6 +550,8 @@ const run = async () => {
 		console.log(`\nChecking API base: ${baseUrl}\n`);
 
 		requiredEnvKeys.forEach(requireEnv);
+		checkAuthorizedParties();
+		await checkSupabaseProjectHost();
 		await checkDatabaseUrl();
 		await checkSupabaseAdmin();
 		await checkProtectedRoutes();

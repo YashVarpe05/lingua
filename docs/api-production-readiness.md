@@ -60,6 +60,7 @@ Client-readable values:
 
 ```txt
 EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY
+EXPO_PUBLIC_API_BASE_URL
 EXPO_PUBLIC_SUPABASE_URL
 EXPO_PUBLIC_SUPABASE_ANON_KEY
 POSTHOG_PROJECT_TOKEN
@@ -87,6 +88,10 @@ send Clerk tokens. For local web QA this usually includes
 For deployment, add the deployed HTTPS origin, for example
 `https://your-deployment-url.example`. If you test on another local port, add
 that origin too before expecting signed-in API calls to pass.
+
+Native builds cannot use relative `/api` URLs. Set `EXPO_PUBLIC_API_BASE_URL`
+to the deployed Expo Hosting origin, such as
+`https://your-deployment-url.example`, before creating Android or iOS builds.
 
 Backend QA connects directly to Supabase Postgres using `DATABASE_URL`. Keep
 TLS verification strict in deployed QA by configuring Supabase's database CA

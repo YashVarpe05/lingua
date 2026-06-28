@@ -38,6 +38,22 @@ Do not hardcode a localhost origin for production builds.
 | `/api/agent/start` | Ask the Vision Agent service to join a Stream call. | `VISION_AGENT_BASE_URL` must be a deployed HTTPS service in production. Localhost only works during local development. |
 | `/api/agent/stop` | Stop a Vision Agent session. | Same production requirement as `/api/agent/start`. |
 
+## Vision Agent Service
+
+The Vision Agent is a separate Python service in `vision-agent/`; it is not
+hosted by EAS Hosting with the Expo Router API routes. Deploy it to a Python or
+Docker host, then set `VISION_AGENT_BASE_URL` to that HTTPS origin.
+
+The container entrypoint is:
+
+```bash
+uv run agent.py serve --host 0.0.0.0 --port 8000
+```
+
+The service needs `STREAM_API_KEY`, `STREAM_API_SECRET`, and `GEMINI_API_KEY`.
+After the service is deployed, use the public HTTPS base URL as
+`VISION_AGENT_BASE_URL` in EAS.
+
 ## Required EAS Environment Variables
 
 Client-readable values:

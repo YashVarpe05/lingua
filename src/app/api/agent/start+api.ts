@@ -1,7 +1,6 @@
 import { requireApiAuth } from "../../../lib/serverAuth";
+import { getVisionAgentBaseUrl } from "../../../lib/serverVisionAgent";
 import { buildLessonCallId, isSafeStreamId } from "../../../lib/streamCall";
-
-const visionAgentBaseUrl = process.env.VISION_AGENT_BASE_URL || "http://127.0.0.1:8000";
 
 export async function POST(request: Request) {
 	try {
@@ -29,6 +28,15 @@ export async function POST(request: Request) {
 
 		if (callId !== expectedCallId) {
 			return Response.json({ error: "Call does not belong to this user" }, { status: 403 });
+		}
+
+		const visionAgentBaseUrl = getVisionAgentBaseUrl();
+
+		if (!visionAgentBaseUrl) {
+			return Response.json(
+				{ error: "VISION_AGENT_BASE_URL is not configured on the server." },
+				{ status: 503 }
+			);
 		}
 
 		const response = await fetch(

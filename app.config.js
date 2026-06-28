@@ -1,6 +1,6 @@
 export default {
   expo: {
-    name: "lingua",
+    name: "Lingua",
     slug: "lingua",
     version: "1.0.0",
     orientation: "portrait",

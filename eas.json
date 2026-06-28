@@ -11,13 +11,19 @@
     "preview": {
       "distribution": "internal",
       "environment": "production",
+      "env": {
+        "EXPO_NO_DEPLOY": "1"
+      },
       "android": {
         "buildType": "apk"
       }
     },
     "production": {
       "autoIncrement": true,
-      "environment": "production"
+      "environment": "production",
+      "env": {
+        "EXPO_NO_DEPLOY": "1"
+      }
     }
   },
   "submit": {

@@ -5,6 +5,9 @@ web-build/
 android/
 ios/
 node_modules/
+.agents/
+.claude/
+.codex/
 
 .env
 .env.*

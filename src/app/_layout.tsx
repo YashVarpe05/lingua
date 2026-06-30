@@ -2,6 +2,7 @@ import "../../global.css";
 
 import { posthog } from "@/config/posthog";
 import { fonts } from "@/constants/fonts";
+import { images } from "@/constants/images";
 import { useLanguageStore } from "@/store/useLanguageStore";
 import { useProgressStore } from "@/store/useProgressStore";
 import { ClerkProvider, useAuth } from "@clerk/expo";
@@ -17,7 +18,8 @@ import {
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import { PostHogProvider, PostHogErrorBoundary } from "posthog-react-native";
-import { useCallback, useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Image, StyleSheet, Text, View } from "react-native";
 
 const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY!;
 
@@ -27,11 +29,14 @@ if (!publishableKey) {
 	);
 }
 
-// Keep splash screen visible while fonts and auth load
-SplashScreen.preventAutoHideAsync();
+const STARTUP_FALLBACK_DELAY_MS = 6000;
+
+// Keep splash screen visible while fonts and persisted state begin loading.
+SplashScreen.preventAutoHideAsync().catch(() => undefined);
 
 function RootLayoutNav() {
 	const { isLoaded: clerkLoaded, isSignedIn } = useAuth();
+	const [showStartupFallback, setShowStartupFallback] = useState(false);
 	const checkAndResetDailyXP = useProgressStore((state) => state.checkAndResetDailyXP);
 	const progressHasHydrated = useProgressStore((state) => state._hasHydrated);
 
@@ -50,6 +55,15 @@ function RootLayoutNav() {
 	const pathname = usePathname();
 	const params = useGlobalSearchParams();
 	const previousPathname = useRef<string | undefined>(undefined);
+	const appReady = (fontsLoaded || fontError) && clerkLoaded && hasHydrated;
+
+	useEffect(() => {
+		const timer = setTimeout(() => {
+			setShowStartupFallback(true);
+		}, STARTUP_FALLBACK_DELAY_MS);
+
+		return () => clearTimeout(timer);
+	}, []);
 
 	// Manual screen tracking for Expo Router
 	useEffect(() => {
@@ -62,15 +76,11 @@ function RootLayoutNav() {
 		}
 	}, [pathname, params]);
 
-	const onLayoutRootView = useCallback(async () => {
-		if ((fontsLoaded || fontError) && clerkLoaded && hasHydrated) {
-			await SplashScreen.hideAsync();
-		}
-	}, [fontsLoaded, fontError, clerkLoaded, hasHydrated]);
-
 	useEffect(() => {
-		onLayoutRootView();
-	}, [onLayoutRootView]);
+		if (!appReady && !showStartupFallback) return;
+
+		SplashScreen.hideAsync().catch(() => undefined);
+	}, [appReady, showStartupFallback]);
 
 	// Handle navigation guard based on auth state and language selection state
 	useEffect(() => {
@@ -113,7 +123,24 @@ function RootLayoutNav() {
 		router,
 	]);
 
-	if ((!fontsLoaded && !fontError) || !clerkLoaded || !hasHydrated) {
+	const startupMessage = useMemo(() => {
+		if (!fontsLoaded && !fontError) return "Loading lessons...";
+		if (!hasHydrated) return "Restoring progress...";
+		if (!clerkLoaded) return "Connecting securely...";
+		return "Starting Lingua...";
+	}, [clerkLoaded, fontError, fontsLoaded, hasHydrated]);
+
+	if (!appReady) {
+		if (showStartupFallback) {
+			return (
+				<View style={styles.startupFallback}>
+					<Image source={images.splashIcon} style={styles.startupMascot} resizeMode="contain" />
+					<Text style={styles.startupTitle}>Lingua</Text>
+					<Text style={styles.startupMessage}>{startupMessage}</Text>
+				</View>
+			);
+		}
+
 		return null;
 	}
 
@@ -129,6 +156,33 @@ function RootLayoutNav() {
 		</>
 	);
 }
+
+const styles = StyleSheet.create({
+	startupFallback: {
+		alignItems: "center",
+		backgroundColor: "#FFF7E6",
+		flex: 1,
+		justifyContent: "center",
+		paddingHorizontal: 32,
+	},
+	startupMascot: {
+		height: 220,
+		marginBottom: 18,
+		width: 220,
+	},
+	startupMessage: {
+		color: "#6B7280",
+		fontSize: 15,
+		fontWeight: "500",
+		marginTop: 8,
+		textAlign: "center",
+	},
+	startupTitle: {
+		color: "#111827",
+		fontSize: 32,
+		fontWeight: "800",
+	},
+});
 
 export default function RootLayout() {
 	return (

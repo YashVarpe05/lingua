@@ -6,8 +6,8 @@ services:
     region: oregon
     branch: dev
     autoDeployTrigger: commit
-    dockerfilePath: ./vision-agent/Dockerfile
-    dockerContext: ./vision-agent
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
     envVars:
       - key: STREAM_API_KEY
         sync: false

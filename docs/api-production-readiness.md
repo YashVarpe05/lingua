@@ -81,6 +81,10 @@ For the temporary free Render path:
 4. Copy the Render service URL into EAS as `VISION_AGENT_BASE_URL`.
 5. Redeploy EAS Hosting.
 
+If creating a Render Web Service manually instead of using Blueprint, choose
+Docker, not Node. Use the root `Dockerfile`, leave the build/start commands
+empty, and do not let Render run `npm install` or `node expo-router/entry`.
+
 Render free services can sleep when idle, so the first AI teacher session after
 idle time can be slow or fail. Treat this as a beta/demo option, not the final
 production host.

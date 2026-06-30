@@ -1,0 +1,12 @@
+FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim
+
+WORKDIR /app
+
+COPY vision-agent/pyproject.toml vision-agent/uv.lock ./
+RUN uv sync --frozen --no-dev
+
+COPY vision-agent/agent.py ./
+
+EXPOSE 8000
+
+CMD ["sh", "-c", "uv run agent.py serve --host 0.0.0.0 --port ${PORT:-8000}"]

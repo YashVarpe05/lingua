@@ -2,6 +2,7 @@ type ApiGetToken = () => Promise<string | null>;
 
 const AUTH_TOKEN_TIMEOUT_MS = 8000;
 const API_REQUEST_TIMEOUT_MS = 15000;
+const apiBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL?.trim().replace(/\/+$/, "") || "";
 
 export class ApiAuthError extends Error {
 	status?: number;
@@ -28,6 +29,16 @@ const withTimeout = async <T,>(
 	} finally {
 		if (timeout) clearTimeout(timeout);
 	}
+};
+
+const isAbsoluteUrl = (value: string) => /^https?:\/\//i.test(value);
+
+const resolveApiUrl = (input: string) => {
+	if (!apiBaseUrl || isAbsoluteUrl(input) || !input.startsWith("/")) {
+		return input;
+	}
+
+	return `${apiBaseUrl}${input}`;
 };
 
 export const authFetch = async (
@@ -65,7 +76,7 @@ export const authFetch = async (
 	let response: Response;
 
 	try {
-		response = await fetch(input, {
+		response = await fetch(resolveApiUrl(input), {
 			...init,
 			headers,
 			...(controller ? { signal: controller.signal } : {}),

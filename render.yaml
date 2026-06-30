@@ -1,0 +1,17 @@
+services:
+  - type: web
+    runtime: docker
+    name: lingua-vision-agent
+    plan: free
+    region: oregon
+    branch: dev
+    autoDeployTrigger: commit
+    dockerfilePath: ./vision-agent/Dockerfile
+    dockerContext: ./vision-agent
+    envVars:
+      - key: STREAM_API_KEY
+        sync: false
+      - key: STREAM_API_SECRET
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false

@@ -47,12 +47,43 @@ Docker host, then set `VISION_AGENT_BASE_URL` to that HTTPS origin.
 The container entrypoint is:
 
 ```bash
-uv run agent.py serve --host 0.0.0.0 --port 8000
+uv run agent.py serve --host 0.0.0.0 --port ${PORT:-8000}
 ```
 
-The service needs `STREAM_API_KEY`, `STREAM_API_SECRET`, and `GEMINI_API_KEY`.
-After the service is deployed, use the public HTTPS base URL as
-`VISION_AGENT_BASE_URL` in EAS.
+Cloud Run is the recommended host for the beta because it can run the existing
+Docker service, provide HTTPS, and build from source without local Docker. Keep
+the container listening on `0.0.0.0` and Cloud Run's `PORT` environment variable.
+If Google Cloud billing is not available, `render.yaml` can deploy the same
+Docker service on Render's free web service plan for testing.
+
+The service needs `STREAM_API_KEY`, `STREAM_API_SECRET`, and a Gemini key. The
+Vision Agents Gemini plugin expects `GOOGLE_API_KEY`; the local agent also maps
+the app's existing `GEMINI_API_KEY` to `GOOGLE_API_KEY` when the latter is not
+set. After the service is deployed, use the public HTTPS base URL as
+`VISION_AGENT_BASE_URL` in EAS and redeploy EAS Hosting.
+
+For reliable video sessions, run the agent as an always-on service rather than a
+short-lived serverless function. Cloud Run can do this with CPU allocated beyond
+request handling and at least one minimum instance, but that can incur costs.
+For a lower-cost beta, start with the smallest CPU/memory that passes QA and
+scale up only when sessions fail or cold starts are too slow.
+
+Use `scripts/deploy-vision-agent-cloud-run.ps1` to deploy this service to Cloud
+Run once the Google Cloud project has billing, API enablement permissions, and
+the required secret values available.
+
+For the temporary free Render path:
+
+1. Create a Render Blueprint from the GitHub repo.
+2. Use the root `render.yaml`.
+3. Add `STREAM_API_KEY`, `STREAM_API_SECRET`, and `GEMINI_API_KEY` in Render when
+   prompted.
+4. Copy the Render service URL into EAS as `VISION_AGENT_BASE_URL`.
+5. Redeploy EAS Hosting.
+
+Render free services can sleep when idle, so the first AI teacher session after
+idle time can be slow or fail. Treat this as a beta/demo option, not the final
+production host.
 
 ## Required EAS Environment Variables
 

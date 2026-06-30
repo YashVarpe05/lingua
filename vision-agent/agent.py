@@ -4,11 +4,14 @@ import sys
 from pathlib import Path
 from dotenv import load_dotenv
 
-# Load env variables from the parent directory's .env file robustly
+# Load local env files for development without overriding hosted env vars.
 current_file_path = Path(__file__).resolve()
-parent_dir = current_file_path.parent.parent
-dotenv_path = parent_dir / ".env"
-load_dotenv(dotenv_path=dotenv_path)
+current_dir = current_file_path.parent
+load_dotenv(dotenv_path=current_dir / ".env")
+load_dotenv(dotenv_path=current_dir.parent / ".env")
+
+if not os.getenv("GOOGLE_API_KEY") and os.getenv("GEMINI_API_KEY"):
+    os.environ["GOOGLE_API_KEY"] = os.environ["GEMINI_API_KEY"]
 
 from vision_agents.core import Agent, Runner, User, AgentLauncher
 from vision_agents.core.instructions import Instructions
